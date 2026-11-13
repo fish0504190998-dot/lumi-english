@@ -59,6 +59,16 @@ const PROFILES_KEY='lumi-profiles';
 const AVATARS=['🦊','🐼','🦁','🐸','🐙','🦉','🐬','🦄','🐢','🐝','🌟','🚀'];
 function loadProfiles(){ try{ const p=JSON.parse(localStorage.getItem(PROFILES_KEY)||'null'); if(p&&Array.isArray(p.list)) return p; }catch(e){} return {list:[]}; }
 function saveProfiles(p){ try{ localStorage.setItem(PROFILES_KEY, JSON.stringify(p)); }catch(e){} }
+/* profile password: only a salted hash is stored, never the password itself */
+async function hashPin(pin, salt){
+  const text=salt+'|'+pin;
+  try{ if(window.crypto&&crypto.subtle){ const buf=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)); return 's:'+[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join(''); } }catch(e){}
+  let h1=0x811c9dc5, h2=0x01000193; for(let r=0;r<2000;r++) for(let i=0;i<text.length;i++){ h1=Math.imul(h1^text.charCodeAt(i),16777619); h2=Math.imul(h2+text.charCodeAt(i)+r,2246822519)^(h1>>>7); }
+  return 'f:'+(h1>>>0).toString(16)+(h2>>>0).toString(16);
+}
+async function makePin(pin){ const salt=Math.random().toString(36).slice(2)+Date.now().toString(36); return {salt, hash:await hashPin(pin, salt)}; }
+async function checkPin(pin, stored){ if(!stored) return true; const h=await hashPin(pin, stored.salt); return h===stored.hash; }
+const PIN_MIN=4;
 const DEFAULT_STATE={ words:{}, history:{}, goal:30, settings:{pron:true, parallel:false, rate:1, voice:'', font:1, pane:true}, storiesDone:{}, quiz:{}, bestCombo:0, totals:{answered:0, correct:0}, userStories:[], unlocked:{}, customDict:{}, netDict:{}, notes:{}, readToday:{date:'', ids:{}} };
 function loadState(){
   try{ const raw=localStorage.getItem(LS_KEY); if(raw){ const p=JSON.parse(raw); return {...DEFAULT_STATE, ...p, settings:{...DEFAULT_STATE.settings, ...(p.settings||{})}, totals:{...DEFAULT_STATE.totals, ...(p.totals||{})}}; } }catch(e){}
@@ -1169,10 +1179,11 @@ function Progress({state, stories, actions, streak, known}){
 
 /* ---------- learner profiles ---------- */
 function ProfileForm({first, onCreate, onCancel}){
-  const [name,setName]=useState(''); const [avatar,setAvatar]=useState(AVATARS[0]); const [goal,setGoal]=useState(30);
-  const ok=name.trim().length>0;
+  const [name,setName]=useState(''); const [avatar,setAvatar]=useState(AVATARS[0]); const [goal,setGoal]=useState(30); const [pin,setPin]=useState('');
+  const pinOk=pin.length===0||pin.length>=PIN_MIN;
+  const ok=name.trim().length>0&&pinOk;
   return (<div dir="rtl" className="min-h-full font-he grid place-items-center gutter" style={{paddingBlock:'32px'}}>
-    <form className="card w-full p-6 sm:p-8 flex flex-col gap-5 rise" style={{maxWidth:'30rem'}} onSubmit={e=>{ e.preventDefault(); if(ok) onCreate({name:name.trim().slice(0,24), avatar, goal}); }}>
+    <form className="card w-full p-6 sm:p-8 flex flex-col gap-5 rise" style={{maxWidth:'30rem'}} onSubmit={e=>{ e.preventDefault(); if(ok) onCreate({name:name.trim().slice(0,24), avatar, goal, pin}); }}>
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-xl grid place-items-center book font-bold text-2xl shrink-0" style={{background:'var(--ink)', color:'var(--bg)'}} aria-hidden="true">L</div>
         <div><h1 className="text-2xl font-bold">{first?<>ברוכים הבאים ל־<bdi dir="ltr">Lumi English</bdi></>:'משתמש חדש'}</h1>
@@ -1185,6 +1196,9 @@ function ProfileForm({first, onCreate, onCancel}){
       <div className="flex flex-col gap-2"><span className="font-semibold">כמה רוצים ללמוד כל יום?</span>
         <div className="seg self-start" style={{flexWrap:'wrap'}} role="group" aria-label="יעד יומי">{[[20,'קליל, כ־5 דקות'],[30,'רגיל, כ־10 דקות'],[50,'רציני, כ־15 דקות']].map(([g,l])=><button type="button" key={g} aria-pressed={goal===g} onClick={()=>setGoal(g)}>{l}</button>)}</div>
         <span className="text-xs text-muted">אפשר לשנות את זה בכל רגע בלשונית ההתקדמות.</span></div>
+      <div className="flex flex-col gap-2"><label htmlFor="pf-pin" className="font-semibold">סיסמה <span className="text-muted font-normal text-sm">(לא חובה)</span></label>
+        <input id="pf-pin" type="password" dir="ltr" className="field text-left" autoComplete="new-password" maxLength={32} placeholder="••••" value={pin} onChange={e=>setPin(e.target.value)}/>
+        <span className="text-xs" style={{color:pinOk?'var(--muted)':'var(--bad)'}}>{pinOk?'עם סיסמה, אף אחד אחר לא יוכל להיכנס למשתמש שלך. אין דרך לשחזר סיסמה שנשכחה.':`סיסמה צריכה לפחות ${PIN_MIN} תווים.`}</span></div>
       <div className="flex gap-2 flex-wrap">
         <button className="btn btn-primary py-3 px-6 text-lg" disabled={!ok}>{first?'מתחילים':'יצירת משתמש'}</button>
         {onCancel&&<button type="button" className="btn btn-ghost py-3 px-5" onClick={onCancel}>ביטול</button>}
@@ -1193,21 +1207,52 @@ function ProfileForm({first, onCreate, onCancel}){
     </form>
   </div>);
 }
-function ProfilePicker({list, onPick, onAdd}){
+function ProfilePicker({list, onPick, onAdd, onForget}){
+  const [ask,setAsk]=useState(null); const [pin,setPin]=useState(''); const [err,setErr]=useState(''); const [busy,setBusy]=useState(false); const [forgot,setForgot]=useState(false);
+  const fails=useRef(0), lockedUntil=useRef(0);
+  const choose=p=>{ if(p.pin){ setAsk(p); setPin(''); setErr(''); setForgot(false); } else onPick(p.id); };
+  const submit=async e=>{ e.preventDefault(); if(busy||!pin) return;
+    const wait=Math.ceil((lockedUntil.current-Date.now())/1000); if(wait>0){ setErr(`יותר מדי ניסיונות. נסו שוב בעוד ${wait} שניות.`); return; }
+    setBusy(true); const ok=await checkPin(pin, ask.pin); setBusy(false);
+    if(ok){ fails.current=0; onPick(ask.id); return; }
+    fails.current++; setPin(''); if(fails.current>=5){ lockedUntil.current=Date.now()+30000; fails.current=0; setErr('יותר מדי ניסיונות שגויים. נסו שוב בעוד 30 שניות.'); } else setErr('הסיסמה לא נכונה. נסו שוב.'); };
   return (<div dir="rtl" className="min-h-full font-he grid place-items-center gutter" style={{paddingBlock:'32px'}}>
     <div className="card w-full p-6 sm:p-8 flex flex-col gap-5 rise" style={{maxWidth:'30rem'}}>
-      <h1 className="text-2xl font-bold">מי לומד עכשיו?</h1>
-      <div className="flex flex-col gap-2">{list.map(p=><button key={p.id} onClick={()=>onPick(p.id)} className="btn-line rounded-xl p-3 flex items-center gap-3 text-start">
-        <span className="w-12 h-12 rounded-xl grid place-items-center text-2xl bg-sunk" aria-hidden="true">{p.avatar}</span><span className="font-bold text-lg flex-1"><bdi>{p.name}</bdi></span><IconChevL size={18}/></button>)}</div>
-      <button className="btn btn-ghost py-3 px-5 self-start" onClick={onAdd}><IconPlus size={18}/>משתמש נוסף</button>
+      {!ask ? <>
+        <h1 className="text-2xl font-bold">מי לומד עכשיו?</h1>
+        <div className="flex flex-col gap-2">{list.map(p=><button key={p.id} onClick={()=>choose(p)} className="btn-line rounded-xl p-3 flex items-center gap-3 text-start">
+          <span className="w-12 h-12 rounded-xl grid place-items-center text-2xl bg-sunk" aria-hidden="true">{p.avatar}</span><span className="font-bold text-lg flex-1"><bdi>{p.name}</bdi></span>
+          {p.pin&&<span className="text-muted" title="מוגן בסיסמה"><IconLock size={16}/></span>}<IconChevL size={18}/></button>)}</div>
+        <button className="btn btn-ghost py-3 px-5 self-start" onClick={onAdd}><IconPlus size={18}/>משתמש נוסף</button>
+      </> : <form className="flex flex-col gap-4" onSubmit={submit}>
+        <div className="flex items-center gap-3"><span className="w-14 h-14 rounded-xl grid place-items-center text-3xl bg-sunk" aria-hidden="true">{ask.avatar}</span>
+          <div><h1 className="text-2xl font-bold">שלום, <bdi>{ask.name}</bdi></h1><p className="text-sm text-muted flex items-center gap-1"><IconLock size={13}/>המשתמש הזה מוגן בסיסמה</p></div></div>
+        <label htmlFor="pf-unlock" className="font-semibold">סיסמה</label>
+        <input id="pf-unlock" type="password" dir="ltr" className="field text-left text-lg" autoFocus autoComplete="current-password" maxLength={32} value={pin} onChange={e=>{ setPin(e.target.value); setErr(''); }}/>
+        {err&&<div className="rounded-xl p-3 text-sm" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}>{err}</div>}
+        <div className="flex gap-2 flex-wrap"><button className="btn btn-primary py-3 px-6" disabled={!pin||busy}>כניסה</button>
+          <button type="button" className="btn btn-ghost py-3 px-5" onClick={()=>setAsk(null)}>חזרה</button></div>
+        <div className="text-sm flex items-center gap-3 flex-wrap">
+          {!forgot ? <button type="button" className="hit text-muted underline" onClick={()=>setForgot(true)}>שכחתי את הסיסמה</button>
+          : <><span>אי אפשר לשחזר סיסמה. אפשר רק למחוק את המשתמש <bdi>{ask.name}</bdi> ואת כל ההתקדמות שלו.</span>
+              <button type="button" className="btn py-2 px-3" style={{background:'var(--bad)', color:'var(--surface)'}} onClick={()=>{ onForget(ask.id); setAsk(null); }}>מחיקת המשתמש</button>
+              <button type="button" className="btn btn-ghost py-2 px-3" onClick={()=>setForgot(false)}>ביטול</button></>}
+        </div>
+      </form>}
     </div>
   </div>);
 }
-function ProfileSheet({profile, count, onClose, onRename, onSwitch, onAdd, onDelete}){
+function ProfileSheet({profile, count, onClose, onRename, onSwitch, onAdd, onDelete, onSetPin, toast}){
   const [closing, close]=useClosing(onClose);
   const [name,setName]=useState(profile.name); const [avatar,setAvatar]=useState(profile.avatar); const [confirm,setConfirm]=useState(false);
   useEffect(()=>{ const k=e=>{ if(e.key==='Escape') close(); }; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[]);
   const changed=name.trim()&&(name.trim()!==profile.name||avatar!==profile.avatar);
+  const [cur,setCur]=useState(''); const [next,setNext]=useState(''); const [pinErr,setPinErr]=useState('');
+  const savePin=async(remove)=>{ setPinErr('');
+    if(profile.pin && !(await checkPin(cur, profile.pin))){ setPinErr('הסיסמה הנוכחית לא נכונה.'); return; }
+    if(remove){ onSetPin(null); setCur(''); setNext(''); toast('הסיסמה הוסרה'); return; }
+    if(next.length<PIN_MIN){ setPinErr(`סיסמה צריכה לפחות ${PIN_MIN} תווים.`); return; }
+    onSetPin(await makePin(next)); setCur(''); setNext(''); toast(profile.pin?'הסיסמה הוחלפה':'הסיסמה נשמרה. מעכשיו הכניסה למשתמש הזה דורשת סיסמה'); };
   return (<div className={`overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center ${closing?'out':''}`} style={{background:'color-mix(in srgb,var(--ink) 40%,transparent)'}} onClick={close}>
     <div role="dialog" aria-modal="true" aria-label="הגדרות המשתמש" className={`sheet card w-full sm:max-w-md rounded-b-none sm:rounded-[20px] p-5 flex flex-col gap-4 ${closing?'out':''}`} style={{maxHeight:'92vh', overflowY:'auto', paddingBottom:'max(20px, env(safe-area-inset-bottom,0px))'}} onClick={e=>e.stopPropagation()}>
       <div className="flex items-center gap-3"><h2 className="text-xl font-bold me-auto">המשתמש שלי</h2><button className="btn btn-ghost w-11 h-11" onClick={close} aria-label="סגירה"><IconX size={18}/></button></div>
@@ -1217,6 +1262,14 @@ function ProfileSheet({profile, count, onClose, onRename, onSwitch, onAdd, onDel
         <div className="flex flex-wrap gap-1.5">{AVATARS.map(e=><button type="button" key={e} aria-pressed={avatar===e} aria-label={'דמות '+e} onClick={()=>setAvatar(e)} className="w-11 h-11 rounded-xl text-2xl grid place-items-center" style={{background:avatar===e?'var(--primary-soft)':'var(--sunk)', boxShadow:avatar===e?'0 0 0 2px var(--primary) inset':'none'}}>{e}</button>)}</div>
         <button className="btn btn-primary py-2.5 px-5 self-start" disabled={!changed}>שמירה</button>
       </form>
+      <form className="border-t border-line pt-4 flex flex-col gap-3" onSubmit={e=>{ e.preventDefault(); savePin(false); }}>
+        <div className="font-semibold flex items-center gap-2"><IconLock size={16}/>סיסמה<span className="tag" style={profile.pin?{background:'var(--good-soft)', color:'var(--good)'}:{}}>{profile.pin?'מוגן בסיסמה':'בלי סיסמה'}</span></div>
+        {profile.pin&&<input id="pf-pin-cur" type="password" dir="ltr" className="field text-left" autoComplete="current-password" maxLength={32} placeholder="הסיסמה הנוכחית" aria-label="הסיסמה הנוכחית" value={cur} onChange={e=>{ setCur(e.target.value); setPinErr(''); }}/>}
+        <input id="pf-pin-new" type="password" dir="ltr" className="field text-left" autoComplete="new-password" maxLength={32} placeholder={profile.pin?'סיסמה חדשה':'סיסמה (לפחות 4 תווים)'} aria-label="סיסמה חדשה" value={next} onChange={e=>{ setNext(e.target.value); setPinErr(''); }}/>
+        {pinErr&&<div className="rounded-xl p-3 text-sm" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}>{pinErr}</div>}
+        <div className="flex gap-2 flex-wrap"><button className="btn btn-primary py-2.5 px-5" disabled={!next||(profile.pin&&!cur)}>{profile.pin?'החלפת סיסמה':'הגדרת סיסמה'}</button>
+          {profile.pin&&<button type="button" className="btn btn-ghost py-2.5 px-4" disabled={!cur} onClick={()=>savePin(true)}>הסרת הסיסמה</button>}</div>
+      </form>
       <div className="border-t border-line pt-4 flex gap-2 flex-wrap">
         <button className="btn btn-ghost py-2.5 px-4" onClick={onSwitch}>{count>1?'החלפת משתמש':'מסך המשתמשים'}</button>
         <button className="btn btn-ghost py-2.5 px-4" onClick={onAdd}><IconPlus size={18}/>משתמש נוסף</button>
@@ -1225,32 +1278,35 @@ function ProfileSheet({profile, count, onClose, onRename, onSwitch, onAdd, onDel
         {!confirm ? <button className="hit text-muted underline flex items-center gap-1" onClick={()=>setConfirm(true)}><IconTrash size={15}/>מחיקת המשתמש הזה</button>
         : <><span>למחוק את <bdi>{profile.name}</bdi> ואת כל ההתקדמות שלו? אי אפשר לשחזר.</span><button className="btn py-2 px-3" style={{background:'var(--bad)', color:'var(--surface)'}} onClick={onDelete}>כן, למחוק</button><button className="btn btn-ghost py-2 px-3" onClick={()=>setConfirm(false)}>ביטול</button></>}
       </div>
-      <p className="text-xs text-muted">המשתמשים נשמרים בדפדפן הזה בלבד, בלי סיסמה. כל מי שמשתמש בדפדפן הזה יכול להיכנס לכל משתמש.</p>
+      <p className="text-xs text-muted">המשתמשים נשמרים בדפדפן הזה בלבד. הסיסמה נועלת את הכניסה למשתמש בתוך האפליקציה. אין דרך לשחזר סיסמה שנשכחה.</p>
     </div>
   </div>);
 }
 function Root(){
   const [profiles,setProfiles]=useState(loadProfiles);
-  const [active,setActive]=useState(()=>{ const p=loadProfiles(); return p.list.length===1?p.list[0].id:null; });
+  const [active,setActive]=useState(()=>{ const p=loadProfiles(); return p.list.length===1&&!p.list[0].pin?p.list[0].id:null; });
   const [adding,setAdding]=useState(false);
   useEffect(()=>saveProfiles(profiles),[profiles]);
-  const create=({name,avatar,goal})=>{
+  const create=async({name,avatar,goal,pin})=>{
+    const lock=pin?await makePin(pin):null;
     const first=profiles.list.length===0; const id='p'+Date.now().toString(36);
     const key=first?'lumi-english-v1':'lumi-english-v1:'+id;        // the first learner keeps any progress saved before profiles existed
     try{ if(!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({...DEFAULT_STATE, goal})); }catch(e){}
-    setProfiles(p=>({list:[...p.list,{id,name,avatar,key}]})); setActive(id); setAdding(false); };
+    setProfiles(p=>({list:[...p.list,{id,name,avatar,key,...(lock?{pin:lock}:{})}]})); setActive(id); setAdding(false); };
+  const remove=(id)=>{ const x=profiles.list.find(q=>q.id===id); if(!x) return; try{ synth&&synth.cancel(); localStorage.removeItem(x.key); }catch(e){} setProfiles(p=>({list:p.list.filter(q=>q.id!==id)})); setActive(null); };
   const prof=profiles.list.find(x=>x.id===active);
   if(adding||!profiles.list.length) return <ProfileForm first={!profiles.list.length} onCreate={create} onCancel={profiles.list.length?()=>setAdding(false):null}/>;
-  if(!prof) return <ProfilePicker list={profiles.list} onPick={setActive} onAdd={()=>setAdding(true)}/>;
+  if(!prof) return <ProfilePicker list={profiles.list} onPick={setActive} onAdd={()=>setAdding(true)} onForget={remove}/>;
   LS_KEY=prof.key;
   return <App key={prof.id} profile={prof} count={profiles.list.length}
     onSwitch={()=>{ try{ synth&&synth.cancel(); }catch(e){} setActive(null); }} onAddProfile={()=>{ try{ synth&&synth.cancel(); }catch(e){} setAdding(true); }}
     onRename={(name,avatar)=>setProfiles(p=>({list:p.list.map(x=>x.id===prof.id?{...x,name,avatar}:x)}))}
-    onDelete={()=>{ try{ synth&&synth.cancel(); localStorage.removeItem(prof.key); }catch(e){} setProfiles(p=>({list:p.list.filter(x=>x.id!==prof.id)})); setActive(null); }}/>;
+    onSetPin={(pin)=>setProfiles(p=>({list:p.list.map(x=>{ if(x.id!==prof.id) return x; const y={...x}; if(pin) y.pin=pin; else delete y.pin; return y; })}))}
+    onDelete={()=>remove(prof.id)}/>;
 }
 
 /* ---------- app ---------- */
-function App({profile, count, onSwitch, onAddProfile, onRename, onDelete}){
+function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetPin}){
   const [state,setState]=useState(loadState);
   const [profileOpen,setProfileOpen]=useState(false);
   const [tab,setTab]=useState('read');
@@ -1334,7 +1390,7 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete}){
       toast(`הסיפור נשמר: ${stats.words} מילים, ${stats.known} מהן כבר מוכרות לך`); }}/>}
     {tab!=='practice'&&!card&&!adding&&!profileOpen&&<button className="fab sm:hidden" style={{bottom:`calc(${reading.current?104:20}px + env(safe-area-inset-bottom,0px))`, background:listening?'var(--bad)':'var(--primary)', color:listening?'var(--surface)':'var(--primary-ink)'}} onClick={()=>voiceRef.current()} aria-label={listening?'עצירת ההקשבה':'חיפוש קולי במילון: אמרו מילה באנגלית'} aria-pressed={listening}><IconMic size={24}/></button>}
     {card&&<DictCard wordKey={card.key} display={card.display} state={state} stories={stories} voice={voice} actions={actions} onClose={()=>setCard(null)} onOpenWord={openCard}/>}
-    {profileOpen&&<ProfileSheet profile={profile} count={count} onClose={()=>setProfileOpen(false)} onRename={onRename} onSwitch={onSwitch} onAdd={onAddProfile} onDelete={onDelete}/>}
+    {profileOpen&&<ProfileSheet profile={profile} count={count} onClose={()=>setProfileOpen(false)} onRename={onRename} onSwitch={onSwitch} onAdd={onAddProfile} onDelete={onDelete} onSetPin={onSetPin} toast={toast}/>}
     {burst&&<Confetti key={burst.id} big={burst.big}/>}
     {toastMsg&&<div role="status" className={`toast fixed z-[70] rounded-xl px-5 py-3 ${toastMsg.out?'out':''}`+" font-semibold flex items-center gap-2 text-sm"} style={{top:'calc(124px + env(safe-area-inset-top,0px))', background:'var(--ink)', color:'var(--bg)', width:'max-content', maxWidth:'calc(100vw - 32px)'}}><IconCheck size={18} className="shrink-0"/><span><Bi>{toastMsg.m}</Bi></span></div>}
   </div>);

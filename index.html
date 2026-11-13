@@ -1330,6 +1330,10 @@ video {
   font-weight: 700;
 }
 
+.font-normal {
+  font-weight: 400;
+}
+
 .font-semibold {
   font-weight: 600;
 }
@@ -2829,6 +2833,36 @@ function saveProfiles(p) {
     localStorage.setItem(PROFILES_KEY, JSON.stringify(p));
   } catch (e) {}
 }
+/* profile password: only a salted hash is stored, never the password itself */
+async function hashPin(pin, salt) {
+  const text = salt + '|' + pin;
+  try {
+    if (window.crypto && crypto.subtle) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+      return 's:' + [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+  } catch (e) {}
+  let h1 = 0x811c9dc5,
+    h2 = 0x01000193;
+  for (let r = 0; r < 2000; r++) for (let i = 0; i < text.length; i++) {
+    h1 = Math.imul(h1 ^ text.charCodeAt(i), 16777619);
+    h2 = Math.imul(h2 + text.charCodeAt(i) + r, 2246822519) ^ h1 >>> 7;
+  }
+  return 'f:' + (h1 >>> 0).toString(16) + (h2 >>> 0).toString(16);
+}
+async function makePin(pin) {
+  const salt = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  return {
+    salt,
+    hash: await hashPin(pin, salt)
+  };
+}
+async function checkPin(pin, stored) {
+  if (!stored) return true;
+  const h = await hashPin(pin, stored.salt);
+  return h === stored.hash;
+}
+const PIN_MIN = 4;
 const DEFAULT_STATE = {
   words: {},
   history: {},
@@ -6548,7 +6582,9 @@ function ProfileForm({
   const [name, setName] = useState('');
   const [avatar, setAvatar] = useState(AVATARS[0]);
   const [goal, setGoal] = useState(30);
-  const ok = name.trim().length > 0;
+  const [pin, setPin] = useState('');
+  const pinOk = pin.length === 0 || pin.length >= PIN_MIN;
+  const ok = name.trim().length > 0 && pinOk;
   return /*#__PURE__*/React.createElement("div", {
     dir: "rtl",
     className: "min-h-full font-he grid place-items-center gutter",
@@ -6565,7 +6601,8 @@ function ProfileForm({
       if (ok) onCreate({
         name: name.trim().slice(0, 24),
         avatar,
-        goal
+        goal,
+        pin
       });
     }
   }, /*#__PURE__*/React.createElement("div", {
@@ -6634,6 +6671,28 @@ function ProfileForm({
   }, l))), /*#__PURE__*/React.createElement("span", {
     className: "text-xs text-muted"
   }, "\u05D0\u05E4\u05E9\u05E8 \u05DC\u05E9\u05E0\u05D5\u05EA \u05D0\u05EA \u05D6\u05D4 \u05D1\u05DB\u05DC \u05E8\u05D2\u05E2 \u05D1\u05DC\u05E9\u05D5\u05E0\u05D9\u05EA \u05D4\u05D4\u05EA\u05E7\u05D3\u05DE\u05D5\u05EA.")), /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-2"
+  }, /*#__PURE__*/React.createElement("label", {
+    htmlFor: "pf-pin",
+    className: "font-semibold"
+  }, "\u05E1\u05D9\u05E1\u05DE\u05D4 ", /*#__PURE__*/React.createElement("span", {
+    className: "text-muted font-normal text-sm"
+  }, "(\u05DC\u05D0 \u05D7\u05D5\u05D1\u05D4)")), /*#__PURE__*/React.createElement("input", {
+    id: "pf-pin",
+    type: "password",
+    dir: "ltr",
+    className: "field text-left",
+    autoComplete: "new-password",
+    maxLength: 32,
+    placeholder: "\u2022\u2022\u2022\u2022",
+    value: pin,
+    onChange: e => setPin(e.target.value)
+  }), /*#__PURE__*/React.createElement("span", {
+    className: "text-xs",
+    style: {
+      color: pinOk ? 'var(--muted)' : 'var(--bad)'
+    }
+  }, pinOk ? 'עם סיסמה, אף אחד אחר לא יוכל להיכנס למשתמש שלך. אין דרך לשחזר סיסמה שנשכחה.' : `סיסמה צריכה לפחות ${PIN_MIN} תווים.`)), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-2 flex-wrap"
   }, /*#__PURE__*/React.createElement("button", {
     className: "btn btn-primary py-3 px-6 text-lg",
@@ -6649,8 +6708,48 @@ function ProfileForm({
 function ProfilePicker({
   list,
   onPick,
-  onAdd
+  onAdd,
+  onForget
 }) {
+  const [ask, setAsk] = useState(null);
+  const [pin, setPin] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [forgot, setForgot] = useState(false);
+  const fails = useRef(0),
+    lockedUntil = useRef(0);
+  const choose = p => {
+    if (p.pin) {
+      setAsk(p);
+      setPin('');
+      setErr('');
+      setForgot(false);
+    } else onPick(p.id);
+  };
+  const submit = async e => {
+    e.preventDefault();
+    if (busy || !pin) return;
+    const wait = Math.ceil((lockedUntil.current - Date.now()) / 1000);
+    if (wait > 0) {
+      setErr(`יותר מדי ניסיונות. נסו שוב בעוד ${wait} שניות.`);
+      return;
+    }
+    setBusy(true);
+    const ok = await checkPin(pin, ask.pin);
+    setBusy(false);
+    if (ok) {
+      fails.current = 0;
+      onPick(ask.id);
+      return;
+    }
+    fails.current++;
+    setPin('');
+    if (fails.current >= 5) {
+      lockedUntil.current = Date.now() + 30000;
+      fails.current = 0;
+      setErr('יותר מדי ניסיונות שגויים. נסו שוב בעוד 30 שניות.');
+    } else setErr('הסיסמה לא נכונה. נסו שוב.');
+  };
   return /*#__PURE__*/React.createElement("div", {
     dir: "rtl",
     className: "min-h-full font-he grid place-items-center gutter",
@@ -6662,27 +6761,99 @@ function ProfilePicker({
     style: {
       maxWidth: '30rem'
     }
-  }, /*#__PURE__*/React.createElement("h1", {
+  }, !ask ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("h1", {
     className: "text-2xl font-bold"
   }, "\u05DE\u05D9 \u05DC\u05D5\u05DE\u05D3 \u05E2\u05DB\u05E9\u05D9\u05D5?"), /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col gap-2"
   }, list.map(p => /*#__PURE__*/React.createElement("button", {
     key: p.id,
-    onClick: () => onPick(p.id),
+    onClick: () => choose(p),
     className: "btn-line rounded-xl p-3 flex items-center gap-3 text-start"
   }, /*#__PURE__*/React.createElement("span", {
     className: "w-12 h-12 rounded-xl grid place-items-center text-2xl bg-sunk",
     "aria-hidden": "true"
   }, p.avatar), /*#__PURE__*/React.createElement("span", {
     className: "font-bold text-lg flex-1"
-  }, /*#__PURE__*/React.createElement("bdi", null, p.name)), /*#__PURE__*/React.createElement(IconChevL, {
+  }, /*#__PURE__*/React.createElement("bdi", null, p.name)), p.pin && /*#__PURE__*/React.createElement("span", {
+    className: "text-muted",
+    title: "\u05DE\u05D5\u05D2\u05DF \u05D1\u05E1\u05D9\u05E1\u05DE\u05D4"
+  }, /*#__PURE__*/React.createElement(IconLock, {
+    size: 16
+  })), /*#__PURE__*/React.createElement(IconChevL, {
     size: 18
   })))), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-ghost py-3 px-5 self-start",
     onClick: onAdd
   }, /*#__PURE__*/React.createElement(IconPlus, {
     size: 18
-  }), "\u05DE\u05E9\u05EA\u05DE\u05E9 \u05E0\u05D5\u05E1\u05E3")));
+  }), "\u05DE\u05E9\u05EA\u05DE\u05E9 \u05E0\u05D5\u05E1\u05E3")) : /*#__PURE__*/React.createElement("form", {
+    className: "flex flex-col gap-4",
+    onSubmit: submit
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "w-14 h-14 rounded-xl grid place-items-center text-3xl bg-sunk",
+    "aria-hidden": "true"
+  }, ask.avatar), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h1", {
+    className: "text-2xl font-bold"
+  }, "\u05E9\u05DC\u05D5\u05DD, ", /*#__PURE__*/React.createElement("bdi", null, ask.name)), /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-muted flex items-center gap-1"
+  }, /*#__PURE__*/React.createElement(IconLock, {
+    size: 13
+  }), "\u05D4\u05DE\u05E9\u05EA\u05DE\u05E9 \u05D4\u05D6\u05D4 \u05DE\u05D5\u05D2\u05DF \u05D1\u05E1\u05D9\u05E1\u05DE\u05D4"))), /*#__PURE__*/React.createElement("label", {
+    htmlFor: "pf-unlock",
+    className: "font-semibold"
+  }, "\u05E1\u05D9\u05E1\u05DE\u05D4"), /*#__PURE__*/React.createElement("input", {
+    id: "pf-unlock",
+    type: "password",
+    dir: "ltr",
+    className: "field text-left text-lg",
+    autoFocus: true,
+    autoComplete: "current-password",
+    maxLength: 32,
+    value: pin,
+    onChange: e => {
+      setPin(e.target.value);
+      setErr('');
+    }
+  }), err && /*#__PURE__*/React.createElement("div", {
+    className: "rounded-xl p-3 text-sm",
+    role: "alert",
+    style: {
+      background: 'var(--bad-soft)',
+      color: 'var(--bad)'
+    }
+  }, err), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 flex-wrap"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary py-3 px-6",
+    disabled: !pin || busy
+  }, "\u05DB\u05E0\u05D9\u05E1\u05D4"), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "btn btn-ghost py-3 px-5",
+    onClick: () => setAsk(null)
+  }, "\u05D7\u05D6\u05E8\u05D4")), /*#__PURE__*/React.createElement("div", {
+    className: "text-sm flex items-center gap-3 flex-wrap"
+  }, !forgot ? /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "hit text-muted underline",
+    onClick: () => setForgot(true)
+  }, "\u05E9\u05DB\u05D7\u05EA\u05D9 \u05D0\u05EA \u05D4\u05E1\u05D9\u05E1\u05DE\u05D4") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", null, "\u05D0\u05D9 \u05D0\u05E4\u05E9\u05E8 \u05DC\u05E9\u05D7\u05D6\u05E8 \u05E1\u05D9\u05E1\u05DE\u05D4. \u05D0\u05E4\u05E9\u05E8 \u05E8\u05E7 \u05DC\u05DE\u05D7\u05D5\u05E7 \u05D0\u05EA \u05D4\u05DE\u05E9\u05EA\u05DE\u05E9 ", /*#__PURE__*/React.createElement("bdi", null, ask.name), " \u05D5\u05D0\u05EA \u05DB\u05DC \u05D4\u05D4\u05EA\u05E7\u05D3\u05DE\u05D5\u05EA \u05E9\u05DC\u05D5."), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "btn py-2 px-3",
+    style: {
+      background: 'var(--bad)',
+      color: 'var(--surface)'
+    },
+    onClick: () => {
+      onForget(ask.id);
+      setAsk(null);
+    }
+  }, "\u05DE\u05D7\u05D9\u05E7\u05EA \u05D4\u05DE\u05E9\u05EA\u05DE\u05E9"), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "btn btn-ghost py-2 px-3",
+    onClick: () => setForgot(false)
+  }, "\u05D1\u05D9\u05D8\u05D5\u05DC"))))));
 }
 function ProfileSheet({
   profile,
@@ -6691,7 +6862,9 @@ function ProfileSheet({
   onRename,
   onSwitch,
   onAdd,
-  onDelete
+  onDelete,
+  onSetPin,
+  toast
 }) {
   const [closing, close] = useClosing(onClose);
   const [name, setName] = useState(profile.name);
@@ -6705,6 +6878,31 @@ function ProfileSheet({
     return () => window.removeEventListener('keydown', k);
   }, []);
   const changed = name.trim() && (name.trim() !== profile.name || avatar !== profile.avatar);
+  const [cur, setCur] = useState('');
+  const [next, setNext] = useState('');
+  const [pinErr, setPinErr] = useState('');
+  const savePin = async remove => {
+    setPinErr('');
+    if (profile.pin && !(await checkPin(cur, profile.pin))) {
+      setPinErr('הסיסמה הנוכחית לא נכונה.');
+      return;
+    }
+    if (remove) {
+      onSetPin(null);
+      setCur('');
+      setNext('');
+      toast('הסיסמה הוסרה');
+      return;
+    }
+    if (next.length < PIN_MIN) {
+      setPinErr(`סיסמה צריכה לפחות ${PIN_MIN} תווים.`);
+      return;
+    }
+    onSetPin(await makePin(next));
+    setCur('');
+    setNext('');
+    toast(profile.pin ? 'הסיסמה הוחלפה' : 'הסיסמה נשמרה. מעכשיו הכניסה למשתמש הזה דורשת סיסמה');
+  };
   return /*#__PURE__*/React.createElement("div", {
     className: `overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center ${closing ? 'out' : ''}`,
     style: {
@@ -6767,7 +6965,68 @@ function ProfileSheet({
   }, e))), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-primary py-2.5 px-5 self-start",
     disabled: !changed
-  }, "\u05E9\u05DE\u05D9\u05E8\u05D4")), /*#__PURE__*/React.createElement("div", {
+  }, "\u05E9\u05DE\u05D9\u05E8\u05D4")), /*#__PURE__*/React.createElement("form", {
+    className: "border-t border-line pt-4 flex flex-col gap-3",
+    onSubmit: e => {
+      e.preventDefault();
+      savePin(false);
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-semibold flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement(IconLock, {
+    size: 16
+  }), "\u05E1\u05D9\u05E1\u05DE\u05D4", /*#__PURE__*/React.createElement("span", {
+    className: "tag",
+    style: profile.pin ? {
+      background: 'var(--good-soft)',
+      color: 'var(--good)'
+    } : {}
+  }, profile.pin ? 'מוגן בסיסמה' : 'בלי סיסמה')), profile.pin && /*#__PURE__*/React.createElement("input", {
+    id: "pf-pin-cur",
+    type: "password",
+    dir: "ltr",
+    className: "field text-left",
+    autoComplete: "current-password",
+    maxLength: 32,
+    placeholder: "\u05D4\u05E1\u05D9\u05E1\u05DE\u05D4 \u05D4\u05E0\u05D5\u05DB\u05D7\u05D9\u05EA",
+    "aria-label": "\u05D4\u05E1\u05D9\u05E1\u05DE\u05D4 \u05D4\u05E0\u05D5\u05DB\u05D7\u05D9\u05EA",
+    value: cur,
+    onChange: e => {
+      setCur(e.target.value);
+      setPinErr('');
+    }
+  }), /*#__PURE__*/React.createElement("input", {
+    id: "pf-pin-new",
+    type: "password",
+    dir: "ltr",
+    className: "field text-left",
+    autoComplete: "new-password",
+    maxLength: 32,
+    placeholder: profile.pin ? 'סיסמה חדשה' : 'סיסמה (לפחות 4 תווים)',
+    "aria-label": "\u05E1\u05D9\u05E1\u05DE\u05D4 \u05D7\u05D3\u05E9\u05D4",
+    value: next,
+    onChange: e => {
+      setNext(e.target.value);
+      setPinErr('');
+    }
+  }), pinErr && /*#__PURE__*/React.createElement("div", {
+    className: "rounded-xl p-3 text-sm",
+    role: "alert",
+    style: {
+      background: 'var(--bad-soft)',
+      color: 'var(--bad)'
+    }
+  }, pinErr), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 flex-wrap"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary py-2.5 px-5",
+    disabled: !next || profile.pin && !cur
+  }, profile.pin ? 'החלפת סיסמה' : 'הגדרת סיסמה'), profile.pin && /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "btn btn-ghost py-2.5 px-4",
+    disabled: !cur,
+    onClick: () => savePin(true)
+  }, "\u05D4\u05E1\u05E8\u05EA \u05D4\u05E1\u05D9\u05E1\u05DE\u05D4"))), /*#__PURE__*/React.createElement("div", {
     className: "border-t border-line pt-4 flex gap-2 flex-wrap"
   }, /*#__PURE__*/React.createElement("button", {
     className: "btn btn-ghost py-2.5 px-4",
@@ -6796,21 +7055,23 @@ function ProfileSheet({
     onClick: () => setConfirm(false)
   }, "\u05D1\u05D9\u05D8\u05D5\u05DC"))), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-muted"
-  }, "\u05D4\u05DE\u05E9\u05EA\u05DE\u05E9\u05D9\u05DD \u05E0\u05E9\u05DE\u05E8\u05D9\u05DD \u05D1\u05D3\u05E4\u05D3\u05E4\u05DF \u05D4\u05D6\u05D4 \u05D1\u05DC\u05D1\u05D3, \u05D1\u05DC\u05D9 \u05E1\u05D9\u05E1\u05DE\u05D4. \u05DB\u05DC \u05DE\u05D9 \u05E9\u05DE\u05E9\u05EA\u05DE\u05E9 \u05D1\u05D3\u05E4\u05D3\u05E4\u05DF \u05D4\u05D6\u05D4 \u05D9\u05DB\u05D5\u05DC \u05DC\u05D4\u05D9\u05DB\u05E0\u05E1 \u05DC\u05DB\u05DC \u05DE\u05E9\u05EA\u05DE\u05E9.")));
+  }, "\u05D4\u05DE\u05E9\u05EA\u05DE\u05E9\u05D9\u05DD \u05E0\u05E9\u05DE\u05E8\u05D9\u05DD \u05D1\u05D3\u05E4\u05D3\u05E4\u05DF \u05D4\u05D6\u05D4 \u05D1\u05DC\u05D1\u05D3. \u05D4\u05E1\u05D9\u05E1\u05DE\u05D4 \u05E0\u05D5\u05E2\u05DC\u05EA \u05D0\u05EA \u05D4\u05DB\u05E0\u05D9\u05E1\u05D4 \u05DC\u05DE\u05E9\u05EA\u05DE\u05E9 \u05D1\u05EA\u05D5\u05DA \u05D4\u05D0\u05E4\u05DC\u05D9\u05E7\u05E6\u05D9\u05D4. \u05D0\u05D9\u05DF \u05D3\u05E8\u05DA \u05DC\u05E9\u05D7\u05D6\u05E8 \u05E1\u05D9\u05E1\u05DE\u05D4 \u05E9\u05E0\u05E9\u05DB\u05D7\u05D4.")));
 }
 function Root() {
   const [profiles, setProfiles] = useState(loadProfiles);
   const [active, setActive] = useState(() => {
     const p = loadProfiles();
-    return p.list.length === 1 ? p.list[0].id : null;
+    return p.list.length === 1 && !p.list[0].pin ? p.list[0].id : null;
   });
   const [adding, setAdding] = useState(false);
   useEffect(() => saveProfiles(profiles), [profiles]);
-  const create = ({
+  const create = async ({
     name,
     avatar,
-    goal
+    goal,
+    pin
   }) => {
+    const lock = pin ? await makePin(pin) : null;
     const first = profiles.list.length === 0;
     const id = 'p' + Date.now().toString(36);
     const key = first ? 'lumi-english-v1' : 'lumi-english-v1:' + id; // the first learner keeps any progress saved before profiles existed
@@ -6825,11 +7086,26 @@ function Root() {
         id,
         name,
         avatar,
-        key
+        key,
+        ...(lock ? {
+          pin: lock
+        } : {})
       }]
     }));
     setActive(id);
     setAdding(false);
+  };
+  const remove = id => {
+    const x = profiles.list.find(q => q.id === id);
+    if (!x) return;
+    try {
+      synth && synth.cancel();
+      localStorage.removeItem(x.key);
+    } catch (e) {}
+    setProfiles(p => ({
+      list: p.list.filter(q => q.id !== id)
+    }));
+    setActive(null);
   };
   const prof = profiles.list.find(x => x.id === active);
   if (adding || !profiles.list.length) return /*#__PURE__*/React.createElement(ProfileForm, {
@@ -6840,7 +7116,8 @@ function Root() {
   if (!prof) return /*#__PURE__*/React.createElement(ProfilePicker, {
     list: profiles.list,
     onPick: setActive,
-    onAdd: () => setAdding(true)
+    onAdd: () => setAdding(true),
+    onForget: remove
   });
   LS_KEY = prof.key;
   return /*#__PURE__*/React.createElement(App, {
@@ -6866,16 +7143,17 @@ function Root() {
         avatar
       } : x)
     })),
-    onDelete: () => {
-      try {
-        synth && synth.cancel();
-        localStorage.removeItem(prof.key);
-      } catch (e) {}
-      setProfiles(p => ({
-        list: p.list.filter(x => x.id !== prof.id)
-      }));
-      setActive(null);
-    }
+    onSetPin: pin => setProfiles(p => ({
+      list: p.list.map(x => {
+        if (x.id !== prof.id) return x;
+        const y = {
+          ...x
+        };
+        if (pin) y.pin = pin;else delete y.pin;
+        return y;
+      })
+    })),
+    onDelete: () => remove(prof.id)
   });
 }
 
@@ -6886,7 +7164,8 @@ function App({
   onSwitch,
   onAddProfile,
   onRename,
-  onDelete
+  onDelete,
+  onSetPin
 }) {
   const [state, setState] = useState(loadState);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -7267,7 +7546,9 @@ function App({
     onRename: onRename,
     onSwitch: onSwitch,
     onAdd: onAddProfile,
-    onDelete: onDelete
+    onDelete: onDelete,
+    onSetPin: onSetPin,
+    toast: toast
   }), burst && /*#__PURE__*/React.createElement(Confetti, {
     key: burst.id,
     big: burst.big
