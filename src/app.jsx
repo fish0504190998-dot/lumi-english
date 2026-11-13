@@ -1,0 +1,1343 @@
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
+/* ---------- helpers ---------- */
+const WORD_RE = /[A-Za-z]+(?:'[A-Za-z]+)?/g;
+function tokenize(text){
+  const out=[]; let last=0, m, wi=0; const re=new RegExp(WORD_RE.source,'g');
+  while((m=re.exec(text))){
+    if(m.index>last) out.push({t:'s', text:text.slice(last,m.index)});
+    out.push({t:'w', text:m[0], key:m[0].toLowerCase(), start:m.index, wi:wi++});
+    last=m.index+m[0].length;
+  }
+  if(last<text.length) out.push({t:'s', text:text.slice(last)});
+  return out;
+}
+const countWords=t=>(t.match(WORD_RE)||[]).length;
+const splitSentences=t=>(t.match(/[^.!?]+[.!?]+["”’)]*\s*|[^.!?]+$/g)||[t]).map(s=>s.trim()).filter(Boolean);
+const TOK_CACHE=new Map();
+function storyData(story){
+  let d=TOK_CACHE.get(story.id);
+  if(!d || d.n!==story.paras.length){
+    const tokens=story.paras.map(p=>tokenize(p.en));
+    const pw=tokens.map(ts=>ts.filter(t=>t.t==='w').length);
+    d={ n:story.paras.length, tokens, pw, words:pw.reduce((a,b)=>a+b,0), keys:[...new Set(tokens.flat().filter(t=>t.t==='w').map(t=>t.key))] };
+    TOK_CACHE.set(story.id,d);
+  }
+  return d;
+}
+function findExample(key, stories, preferId){
+  const order=[...stories].sort((a,b)=>(b.id===preferId)-(a.id===preferId));
+  const re=new RegExp("(^|[^A-Za-z'])"+key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+"($|[^A-Za-z'])",'i');
+  for(const s of order){ if(!storyData(s).keys.includes(key)) continue;
+    for(const p of s.paras) for(const sen of splitSentences(p.en)) if(re.test(sen)) return sen; }
+  return null;
+}
+const QUIZ_POOL = Object.keys(MEANING).filter(k=>!NAMES.has(k) && !k.includes("'") && !MEANING[k].includes('('));
+
+const pad=n=>String(n).padStart(2,'0');
+const dayKey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const todayKey=()=>dayKey(new Date());
+const addDays=(d,n)=>{ const x=new Date(d); x.setDate(x.getDate()+n); return x; };
+const shuffle=a=>{ const b=[...a]; for(let i=b.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [b[i],b[j]]=[b[j],b[i]]; } return b; };
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const readMinutes=w=>Math.max(1, Math.round(w/90));
+
+/* ---------- levels ---------- */
+const LEVELS=[
+  {n:1, name:'צעדים ראשונים', min:0, next:41, desc:'סיפורים קצרצרים, משפטים פשוטים מאוד'},
+  {n:2, name:'מתחילים בתנופה', min:41, next:121, desc:'סיפורים קצרים עם אוצר מילים יומיומי'},
+  {n:3, name:'סיפורים אמיתיים קצרים', min:121, next:251, desc:'עובדות מרתקות וסיפורים שקרו באמת'},
+  {n:4, name:'קריאה שוטפת', min:251, next:null, desc:'סיפורים אמיתיים וארוכים ברמה טבעית'}
+];
+const levelFor=known=>known>=251?4:known>=121?3:known>=41?2:1;
+const suggestLevel=words=>words<=80?1:words<=170?2:words<=340?3:4;
+
+/* ---------- storage ---------- */
+let LS_KEY='lumi-english-v1';        // storage key of the active learner; set before the app mounts
+/* learner profiles: each person on this device/browser has a name, an avatar and separate progress */
+const PROFILES_KEY='lumi-profiles';
+const AVATARS=['🦊','🐼','🦁','🐸','🐙','🦉','🐬','🦄','🐢','🐝','🌟','🚀'];
+function loadProfiles(){ try{ const p=JSON.parse(localStorage.getItem(PROFILES_KEY)||'null'); if(p&&Array.isArray(p.list)) return p; }catch(e){} return {list:[]}; }
+function saveProfiles(p){ try{ localStorage.setItem(PROFILES_KEY, JSON.stringify(p)); }catch(e){} }
+const DEFAULT_STATE={ words:{}, history:{}, goal:30, settings:{pron:true, parallel:false, rate:1, voice:'', font:1, pane:true}, storiesDone:{}, quiz:{}, bestCombo:0, totals:{answered:0, correct:0}, userStories:[], unlocked:{}, customDict:{}, netDict:{}, notes:{}, readToday:{date:'', ids:{}} };
+function loadState(){
+  try{ const raw=localStorage.getItem(LS_KEY); if(raw){ const p=JSON.parse(raw); return {...DEFAULT_STATE, ...p, settings:{...DEFAULT_STATE.settings, ...(p.settings||{})}, totals:{...DEFAULT_STATE.totals, ...(p.totals||{})}}; } }catch(e){}
+  return DEFAULT_STATE;
+}
+function saveState(s){ try{ localStorage.setItem(LS_KEY, JSON.stringify(s)); return true; }catch(e){ return false; } }
+function withXP(s, n){
+  if(!n) return s;
+  const d=todayKey(); const h=s.history[d]||{xp:0, met:false};
+  const xp=h.xp+n; const met=h.met || xp>=s.goal;
+  return {...s, history:{...s.history, [d]:{...h, xp, met}}};
+}
+function withRead(s, story, idxs){
+  const d=todayKey(); const rt=s.readToday&&s.readToday.date===d ? s.readToday : {date:d, ids:{}};
+  const pw=storyData(story).pw; const ids={...rt.ids}; let add=0;
+  for(const p of idxs){ const k=story.id+':'+p; if(!ids[k]){ ids[k]=1; add+=pw[p]||0; } }
+  if(!add) return s;
+  const h=s.history[d]||{xp:0, met:false};
+  return {...s, readToday:{date:d, ids}, history:{...s.history, [d]:{...h, words:(h.words||0)+add}}};
+}
+function computeStreak(history){
+  let d=new Date(); if(!history[dayKey(d)]?.met) d=addDays(d,-1);
+  let n=0; while(history[dayKey(d)]?.met){ n++; d=addDays(d,-1); }
+  return n;
+}
+function bestStreak(history){
+  const days=Object.keys(history).filter(k=>history[k].met).sort(); let best=0, cur=0, prev=null;
+  for(const k of days){ const d=new Date(k+'T12:00:00'); cur = prev && dayKey(addDays(prev,1))===k ? cur+1 : 1; best=Math.max(best,cur); prev=d; }
+  return best;
+}
+
+/* ---------- optional online translation (only when the reader presses the button) ---------- */
+async function fetchTranslation(text, pair){
+  const r=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair='+(pair||'en|he'));
+  const j=await r.json(); const t=j&&j.responseData&&j.responseData.translatedText;
+  if(!t || /MYMEMORY WARNING|QUERY LENGTH|INVALID/i.test(t)) throw new Error('no translation');
+  return t;
+}
+
+const POS_HE={noun:'שם עצם',verb:'פועל',adjective:'שם תואר',adverb:'תואר הפועל',preposition:'מילת יחס',pronoun:'כינוי גוף',conjunction:'מילת קישור',interjection:'קריאה',exclamation:'קריאה',numeral:'מספר',determiner:'מילית'};
+/* full online lookup: Free Dictionary API for definition, synonyms and examples; MyMemory for Hebrew */
+async function lookupOnline(word, haveHe){
+  const out={t:Date.now()};
+  try{ const r=await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(word));
+    if(r.ok){ const j=await r.json(); const ms=(j&&j[0]&&j[0].meanings)||[];
+      out.pos=[...new Set(ms.map(m=>m.partOfSpeech).filter(Boolean))].slice(0,2);
+      const defs=ms.flatMap(m=>m.definitions||[]);
+      if(defs[0]) out.def=String(defs[0].definition).slice(0,240);
+      out.syn=[...new Set([...ms.flatMap(m=>m.synonyms||[]), ...defs.flatMap(d=>d.synonyms||[])].map(s=>String(s).toLowerCase()).filter(s=>/^[a-z'-]+$/.test(s) && s!==word))].slice(0,6);
+      out.ex=defs.filter(d=>d.example && countWords(d.example)<=16).slice(0,2).map(d=>({en:String(d.example)})); } }catch(e){}
+  if(!haveHe){ try{ out.he=await fetchTranslation(word); }catch(e){} }
+  if(out.def){ try{ out.defHe=await fetchTranslation(out.def); }catch(e){} }
+  for(const x of (out.ex||[])){ try{ x.he=await fetchTranslation(x.en); }catch(e){} }
+  if(!out.def && !out.he) throw new Error('nothing found');
+  return out;
+}
+
+/* ---------- example sentences: hand-written bank + story sentences with aligned Hebrew ---------- */
+const LEMMA_CACHE=new Map();
+const baseOf=k=>{ let b=LEMMA_CACHE.get(k); if(b===undefined){ const l=MEANING[k]?null:findLemma(k); b=l?l[0]:k; LEMMA_CACHE.set(k,b); } return b; };
+let EX_LIST=null, EX_SIG='';
+function exampleList(stories){
+  const sig=stories.map(s=>s.id+':'+s.paras.length).join(',');
+  if(EX_LIST && sig===EX_SIG) return EX_LIST;
+  const list=[]; const push=(en,he,src)=>{ const keys=(en.match(WORD_RE)||[]).map(w=>w.toLowerCase()); if(keys.length<2) return; list.push({en, he:he||null, n:keys.length, keys:new Set(keys), bases:new Set(keys.map(baseOf)), src}); };
+  BANK_SRC.split('\n').forEach(l=>{ const i=l.indexOf('|'); if(i>0) push(l.slice(0,i).trim(), l.slice(i+1).trim(), 0); });
+  for(const s of stories) for(const p of s.paras){ const en=splitSentences(p.en), he=p.he?splitSentences(p.he):[];
+    en.forEach((sen,i)=>push(sen, he.length===en.length?he[i]:null, 1)); }
+  EX_LIST=list; EX_SIG=sig; return list;
+}
+function examplesFor(key, stories){
+  const b=baseOf(key); const seen=new Set();
+  const hits=exampleList(stories).filter(x=>x.keys.has(key)||x.bases.has(b)||x.bases.has(key)).map(x=>({...x, sc:(x.he?0:10)+(x.keys.has(key)?0:3)+(x.n>14?4:0)+x.n/20}))
+    .sort((p,q)=>p.sc-q.sc).filter(x=>{ if(seen.has(x.en)) return false; seen.add(x.en); return true; }).slice(0,2);
+  const net=NET[key]&&NET[key].ex||[];
+  for(const x of net){ if(hits.length>=2) break; hits.push({en:x.en, he:x.he||null, net:true}); }
+  return hits;
+}
+
+/* ---------- dictionary search (both directions) ---------- */
+const stripHe=s=>s.replace(/[\u0591-\u05C7]/g,'').replace(/\([^)]*\)/g,' ').replace(/[־"'׳״.,!?–-]/g,' ').replace(/\s+/g,' ').trim();
+const isHebrew=s=>/[\u05D0-\u05EA]/.test(s);
+let HE_IDX=null, HE_SIG='';
+function allKeys(){ return [...new Set([...Object.keys(MEANING), ...Object.keys(CUSTOM), ...Object.keys(NET).filter(k=>NET[k].he)])]; }
+function searchDict(raw){
+  const q=raw.trim(); if(!q) return [];
+  if(isHebrew(q)){
+    const sig=Object.keys(CUSTOM).length+':'+Object.keys(NET).length;
+    if(!HE_IDX || sig!==HE_SIG){ HE_IDX=allKeys().filter(k=>!NAMES.has(k)).map(k=>({k, alts:String(wordInfo(k).he||'').split(/[\/·]/).map(stripHe).filter(Boolean)})); HE_SIG=sig; }
+    const h=stripHe(q); const out=[];
+    for(const e of HE_IDX){ let best=9;
+      for(const a of e.alts){ const r = a===h?0 : (a==='ל'+h||a.replace(/^(ה|ל)/,'')===h)?1 : a.startsWith(h)?2 : (' '+a+' ').includes(' '+h+' ')?3 : (h.length>=3&&a.includes(h))?4 : 9; if(r<best) best=r; }
+      if(best<9) out.push({k:e.k, r:best}); }
+    return out.sort((a,b)=>a.r-b.r||a.k.length-b.k.length).slice(0,8).map(x=>x.k);
+  }
+  const e=q.toLowerCase().replace(/[^a-z' -]/g,'').trim(); if(!e) return [];
+  const keys=allKeys(); const res=[];
+  if(wordInfo(e).he) res.push(e);
+  keys.filter(k=>k!==e&&k.startsWith(e)).sort((a,b)=>a.length-b.length||a.localeCompare(b)).slice(0,7).forEach(k=>res.push(k));
+  if(res.length<4 && e.length>=3) keys.filter(k=>!res.includes(k)&&k.includes(e)).sort((a,b)=>a.length-b.length).slice(0,4).forEach(k=>res.push(k));
+  return res.slice(0,8);
+}
+
+/* ---------- voice input ---------- */
+const SR = typeof window!=='undefined' && (window.SpeechRecognition||window.webkitSpeechRecognition);
+let DICTATION=null;
+try{ if(window.claude&&window.claude.use) window.claude.use('dictation').then(d=>{ DICTATION=d; }).catch(()=>{}); }catch(e){}
+
+/* ---------- speech ---------- */
+const synth = typeof window!=='undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;
+const KEEP=[]; const BOUNDARY_OK=new Set();
+const UNIT_MS=175;   // rough length of one spoken "beat" at normal speed, refined per voice
+let CAL={}; try{ CAL=JSON.parse(localStorage.getItem('lumi-voice-cal')||'{}')||{}; }catch(e){ CAL={}; }
+const wordWeight=w=>0.5+((w.toLowerCase().match(/[aeiouy]+/g)||[]).length||1)+w.length*0.06;
+const pauseWeight=sep=>/[.!?]/.test(sep)?1.6:/[,;:\u2014\u2013]/.test(sep)?1.0:0;
+function useVoices(){
+  const [voices,setVoices]=useState([]);
+  useEffect(()=>{ if(!synth) return;
+    const load=()=>setVoices(synth.getVoices().filter(v=>/^en[-_]/i.test(v.lang)||v.lang==='en'));
+    load(); synth.addEventListener&&synth.addEventListener('voiceschanged', load);
+    const t=setTimeout(load, 800);
+    return ()=>{ synth.removeEventListener&&synth.removeEventListener('voiceschanged', load); clearTimeout(t); };
+  },[]);
+  return voices;
+}
+function chooseVoice(voices, name){
+  if(!voices.length) return null;
+  return voices.find(v=>v.name===name)
+    || voices.find(v=>/en[-_]US/i.test(v.lang) && v.localService)
+    || voices.find(v=>/en[-_]US/i.test(v.lang))
+    || voices.find(v=>/en[-_]GB/i.test(v.lang)) || voices[0];
+}
+let NOTIFY=()=>{}; let lastNote=0;
+const notify=m=>{ const t=Date.now(); if(t-lastNote>2500){ lastNote=t; NOTIFY(m); } };
+const NO_SPEECH='הדפדפן הזה לא תומך בהשמעה קולית. נסו ב־Chrome, ב־Edge או ב־Safari.';
+const SPEECH_FAIL='ההשמעה נכשלה. בדקו שהשמע במכשיר פועל ונסו שוב.';
+function speakText(text, rate, voice){
+  if(!synth){ notify(NO_SPEECH); return; }
+  try{ synth.cancel(); const u=new SpeechSynthesisUtterance(text); u.lang=(voice&&voice.lang)||'en-US'; u.rate=rate; if(voice) u.voice=voice;
+    u.onerror=e=>{ if(e.error!=='interrupted'&&e.error!=='canceled') notify(SPEECH_FAIL); };
+    KEEP.push(u); if(KEEP.length>30) KEEP.shift(); setTimeout(()=>synth.speak(u), 60); }catch(e){ notify(SPEECH_FAIL); }
+}
+/* Hebrew sentence with English words inside: each Latin run is isolated so punctuation never jumps */
+function Bi({children}){
+  if(typeof children!=='string') return <>{children}</>;
+  const parts=children.split(/([A-Za-z][A-Za-z0-9'’+-]*(?:[ .][A-Za-z][A-Za-z0-9'’+-]*)*)/);
+  return <>{parts.map((p,i)=> i%2 ? <bdi key={i} dir="ltr">{p}</bdi> : p)}</>;
+}
+/* number that counts up smoothly when its value changes */
+function Count({value}){
+  const [shown,setShown]=useState(value); const from=useRef(value);
+  useEffect(()=>{ const a=from.current, b=value; if(a===b) return;
+    if(window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches){ from.current=b; setShown(b); return; }
+    let raf, t0=null; const step=t=>{ if(t0===null) t0=t; const f=Math.min(1,(t-t0)/500); const e=1-Math.pow(1-f,3); setShown(Math.round(a+(b-a)*e)); if(f<1) raf=requestAnimationFrame(step); else from.current=b; };
+    raf=requestAnimationFrame(step); return ()=>{ cancelAnimationFrame(raf); from.current=b; }; },[value]);
+  return <>{shown}</>;
+}
+/* closing animation for dialogs: fade out, then unmount */
+function useClosing(onClose){
+  const [closing,setClosing]=useState(false);
+  const close=useCallback(()=>{ setClosing(c=>{ if(!c) setTimeout(onClose,170); return true; }); },[onClose]);
+  return [closing, close];
+}
+function useStoryPlayer(story, rate, voice, cbs){
+  const [active,setActive]=useState(null);
+  const [playing,setPlaying]=useState(false);
+  const [curP,setCurP]=useState(0);
+  const run=useRef(0), timers=useRef([]), cur=useRef({p:0, si:0, continuous:true});
+  const rateRef=useRef(rate), voiceRef=useRef(voice), cbRef=useRef(cbs);
+  rateRef.current=rate; voiceRef.current=voice; cbRef.current=cbs;
+  const tokens=storyData(story).tokens;
+  const clearTimers=()=>{ timers.current.forEach(clearTimeout); timers.current=[]; };
+  const stop=useCallback(()=>{ run.current++; clearTimers(); try{ synth&&synth.cancel(); }catch(e){} setPlaying(false); setActive(null); },[]);
+  // Each paragraph is read sentence by sentence: the highlight re-syncs at every sentence start,
+  // and when a voice gives no word events its real speed is measured and used for the next sentences.
+  const units=useMemo(()=>story.paras.map((para,p)=>{
+    const text=para.en, toks=tokens[p], out=[]; const re=/[^.!?]+[.!?]+["”’)]*\s*|[^.!?]+$/g; let m;
+    while((m=re.exec(text))){ const s=m.index, e=s+m[0].length;
+      const words=[]; toks.forEach((t,i)=>{ if(t.t==='w'&&t.start>=s&&t.start<e){ const sep=toks[i+1]&&toks[i+1].t==='s'?toks[i+1].text:''; words.push({wi:t.wi, start:t.start, w:wordWeight(t.text), pause:pauseWeight(sep)}); } });
+      if(words.length) out.push({s, lead:m[0].length-m[0].trimStart().length, text:m[0].trim(), words}); }
+    if(!out.length) out.push({s:0, lead:0, text, words:toks.filter(t=>t.t==='w').map(t=>({wi:t.wi, start:t.start, w:wordWeight(t.text), pause:0}))});
+    return out; }),[story, tokens]);
+  const speakUnit=useCallback((p, si, continuous, chained)=>{
+    if(!synth) return;
+    const id=++run.current; clearTimers(); if(!chained){ try{ synth.cancel(); }catch(e){} }
+    const unit=units[p][si]; if(!unit){ setPlaying(false); setActive(null); return; }
+    cur.current={p, si, continuous}; setCurP(p); setPlaying(true); if(!chained) setActive({p, wi:unit.words[0]?unit.words[0].wi:0});
+    const r=rateRef.current, v=voiceRef.current, vkey=(v&&v.name)||'default', ckey=vkey+'|'+r;
+    const u=new SpeechSynthesisUtterance(unit.text);
+    u.lang=(v&&v.lang)||'en-US'; u.rate=r; if(v) u.voice=v;
+    let gotBoundary=false, startedAt=0, estTotal=0;
+    const fallback=()=>{ const k=(CAL[ckey]||CAL[vkey]||1)*UNIT_MS/r; let t=0; const elapsed=performance.now()-startedAt;
+      unit.words.forEach((w,i)=>{ const at=t*k; timers.current.push(setTimeout(()=>{ if(id===run.current && !gotBoundary) setActive({p, wi:w.wi}); }, Math.max(0, at-elapsed)));
+        t+=w.w+(i<unit.words.length-1?w.pause:0); }); };
+    u.onstart=()=>{ if(id!==run.current) return; startedAt=performance.now(); setActive({p, wi:unit.words[0]?unit.words[0].wi:0});
+      estTotal=unit.words.reduce((a,w,i)=>a+w.w+(i<unit.words.length-1?w.pause:0),0)+0.4;
+      if(BOUNDARY_OK.has(vkey)) return;
+      timers.current.push(setTimeout(()=>{ if(!gotBoundary && id===run.current) fallback(); }, 250)); };
+    u.onboundary=(e)=>{ if(id!==run.current) return; if(e.name && e.name!=='word') return;
+      if(!gotBoundary){ gotBoundary=true; BOUNDARY_OK.add(vkey); clearTimers(); }
+      const abs=e.charIndex+unit.s+unit.lead; let hit=unit.words[0]; for(const w of unit.words){ if(w.start<=abs) hit=w; else break; }
+      if(hit) setActive({p, wi:hit.wi}); };
+    const done=(ok)=>{ if(id!==run.current) return; clearTimers();
+      if(ok && !gotBoundary && startedAt && estTotal>2){ const k=(performance.now()-startedAt)/(estTotal*UNIT_MS/r);   // learn this voice's real speed
+        if(k>0.4&&k<2.5){ CAL[ckey]=CAL[ckey]?CAL[ckey]*0.4+k*0.6:k; CAL[vkey]=CAL[ckey]; try{ localStorage.setItem('lumi-voice-cal', JSON.stringify(CAL)); }catch(e){} } }
+      if(ok && si+1<units[p].length){ speakUnit(p, si+1, continuous, true); return; }
+      if(ok && cbRef.current.onPara) cbRef.current.onPara(p);
+      if(ok && continuous && p+1<story.paras.length){ speakUnit(p+1, 0, true, true); return; }
+      setPlaying(false); setActive(null);
+      if(ok && continuous && p+1>=story.paras.length){ setCurP(0); cbRef.current.onFinish&&cbRef.current.onFinish(); } };
+    u.onend=()=>done(true);
+    u.onerror=(e)=>{ if(e.error==='interrupted'||e.error==='canceled') return; notify(SPEECH_FAIL); done(false); };
+    KEEP.push(u); if(KEEP.length>30) KEEP.shift();
+    if(chained) synth.speak(u); else setTimeout(()=>{ if(id===run.current) synth.speak(u); }, 70);
+  },[story, tokens, units]);
+  const speakPara=useCallback((p, continuous)=>speakUnit(p, 0, continuous, false),[speakUnit]);
+  useEffect(()=>{ if(playing) speakUnit(cur.current.p, cur.current.si||0, cur.current.continuous, false); },[rate, voice]);
+  useEffect(()=>()=>{ run.current++; clearTimers(); try{ synth&&synth.cancel(); }catch(e){} },[story.id]);
+  const jump=(p)=>{ const q=Math.max(0, Math.min(story.paras.length-1, p)); if(playing) speakPara(q, true); else setCurP(q); return q; };
+  return { active, playing, curP, play:()=>speakPara(curP,true), playPara:(p)=>speakPara(p,false), stop, jump };
+}
+
+/* ---------- icons ---------- */
+const Svg=({children, size=20, stroke=true, className=''})=>(
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={stroke?'none':'currentColor'} stroke={stroke?'currentColor':'none'} strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">{children}</svg>
+);
+const IconSpeaker=p=><Svg {...p}><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></Svg>;
+const IconPlay=p=><Svg {...p} stroke={false}><path d="M7 4.5v15a1 1 0 0 0 1.5.86l12.5-7.5a1 1 0 0 0 0-1.72L8.5 3.64A1 1 0 0 0 7 4.5z"/></Svg>;
+const IconStop=p=><Svg {...p} stroke={false}><rect x="5.5" y="5.5" width="13" height="13" rx="2.5"/></Svg>;
+const IconCheck=p=><Svg {...p}><path d="M5 12.5l4.5 4.5L19 7.5"/></Svg>;
+const IconFlame=p=><Svg {...p} stroke={false}><path d="M12.6 2.4c.4 3.2 4.9 5.4 4.9 10.6a5.5 5.5 0 0 1-11 0c0-2.4 1.1-4 2.4-5.1.3 1.7 1.1 2.8 2.2 3.2.4-3.4-.6-6 1.5-8.7z"/></Svg>;
+const IconChevR=p=><Svg {...p}><path d="M9 6l6 6-6 6"/></Svg>;
+const IconChevL=p=><Svg {...p}><path d="M15 6l-6 6 6 6"/></Svg>;
+const IconX=p=><Svg {...p}><path d="M6 6l12 12M18 6 6 18"/></Svg>;
+const IconBook=p=><Svg {...p}><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></Svg>;
+const IconBolt=p=><Svg {...p} stroke={false}><path d="M13.5 2 4 13.5h6.5L9.5 22 20 9.5h-6.6z"/></Svg>;
+const IconChart=p=><Svg {...p}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></Svg>;
+const IconEar=p=><Svg {...p}><path d="M6 9a6 6 0 1 1 12 0c0 3.5-3 4.5-3 7.5a3.5 3.5 0 0 1-7 0"/><path d="M9.5 9.5a2.5 2.5 0 0 1 5 0c0 1.5-1.5 2-1.5 3"/></Svg>;
+const IconPlus=p=><Svg {...p}><path d="M12 5v14M5 12h14"/></Svg>;
+const IconLock=p=><Svg {...p}><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></Svg>;
+const IconClock=p=><Svg {...p}><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></Svg>;
+const IconPrev=p=><Svg {...p} stroke={false}><path d="M6 5h2v14H6zM20 5.5v13a.8.8 0 0 1-1.2.7L9 12.7a.8.8 0 0 1 0-1.4l9.8-6.5a.8.8 0 0 1 1.2.7z"/></Svg>;
+const IconNext=p=><Svg {...p} stroke={false}><path d="M16 5h2v14h-2zM4 5.5v13a.8.8 0 0 0 1.2.7L15 12.7a.8.8 0 0 0 0-1.4L5.2 4.8A.8.8 0 0 0 4 5.5z"/></Svg>;
+const IconSearch=p=><Svg {...p}><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></Svg>;
+const IconMic=p=><Svg {...p}><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></Svg>;
+const IconCopy=p=><Svg {...p}><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></Svg>;
+const IconPen=p=><Svg {...p}><path d="M4 20l1-4L16.5 4.5a2 2 0 0 1 3 3L8 19z"/><path d="M14 7l3 3"/></Svg>;
+const IconTrash=p=><Svg {...p}><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></Svg>;
+
+/* ---------- small UI ---------- */
+function Confetti({big}){
+  const colors=['var(--sun)','var(--coral)','var(--primary)','var(--good)','#7CC4FF','#FF9BD2'];
+  const n=big?90:28;
+  const pieces=useMemo(()=>Array.from({length:n},(_,i)=>({ left:Math.random()*100, delay:Math.random()*(big?.6:.25), dur:1.3+Math.random()*1.4, dx:(Math.random()-.5)*240, rot:(Math.random()*900-450)+'deg', c:colors[i%colors.length], w:6+Math.random()*7 })),[]);
+  return <div className="confetti" aria-hidden="true">{pieces.map((p,i)=><i key={i} style={{left:p.left+'%', background:p.c, width:p.w, height:p.w*1.4, animationDuration:p.dur+'s', animationDelay:p.delay+'s', '--dx':p.dx+'px', '--rot':p.rot}}/>)}</div>;
+}
+function Ring({value, max, size=46, stroke=6, children}){
+  const r=(size-stroke)/2, c=2*Math.PI*r, f=Math.min(1, max?value/max:0);
+  return (<div className="relative inline-grid place-items-center" style={{width:size, height:size}}>
+    <svg width={size} height={size} style={{transform:'rotate(-90deg)'}}>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--line)" strokeWidth={stroke}/>
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={f>=1?'var(--good)':'var(--sun)'} strokeWidth={stroke} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c*(1-f)} style={{transition:'stroke-dashoffset .5s ease-out'}}/>
+    </svg>
+    <div className="absolute inset-0 grid place-items-center">{children}</div>
+  </div>);
+}
+function Toggle({checked, onChange, label, hint, id}){
+  return (<label htmlFor={id} className="flex items-center gap-3 cursor-pointer select-none min-h-[44px]">
+    <button id={id} type="button" role="switch" aria-checked={checked} className="toggle" onClick={()=>onChange(!checked)}></button>
+    <span className="leading-tight"><span className="font-semibold block">{label}</span>{hint&&<span className="text-xs text-muted">{hint}</span>}</span>
+  </label>);
+}
+
+/* ---------- level meter (top of screen) ---------- */
+function LevelMeter({known, unlocked}){
+  const lv=levelFor(known); const L=LEVELS[lv-1]; const left=L.next?L.next-known:0;
+  return (<div className="rounded-2xl border border-line bg-surface px-4 py-3 flex flex-col gap-2">
+    <div className="flex items-baseline gap-x-3 gap-y-1 flex-wrap">
+      <span className="font-bold">שלב <span className="num">{lv}</span> מתוך 4 · {L.name}</span>
+      <span className="text-sm text-muted ms-auto">{L.next ? <>עוד <b className="num text-ink"><Count value={left}/></b> {left===1?'מילה מוכרת':'מילים מוכרות'} לפתיחת שלב <span className="num">{lv+1}</span></> : 'הגעת לשלב הגבוה ביותר. כל הסיפורים פתוחים.'}</span>
+    </div>
+    <div className="grid grid-cols-4 gap-1.5" dir="rtl" role="img" aria-label={`שלב ${lv} מתוך 4, ${known} מילים מוכרות`}>
+      {LEVELS.map(l=>{ const span=(l.next||l.min+150)-l.min; const f=known>=(l.next||Infinity)?1:known<l.min?0:Math.min(1,(known-l.min+(l.n===1?0:1))/span);
+        const done=l.n<lv, cur=l.n===lv;
+        return (<div key={l.n} className="flex flex-col gap-1">
+          <div className="h-2 rounded-full bg-sunk overflow-hidden"><div className="h-full rounded-full bar" style={{width:(done?100:cur?Math.max(4,f*100):0)+'%', background:done?'var(--good)':'var(--primary)'}}></div></div>
+          <div className={`text-[11px] leading-tight flex items-center gap-1 ${cur?'font-semibold text-ink':'text-muted'}`}>
+            {done?<IconCheck size={12}/>:(!cur&&!unlocked[l.n])?<IconLock size={11}/>:null}<span className="num">{l.n}</span><span className="hidden sm:inline truncate">· {l.name}</span><span className="num ms-auto hidden md:inline whitespace-nowrap" dir="ltr">{l.next?`${l.min}–${l.next-1}`:`${l.min-1}+`}</span>
+          </div>
+        </div>); })}
+    </div>
+  </div>);
+}
+
+/* ---------- header ---------- */
+function Header({known, streak, todayXP, goal, unlocked, onNav, profile, onProfile}){
+  const [bump,setBump]=useState(false); const prev=useRef(known);
+  useEffect(()=>{ if(known>prev.current){ setBump(true); const t=setTimeout(()=>setBump(false),550); prev.current=known; return ()=>clearTimeout(t);} prev.current=known; },[known]);
+  return (<header className="bg-surface border-b border-line">
+    <div className="gutter"><div className="max-w-[860px] mx-auto py-3 flex flex-col gap-3">
+      <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
+        <button onClick={onProfile} className="flex items-center gap-2.5 rounded-xl ps-1.5 pe-3 min-h-[48px] me-auto text-start" style={{background:'var(--sunk)'}} aria-label={`המשתמש ${profile.name}. לחיצה פותחת את הגדרות המשתמש`}>
+          <span className="w-9 h-9 rounded-lg grid place-items-center text-xl bg-surface" aria-hidden="true">{profile.avatar}</span>
+          <span className="leading-tight"><span className="font-bold block">שלום, <bdi>{profile.name}</bdi></span><span className="text-xs text-muted block"><bdi dir="ltr">Lumi English</bdi> · החלפת משתמש</span></span>
+        </button>
+        <button onClick={()=>onNav('progress')} className={`flex items-center gap-2 rounded-xl px-3 min-h-[44px] ${bump?'pop':''}`} style={{background:'var(--good-soft)', color:'var(--good)'}} title="מילים שסימנת כמוכרות. לחיצה פותחת את ההתקדמות">
+          <IconCheck size={17}/><span className="font-semibold text-sm">למדת כבר <span className="num text-base font-bold"><Count value={known}/></span> מילים!</span>
+        </button>
+        <button onClick={()=>onNav('progress')} className="flex items-center gap-1.5 rounded-xl px-3 min-h-[44px]" style={{background:'color-mix(in srgb,var(--coral) 14%,var(--surface))', color:'var(--coral)'}} title="רצף ימים. לחיצה פותחת את ההתקדמות">
+          <IconFlame size={17}/><span className="num font-bold"><Count value={streak}/></span><span className="text-sm font-semibold">ימים</span>
+        </button>
+        <button onClick={()=>onNav('progress')} className="hit rounded-full" aria-label={`היעד היומי: ${Math.min(100,Math.round(todayXP/goal*100))} אחוז. לחיצה פותחת את ההתקדמות`}><Ring value={todayXP} max={goal} size={40} stroke={5}><span className="num text-[10px] font-bold">{Math.min(100,Math.round(todayXP/goal*100))}%</span></Ring></button>
+      </div>
+      <LevelMeter known={known} unlocked={unlocked}/>
+    </div></div>
+  </header>);
+}
+function Tabs({tab, setTab, learning}){
+  const tabs=[['read','סיפורים',IconBook],['practice','תרגול',IconBolt],['progress','התקדמות',IconChart]];
+  return (<nav className="sticky z-30 bg-surface border-b border-line" style={{top:'calc(env(safe-area-inset-top,0px) + 64px)'}} aria-label="ניווט">
+    <div className="gutter"><div className="max-w-[860px] mx-auto flex gap-1">
+      {tabs.map(([k,l,I])=><button key={k} onClick={()=>setTab(k)} aria-current={tab===k?'page':undefined}
+        className={`flex items-center justify-center gap-2 flex-1 sm:flex-none px-2 sm:px-4 py-3 text-sm font-semibold border-b-2 -mb-px ${tab===k?'border-primary text-primary':'border-transparent text-muted hover:text-ink'}`}><I size={17}/>{l}{k==='practice'&&learning>0&&<span className="num text-[11px] rounded-full px-1.5 py-0.5" style={{background:'var(--learn-bg)', color:'var(--ink)'}}>{learning}</span>}</button>)}
+    </div></div>
+  </nav>);
+}
+
+/* ---------- library ---------- */
+function StoryCard({story, state, locked, onOpen, onLocked}){
+  const d=storyData(story); const known=d.keys.filter(k=>state.words[k]==='known').length; const learn=d.keys.filter(k=>state.words[k]==='learning').length;
+  const pct=Math.round(known/Math.max(1,d.keys.length)*100); const done=state.storiesDone[story.id];
+  return (<button onClick={locked?onLocked:onOpen} aria-disabled={locked||undefined} className={`card card-btn p-4 text-start flex gap-4 items-start ${locked?'opacity-60':'card-lift'}`}>
+    <div className="w-14 h-14 rounded-xl bg-sunk grid place-items-center text-3xl shrink-0 relative" aria-hidden="true">{story.cover}
+      {locked&&<span className="absolute -bottom-1.5 -end-1.5 w-6 h-6 rounded-full bg-surface border border-line grid place-items-center text-muted"><IconLock size={12}/></span>}</div>
+    <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+      <div className="flex flex-wrap gap-1.5 items-center">
+        <span className="tag tag-level">שלב <span className="num">{story.level}</span></span>
+        {story.real&&<span className="tag tag-real">סיפור אמיתי</span>}
+        {story.user&&<span className="tag">שלי</span>}
+        <span className="tag"><IconClock size={11}/>כ־<span className="num">{readMinutes(d.words)}</span> דק׳</span>
+        <span className="text-[11px] text-muted num">{d.words} מילים</span>
+        {done&&<span className="tag ms-auto" style={{background:'var(--good-soft)', color:'var(--good)'}}><IconCheck size={11}/>נקרא</span>}
+      </div>
+      <div dir="ltr" className="book font-semibold text-[1.12rem] leading-snug text-left">{story.title}</div>
+      {(story.he||story.blurb)&&<div className="text-sm text-muted leading-snug">{story.he}{story.he&&story.blurb?' · ':''}{story.blurb}</div>}
+      <div className="flex items-center gap-2 mt-1">
+        <div className="h-1.5 flex-1 rounded-full bg-sunk overflow-hidden flex" dir="ltr">
+          <div className="bar" style={{width:pct+'%', background:'var(--good)'}}></div><div className="bar" style={{width:Math.round(learn/Math.max(1,d.keys.length)*100)+'%', background:'var(--sun)'}}></div>
+        </div>
+        <span className="text-[11px] text-muted num whitespace-nowrap">{pct}% מוכר</span>
+      </div>
+    </div>
+  </button>);
+}
+function Library({state, known, actions, openStory, onAdd, toast}){
+  const lv=levelFor(known);
+  return (<div className="flex flex-col gap-7">
+    <section className="flex flex-col sm:flex-row gap-4 sm:items-end">
+      <div className="flex-1 min-w-0">
+        <h1 className="text-2xl sm:text-3xl font-bold">הספרייה שלך</h1>
+        <p className="text-muted mt-1 leading-relaxed">לחצו על כל מילה בסיפור כדי לראות תרגום והגייה. ככל שתסמנו יותר מילים כמוכרות, ייפתחו סיפורים ארוכים ואמיתיים יותר.</p>
+      </div>
+      <div className="flex gap-3 text-sm shrink-0 flex-wrap">
+        <span className="flex items-center gap-1.5"><span dir="ltr" className="swatch w-new book">new</span>חדשה</span>
+        <span className="flex items-center gap-1.5"><span dir="ltr" className="swatch w-learn book">learning</span>בלמידה</span>
+        <span className="flex items-center gap-1.5"><span dir="ltr" className="swatch book" style={{boxShadow:'0 0 0 1px var(--line) inset'}}>known</span>מוכרת</span>
+      </div>
+    </section>
+
+    {state.userStories.length>0&&<section className="flex flex-col gap-3">
+      <div className="flex items-center gap-3"><h2 className="text-lg font-bold">הסיפורים שהוספת</h2><span className="text-sm text-muted num">{state.userStories.length}</span>
+        <button className="btn btn-line px-3 py-1.5 text-sm ms-auto" onClick={onAdd}><IconPlus size={16}/>עוד סיפור</button></div>
+      <div className="grid gap-3 md:grid-cols-2">{state.userStories.map(s=><StoryCard key={s.id} story={s} state={state} onOpen={()=>openStory(s.id)}/>)}</div>
+    </section>}
+
+    {LEVELS.map(L=>{ const open=L.n<=lv || state.unlocked[L.n]; const list=STORIES.filter(s=>s.level===L.n); const need=L.min-known;
+      return (<section key={L.n} className="flex flex-col gap-3">
+        <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
+          <div className={`w-9 h-9 rounded-full grid place-items-center font-bold num ${open?'':'text-muted'}`} style={open?{background:'var(--primary)', color:'var(--primary-ink)'}:{background:'var(--sunk)'}}>{open?L.n:<IconLock size={15}/>}</div>
+          <div className="min-w-0 me-auto"><h2 className="text-lg font-bold leading-tight">שלב <span className="num">{L.n}</span> · {L.name}</h2>
+            <div className="text-sm text-muted">{L.desc} · <span className="num" dir="ltr">{L.next?`${L.min}–${L.next-1}`:`${L.min-1}+`}</span> מילים מוכרות</div></div>
+          {L.n===lv&&<span className="tag tag-level">השלב שלך</span>}
+          {!open&&<><span className="text-sm text-muted">נפתח בעוד <b className="num text-ink">{need}</b> מילים</span>
+            <button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>{ actions.unlock(L.n); toast(`שלב ${L.n} נפתח. בהצלחה!`); }}>בא לי אתגר, פתח עכשיו</button></>}
+          {open&&L.n>lv&&<span className="tag">נפתח ידנית</span>}
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">{list.map(s=><StoryCard key={s.id} story={s} state={state} locked={!open} onOpen={()=>openStory(s.id)} onLocked={()=>toast(`הסיפור נעול. חסרות ${need} מילים מוכרות, או לחצו "בא לי אתגר, פתח עכשיו" בכותרת של שלב ${L.n}.`)}/>)}</div>
+      </section>); })}
+  </div>);
+}
+
+/* ---------- add-story dialog ---------- */
+const EMOJI=['📖','📰','🌍','🚀','🐾','🍎','⚽','🎵','💡','🏰','🌊','❤️','🧪','🎬','✈️','🌳'];
+function splitParas(raw){
+  const text=raw.replace(/\r\n?/g,'\n').replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/ /g,' ');
+  let blocks=text.split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean);
+  if(blocks.length===1){ const lines=blocks[0].split('\n').map(l=>l.trim()).filter(Boolean);
+    if(lines.length>1 && lines.reduce((a,l)=>a+l.length,0)/lines.length>70) blocks=lines; }
+  const out=[];
+  for(const b of blocks){ const para=b.replace(/\s+/g,' ').trim(); if(!countWords(para)) continue;
+    if(countWords(para)<=85){ out.push(para); continue; }
+    let cur='';
+    for(const sen of splitSentences(para)){ if(cur && countWords(cur)+countWords(sen)>65){ out.push(cur); cur=sen; } else cur=cur?cur+' '+sen:sen; }
+    if(cur) out.push(cur);
+  }
+  return out;
+}
+function AddStory({state, onClose, onSave}){
+  const [text,setText]=useState(''); const [title,setTitle]=useState(''); const [cover,setCover]=useState('📖'); const [level,setLevel]=useState(0); const [err,setErr]=useState('');
+  const paras=useMemo(()=>splitParas(text),[text]);
+  const stats=useMemo(()=>{ const keys=[...new Set(paras.flatMap(p=>(p.match(WORD_RE)||[]).map(w=>w.toLowerCase())))];
+    return { words:paras.reduce((a,p)=>a+countWords(p),0), unique:keys.length, known:keys.filter(k=>state.words[k]==='known').length, learning:keys.filter(k=>state.words[k]==='learning').length, dict:keys.filter(k=>wordInfo(k).he).length }; },[paras]);
+  const auto=suggestLevel(stats.words); const lvl=level||auto;
+  const [closing, close]=useClosing(onClose);
+  useEffect(()=>{ const k=e=>{ if(e.key==='Escape') close(); }; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[]);
+  const onFile=e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return; if(f.size>400000){ setErr('הקובץ גדול מדי. נסו קובץ טקסט של עד 400KB.'); return; }
+    const r=new FileReader(); r.onload=()=>{ setText(String(r.result||'')); setErr(''); if(!title) setTitle(f.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ')); }; r.onerror=()=>setErr('לא הצלחתי לקרוא את הקובץ.'); r.readAsText(f); };
+  const save=()=>{
+    if(stats.words<5){ setErr('צריך טקסט באנגלית של לפחות כמה מילים.'); return; }
+    if(stats.words>8000){ setErr('הטקסט ארוך מדי (מעל 8,000 מילים). חלקו אותו לכמה סיפורים.'); return; }
+    onSave({ id:'u_'+Date.now().toString(36), user:true, level:lvl, cover:cover||'📖', title:title.trim()||splitSentences(paras[0])[0].slice(0,48), he:'', blurb:'', paras:paras.map(en=>({en})) }, stats);
+  };
+  return (<div className={`overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center ${closing?'out':''}`} style={{background:'color-mix(in srgb,var(--ink) 40%,transparent)'}} onClick={close}>
+    <div role="dialog" aria-modal="true" aria-label="הוספת סיפור חדש" className={`sheet card w-full sm:max-w-2xl rounded-b-none sm:rounded-[20px] flex flex-col ${closing?'out':''}`} style={{maxHeight:'92vh'}} onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center gap-3 p-5 border-b border-line">
+        <h2 className="text-xl font-bold me-auto">הוספת סיפור חדש</h2>
+        <button className="btn btn-ghost w-11 h-11" onClick={close} aria-label="סגירה"><IconX size={18}/></button>
+      </div>
+      <div className="p-5 flex flex-col gap-4 overflow-y-auto">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3 flex-wrap"><label htmlFor="add-text" className="font-semibold me-auto">1. הטקסט באנגלית</label>
+            <label className="btn btn-line px-3 py-1.5 text-sm cursor-pointer">העלאת קובץ <bdi dir="ltr">.txt</bdi><input id="add-file" type="file" accept=".txt,text/plain" className="sr-only" onChange={onFile}/></label></div>
+          <textarea id="add-text" dir="ltr" className="field book text-left" rows={8} placeholder="Paste any English text here: an article, a page from a book, or a story you asked an AI to write…" value={text} onChange={e=>{ setText(e.target.value); setErr(''); }}></textarea>
+          {stats.words>0&&<div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+            {[[stats.words,'מילים'],[paras.length,'פסקאות'],[stats.known,'מילים שכבר מוכרות לך'],[`${stats.dict}/${stats.unique}`,'נמצאות במילון']].map(([v,l])=><div key={l} className="rounded-xl bg-sunk py-2 px-1"><div className="num font-bold text-lg">{v}</div><div className="text-[11px] text-muted leading-tight">{l}</div></div>)}
+          </div>}
+          {stats.words>0&&stats.dict<stats.unique&&<p className="text-xs text-muted">ל־<span className="num">{stats.unique-stats.dict}</span> מילים אין תרגום במילון המובנה. הן יקבלו תעתיק הגייה אוטומטי, ואת התרגום אפשר יהיה להוסיף בלחיצה על המילה.</p>}
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-2"><label htmlFor="add-title" className="font-semibold">2. כותרת</label>
+            <input id="add-title" dir="auto" className="field" placeholder="למשל: My first article" value={title} onChange={e=>setTitle(e.target.value)} maxLength={80}/></div>
+          <div className="flex flex-col gap-2"><span className="font-semibold">רמת קושי</span>
+            <div className="seg self-start" role="group" aria-label="רמת קושי">{LEVELS.map(L=><button key={L.n} aria-pressed={lvl===L.n} onClick={()=>setLevel(L.n)} title={L.name}>שלב {L.n}</button>)}</div>
+            <span className="text-xs text-muted">{stats.words>0?<>לפי האורך, ההצעה שלי: שלב <span className="num">{auto}</span> ({LEVELS[auto-1].name}).</>:'אציע רמה לפי אורך הטקסט.'}</span></div>
+        </div>
+        <div className="flex flex-col gap-2"><span className="font-semibold">אימוג׳י</span>
+          <div className="flex flex-wrap gap-1.5 items-center">{EMOJI.map(e=><button key={e} aria-pressed={cover===e} aria-label={'אימוג׳י '+e} onClick={()=>setCover(e)} className="w-11 h-11 rounded-xl text-xl grid place-items-center" style={{background:cover===e?'var(--primary-soft)':'var(--sunk)', boxShadow:cover===e?'0 0 0 2px var(--primary) inset':'none'}}>{e}</button>)}
+            <input id="add-emoji" className="field text-center text-xl" style={{width:'3.5rem', padding:'.35rem', minHeight:'44px'}} value={EMOJI.includes(cover)?'':cover} onChange={e=>setCover(e.target.value.slice(0,4))} placeholder="אחר" aria-label="אימוג׳י אחר"/></div>
+        </div>
+        {err&&<div className="rounded-xl p-3 text-sm" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{err}</Bi></div>}
+      </div>
+      <div className="p-5 border-t border-line flex gap-2 flex-wrap" style={{paddingBottom:'max(20px, env(safe-area-inset-bottom,0px))'}}>
+        <button className="btn btn-primary py-3 px-6" onClick={save} disabled={stats.words<5}><IconCheck size={18}/>שמור סיפור</button>
+        <button className="btn btn-ghost py-3 px-5" onClick={close}>ביטול</button>
+      </div>
+    </div>
+  </div>);
+}
+
+/* ---------- dictionary bar: always on top ---------- */
+function DictBar({state, onOpen, onAdd, onHome, voiceRef, onListening}){
+  const [q,setQ]=useState(''); const [open,setOpen]=useState(false); const [sel,setSel]=useState(0);
+  const [listening,setListening]=useState(false); const [vmsg,setVmsg]=useState(''); const [busy,setBusy]=useState(false);
+  const inputRef=useRef(null), boxRef=useRef(null), rec=useRef(null), wired=useRef(false), heard=useRef({partial:'', done:false}), tries=useRef(0);
+  const results=useMemo(()=>searchDict(q),[q, state.customDict, state.netDict]);
+  const typed=q.trim(); const heQ=isHebrew(typed); const enWord=!heQ?typed.toLowerCase().replace(/[^a-z'-]/g,''):'';
+  const offerOnline=typed.length>=2 && ((!heQ && enWord && !results.includes(enWord)) || (heQ && results.length<3));
+  const rows=results.length+(offerOnline?1:0);
+  useEffect(()=>{ setSel(0); },[q]);
+  useEffect(()=>{
+    const key=e=>{ const t=e.target; const typing=t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT');
+      if((e.key==='/'&&!typing)||((e.ctrlKey||e.metaKey)&&(e.key==='k'||e.key==='K'))){ e.preventDefault(); inputRef.current&&inputRef.current.focus(); inputRef.current&&inputRef.current.select(); setOpen(true); } };
+    const click=e=>{ if(boxRef.current&&!boxRef.current.contains(e.target)) setOpen(false); };
+    window.addEventListener('keydown',key); window.addEventListener('mousedown',click);
+    return ()=>{ window.removeEventListener('keydown',key); window.removeEventListener('mousedown',click); };
+  },[]);
+  const go=(k)=>{ setOpen(false); setVmsg(''); inputRef.current&&inputRef.current.blur(); onOpen(k, k); };
+  const online=async()=>{
+    if(!heQ){ go(enWord); return; }
+    setBusy(true); try{ const t=(await fetchTranslation(typed,'he|en')).toLowerCase().replace(/[^a-z' -]/g,'').trim(); const w=t.split(/\s+/).filter(x=>!['to','a','an','the'].includes(x))[0]; if(!w) throw 0; setQ(w); go(w); }
+    catch(e){ setVmsg('לא הצלחתי לתרגם ברשת כרגע (אין חיבור, או שהדפדפן חוסם את השירות).'); } setBusy(false); };
+  const pickRow=(i)=>{ if(i<results.length) go(results[i]); else if(offerOnline) online(); };
+  const onKey=e=>{ if(e.key==='ArrowDown'){ e.preventDefault(); setOpen(true); setSel(s=>Math.min(rows-1,s+1)); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); setSel(s=>Math.max(0,s-1)); }
+    else if(e.key==='Enter'){ e.preventDefault(); if(rows) pickRow(sel); }
+    else if(e.key==='Escape'){ setOpen(false); e.target.blur(); } };
+  const gotVoice=(text)=>{ const t=String(text||'').toLowerCase().replace(/[^a-z' -]/g,' ').trim(); const w=t.split(/\s+/)[0];
+    if(!w){ setVmsg('לא זיהיתי מילה באנגלית. נסו שוב, לאט וברור.'); return; } setQ(t); go(w); };
+  const VERR={not_granted:'אין הרשאה למיקרופון. אפשר לאשר אותה בהגדרות ההרשאות של העמוד.', unavailable:'חיפוש קולי לא זמין כאן. אפשר להקליד.', rate_limited:'יותר מדי ניסיונות. נסו שוב בעוד רגע.', upstream_error:'המיקרופון או שירות זיהוי הדיבור לא הגיבו. בדקו שמיקרופון מחובר ושהדפדפן מאשר אותו לאתר, ואז נסו שוב. אפשר גם להקליד את המילה.'};
+  const voice=()=>{
+    setVmsg('');
+    if(DICTATION){ const d=DICTATION;
+      if(listening){ d.stop().catch(()=>{}); return; }
+      if(!wired.current){ wired.current=true;
+        d.onPartial(({text})=>{ if(text&&text.trim()){ heard.current.partial=text; setQ(text.trim()); } });
+        d.onFinal(({text})=>{ if(heard.current.done||!String(text).trim()) return; heard.current.done=true; gotVoice(text); d.stop().catch(()=>{}); });
+        d.onState(({state:st, reason})=>{ setListening(st==='listening'||st==='starting');
+          if(st==='idle'&&!heard.current.done){ if(heard.current.partial){ heard.current.done=true; gotVoice(heard.current.partial); } else if(VERR[reason]) setVmsg(VERR[reason]); } }); }
+      heard.current={partial:'', done:false}; tries.current++;
+      d.start({language:tries.current%2?'en':'en-US'}).catch(e=>{ setListening(false); if(e&&VERR[e.code]&&!heard.current.done&&!heard.current.partial) setVmsg(VERR[e.code]); });
+      return; }
+    if(listening){ try{ rec.current&&rec.current.stop(); }catch(e){} return; }
+    if(!SR){ setVmsg('הדפדפן הזה לא תומך בחיפוש קולי. נסו ב־Chrome או ב־Edge, או הקלידו את המילה.'); return; }
+    try{ synth&&synth.cancel(); }catch(e){}
+    const r=new SR(); rec.current=r; r.lang='en-US'; r.interimResults=false; r.maxAlternatives=1;
+    r.onresult=e=>{ gotVoice(e.results[0][0].transcript); };
+    r.onerror=e=>{ setVmsg(e.error==='not-allowed'||e.error==='service-not-allowed'?'אין הרשאה למיקרופון. אשרו לדפדפן גישה למיקרופון ונסו שוב.':e.error==='no-speech'?'לא שמעתי כלום. נסו שוב.':e.error==='network'?'זיהוי הדיבור בדפדפן צריך חיבור לאינטרנט.':'החיפוש הקולי לא הצליח. נסו שוב או הקלידו.'); };
+    r.onend=()=>setListening(false);
+    try{ r.start(); setListening(true); }catch(e){ setVmsg('החיפוש הקולי לא הצליח להתחיל.'); }
+  };
+  voiceRef.current=voice;
+  useEffect(()=>{ onListening(listening); },[listening]);
+  return (<div className="sticky z-40 bg-surface border-b border-line" style={{top:'env(safe-area-inset-top,0px)'}}>
+    <div className="gutter"><div className="max-w-[860px] mx-auto h-16 flex items-center gap-2.5">
+      <button onClick={onHome} className="w-11 h-11 rounded-xl grid place-items-center book font-bold text-xl shrink-0" style={{background:'var(--ink)', color:'var(--bg)'}} aria-label="חזרה לספרייה" title="חזרה לספרייה">L</button>
+      <div ref={boxRef} className="relative flex-1 min-w-0">
+        <div className="flex items-center gap-1 rounded-xl border-[1.5px] bg-bg ps-3 pe-1 h-12" style={{borderColor:open?'var(--primary)':'var(--line)'}}>
+          <span className="text-muted shrink-0"><IconSearch size={18}/></span>
+          <input id="dict-search" ref={inputRef} dir="auto" autoComplete="off" spellCheck={false} role="combobox" aria-expanded={open&&rows>0} aria-controls="dict-results" aria-label="חיפוש במילון"
+            className="flex-1 min-w-0 h-full bg-transparent outline-none px-2 text-base" placeholder={listening?'מקשיב… אמרו מילה':'חיפוש במילון'}
+            value={q} onChange={e=>{ setQ(e.target.value); setOpen(true); setVmsg(''); }} onFocus={()=>setOpen(true)} onKeyDown={onKey}/>
+          {q&&<button className="hit w-8 h-8 grid place-items-center text-muted rounded-lg" onClick={()=>{ setQ(''); inputRef.current&&inputRef.current.focus(); }} aria-label="ניקוי"><IconX size={16}/></button>}
+          <kbd className="hidden md:block text-[11px] text-muted border border-line rounded px-1.5 py-0.5 num" dir="ltr">/</kbd>
+          <button className={`hit w-10 h-10 grid place-items-center rounded-lg shrink-0 ${listening?'pop':''}`} style={listening?{background:'var(--bad)', color:'var(--surface)'}:{background:'var(--primary)', color:'var(--primary-ink)'}} onClick={voice} aria-label={listening?'עצירת ההקשבה':'חיפוש קולי: אמרו מילה באנגלית'} aria-pressed={listening} title="חיפוש קולי"><IconMic size={18}/></button>
+        </div>
+        {(typed||vmsg)&&<div id="dict-results" role="listbox" className={`dropdown absolute inset-x-0 top-full mt-1.5 card overflow-hidden ${(open&&(rows>0||typed))||vmsg?'show':''}`} style={{maxHeight:'70vh', overflowY:'auto'}}>
+          {vmsg&&<div className="px-4 py-3 text-sm" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{vmsg}</Bi></div>}
+          {open&&results.map((k,i)=>{ const info=wordInfo(k); const st=state.words[k];
+            return (<button key={k} role="option" aria-selected={sel===i} onMouseEnter={()=>setSel(i)} onClick={()=>go(k)} className="w-full flex items-center gap-3 px-4 py-2.5 text-start border-b border-line" style={{background:sel===i?'var(--sunk)':'transparent'}}>
+              <span dir="ltr" className="book font-semibold text-lg shrink-0 text-left">{k}</span>
+              {info.pos&&<span className="tag hidden sm:inline-flex">{info.pos}</span>}
+              <span className="flex-1 min-w-0 truncate text-muted"><Bi>{info.he}</Bi></span>
+              {st&&<span className="w-2.5 h-2.5 rounded-full shrink-0" style={{background:st==='known'?'var(--good)':'var(--sun)'}} title={st==='known'?'מוכרת':'בלמידה'}></span>}
+            </button>); })}
+          {open&&offerOnline&&<button role="option" aria-selected={sel===results.length} onMouseEnter={()=>setSel(results.length)} onClick={online} disabled={busy} className="w-full flex items-center gap-3 px-4 py-3 text-start text-sm font-semibold text-primary" style={{background:sel===results.length?'var(--sunk)':'transparent'}}>
+            <IconSearch size={16}/>{busy?'מחפש ברשת…':heQ?<>חיפוש „{typed}” במילון המקוון</>:<>חיפוש <span dir="ltr" className="book">{enWord}</span> במילון המקוון</>}</button>}
+          {open&&typed&&!rows&&!vmsg&&<div className="px-4 py-3 text-sm text-muted">לא נמצאו מילים מתאימות.</div>}
+        </div>}
+      </div>
+      <button className="btn btn-primary h-11 px-3 sm:px-4 text-sm shrink-0" onClick={onAdd} aria-label="הוסף סיפור חדש"><IconPlus size={18}/><span className="hidden sm:inline">הוסף סיפור חדש</span></button>
+    </div></div>
+  </div>);
+}
+
+/* ---------- dictionary card ---------- */
+function ExampleLine({x, wordKey, voice}){
+  const b=baseOf(wordKey);
+  return (<li className="flex gap-2.5 items-start">
+    <button className="hit w-9 h-9 rounded-full grid place-items-center shrink-0 mt-0.5" style={{background:'var(--sunk)', color:'var(--muted)'}} onClick={()=>speakText(x.en,.85,voice)} aria-label="השמעת המשפט"><IconSpeaker size={14}/></button>
+    <div className="min-w-0 flex-1">
+      <div dir="ltr" className="book text-left leading-relaxed text-[1.05rem]">{tokenize(x.en).map((t,i)=> t.t==='w'&&(t.key===wordKey||baseOf(t.key)===b||baseOf(t.key)===wordKey) ? <b key={i} className="rounded px-0.5" style={{background:'var(--learn-bg)'}}>{t.text}</b> : <span key={i}>{t.text}</span>)}</div>
+      {x.he ? <div className="text-sm text-muted leading-relaxed">{x.he}</div> : <div className="text-xs text-muted">מתוך סיפור שהוספת, בלי תרגום</div>}
+    </div>
+  </li>);
+}
+function DictCard({wordKey, display, state, stories, voice, actions, onClose, onOpenWord}){
+  const info=wordInfo(wordKey); const status=state.words[wordKey]; const net=state.netDict[wordKey];
+  const [edit,setEdit]=useState(false); const [draft,setDraft]=useState(''); const [busy,setBusy]=useState('');
+  const alive=useRef(wordKey); alive.current=wordKey;
+  const [closing, close]=useClosing(onClose);
+  const isName=NAMES.has(wordKey);
+  const goOnline=async()=>{ const k=wordKey; setBusy('loading');
+    try{ const e=await lookupOnline(k, !!wordInfo(k).he); actions.setNet(k, e); if(alive.current===k) setBusy(''); }
+    catch(e){ if(alive.current===k) setBusy('fail'); } };
+  useEffect(()=>{ setEdit(false); setDraft(''); setBusy(''); speakText(display, .9, voice);
+    if(!info.he && !isName && !net) goOnline();
+    const k=e=>{ if(e.key==='Escape') close(); }; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[wordKey]);
+  const examples=examplesFor(wordKey, stories);
+  const pos=info.pos || (net&&net.pos&&net.pos.length?net.pos.map(p=>POS_HE[p]||p).join(' / '):null);
+  return (<div className={`overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center ${closing?'out':''}`} style={{background:'color-mix(in srgb,var(--ink) 40%,transparent)'}} onClick={close}>
+    <div role="dialog" aria-modal="true" aria-label={`המילה ${display}`} className={`sheet card w-full sm:max-w-lg rounded-b-none sm:rounded-[20px] flex flex-col ${closing?'out':''}`} style={{maxHeight:'92vh'}} onClick={e=>e.stopPropagation()}>
+      <div className="p-5 pb-4 flex items-start gap-3 border-b border-line">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-1.5">
+            {pos&&<span className="tag tag-level">{pos}</span>}
+            <span className="tag" style={status==='known'?{background:'var(--good-soft)',color:'var(--good)'}:status==='learning'?{background:'var(--learn-bg)',color:'var(--ink)'}:{}}>{status==='known'?'מוכרת לי':status==='learning'?'ברשימת הלמידה':'מילה חדשה'}</span>
+            {info.net&&<span className="tag">מהמילון המקוון</span>}
+          </div>
+          <div dir="ltr" className="flex items-center gap-2 flex-wrap">
+            <span className="book text-4xl sm:text-5xl font-bold break-words">{display}</span>
+            <button className="btn btn-primary w-11 h-11" style={{borderRadius:'50%'}} onClick={()=>speakText(display,.95,voice)} aria-label="השמעה" title="השמעה"><IconSpeaker/></button>
+            <button className="btn btn-ghost w-11 h-11 text-xl" style={{borderRadius:'50%'}} onClick={()=>speakText(display,.45,voice)} aria-label="השמעה איטית" title="השמעה איטית"><span aria-hidden="true">🐢</span></button>
+          </div>
+          <div className="mt-2 flex items-baseline gap-2 flex-wrap"><span className="text-xs text-muted">איך קוראים את זה:</span><span className="text-2xl font-semibold">{info.pron}</span>{info.auto&&<span className="text-xs text-muted">(תעתיק אוטומטי, משוער)</span>}</div>
+        </div>
+        <button className="btn btn-ghost w-11 h-11 shrink-0" onClick={close} aria-label="סגירה"><IconX size={18}/></button>
+      </div>
+
+      <div className="p-5 flex flex-col gap-4 overflow-y-auto">
+        <section>
+          <div className="text-xs font-semibold text-muted mb-1 flex items-center gap-2">פירוש בעברית{(info.he||edit)&&<button className="hit text-primary font-semibold ms-auto" onClick={()=>{ setDraft(info.custom?info.he:''); setEdit(e=>!e); }}>{edit?'ביטול':'עריכה'}</button>}</div>
+          {info.he&&!edit ? <><div className="text-2xl font-bold leading-snug break-words"><Bi>{info.he}</Bi></div>
+              {info.note&&<div className="text-sm text-muted mt-0.5"><Bi>{info.note}</Bi></div>}{info.custom&&<div className="text-xs text-muted mt-0.5">תרגום שהוספת</div>}</>
+          : busy==='loading'&&!edit ? <div className="text-muted">מחפש את המילה במילון המקוון…</div>
+          : <form className="flex flex-col gap-2" onSubmit={e=>{ e.preventDefault(); if(draft.trim()){ actions.setCustom(wordKey, draft.trim()); setEdit(false); } }}>
+              {!info.he&&<div className="text-sm text-muted leading-snug">{isName?'זה שם פרטי.':busy==='fail'?'המילה לא במילון המובנה, והמילון המקוון לא זמין כרגע (אין חיבור, או שהדפדפן חוסם אותו).':'המילה לא נמצאת במילון המובנה.'}</div>}
+              <div className="flex gap-2 flex-wrap"><input id="custom-he" className="field text-sm flex-1" style={{padding:'.5rem .7rem', minWidth:'10rem'}} placeholder="כתבו תרגום משלכם" value={draft} onChange={e=>setDraft(e.target.value)} maxLength={60}/>
+                <button className="btn btn-primary py-2 px-4 text-sm" disabled={!draft.trim()}>שמירה</button></div>
+              {!info.he&&!isName&&<div className="flex gap-3 flex-wrap items-center text-sm"><button type="button" className="hit text-primary font-semibold underline" onClick={goOnline}>נסה שוב ברשת</button>
+                <a className="text-primary font-semibold underline" target="_blank" rel="noopener noreferrer" href={'https://translate.google.com/?sl=en&tl=iw&text='+encodeURIComponent(wordKey)}>פתח ב־<bdi dir="ltr">Google Translate</bdi></a></div>}
+            </form>}
+        </section>
+
+        {net&&net.def&&<section className="rounded-xl bg-sunk p-3">
+          <div className="text-xs font-semibold text-muted mb-1">הגדרה פשוטה</div>
+          <div dir="ltr" className="book text-left leading-relaxed">{net.def}</div>
+          {net.defHe&&<div className="text-sm text-muted mt-1 leading-relaxed">{net.defHe}</div>}
+        </section>}
+
+        {examples.length>0&&<section>
+          <div className="text-xs font-semibold text-muted mb-2">משפטים לדוגמה</div>
+          <ul className="flex flex-col gap-3">{examples.map((x,i)=><ExampleLine key={i} x={x} wordKey={wordKey} voice={voice}/>)}</ul>
+        </section>}
+
+        {net&&net.syn&&net.syn.length>0&&<section>
+          <div className="text-xs font-semibold text-muted mb-1.5">מילים נרדפות</div>
+          <div className="flex flex-wrap gap-1.5" dir="ltr">{net.syn.map(s=><button key={s} className="word chip book" style={{background:'var(--sunk)'}} onClick={()=>onOpenWord(s, s)}>{s}</button>)}</div>
+        </section>}
+
+        {!isName&&!(net&&net.def)&&busy!=='loading'&&info.he&&<button className="btn btn-line py-2.5 px-4 text-sm self-start" onClick={goOnline}><IconSearch size={16}/>הגדרה, מילים נרדפות ועוד דוגמאות מהרשת</button>}
+        {busy==='loading'&&info.he&&<div className="text-sm text-muted">טוען מהמילון המקוון…</div>}
+        {busy==='fail'&&info.he&&<div className="text-sm text-muted">המילון המקוון לא זמין כרגע (אין חיבור, או שהדפדפן חוסם אותו). הפירוש והדוגמאות המובנים זמינים תמיד.</div>}
+      </div>
+
+      <div className="p-4 border-t border-line flex gap-2 flex-wrap" style={{paddingBottom:'max(16px, env(safe-area-inset-bottom,0px))'}}>
+        {isName ? <button className="btn btn-ghost py-3 px-4 flex-1" onClick={()=>{ actions.setWordStatus(wordKey,'known'); close(); }}>זה שם. סמן כמוכר</button> : <>
+          {status==='learning'
+            ? <button className="btn py-3 px-4 flex-1" style={{background:'var(--learn-bg)', color:'var(--ink)', boxShadow:'0 0 0 2px var(--sun) inset'}} onClick={()=>actions.clearWord(wordKey)} title="לחיצה מסירה מהרשימה"><IconCheck size={18}/>ברשימת הלמידה שלך</button>
+            : <button className="btn py-3 px-4 flex-1" style={{background:'var(--learn-bg)', color:'var(--ink)'}} onClick={()=>actions.setWordStatus(wordKey,'learning')}><IconPlus size={18}/>הוסף לרשימת הלמידה שלי</button>}
+          <button className="btn py-3 px-4" style={{background:'var(--good-soft)', color:'var(--good)', boxShadow:status==='known'?'0 0 0 2px var(--good) inset':'none'}} onClick={()=>actions.setWordStatus(wordKey,'known')}><IconCheck size={18}/>כבר מכיר!</button>
+        </>}
+      </div>
+    </div>
+  </div>);
+}
+
+/* ---------- practice pane: writing area, dictation, checking ---------- */
+const DIFF_RE=/[A-Za-z0-9]+(?:['’][A-Za-z]+)?/g;
+const normWord=w=>w.toLowerCase().replace(/[’`]/g,"'");
+/* word-level comparison (longest common subsequence): which original words were written, which typed words are extra */
+function diffWords(orig, typed){
+  const A=orig.match(DIFF_RE)||[], B=typed.match(DIFF_RE)||[]; const a=A.map(normWord), b=B.map(normWord); const n=a.length, m=b.length;
+  const W=m+1, dp=new Uint16Array((n+1)*W);
+  for(let i=n-1;i>=0;i--) for(let j=m-1;j>=0;j--) dp[i*W+j]= a[i]===b[j] ? dp[(i+1)*W+j+1]+1 : Math.max(dp[(i+1)*W+j], dp[i*W+j+1]);
+  const okA=new Array(n).fill(false), okB=new Array(m).fill(false); let i=0,j=0;
+  while(i<n&&j<m){ if(a[i]===b[j]){ okA[i]=okB[j]=true; i++; j++; } else if(dp[(i+1)*W+j]>=dp[i*W+j+1]) i++; else j++; }
+  return { orig:A.map((t,k)=>({t, ok:okA[k]})), typed:B.map((t,k)=>({t, ok:okB[k]})), hit:okA.filter(Boolean).length, total:n };
+}
+async function copyText(text){ try{ await navigator.clipboard.writeText(text); return true; }catch(e){ return false; } }
+function PracticePane({story, text, setText, voice, toast, dictation, setDictation, areaRef}){
+  const sentences=useMemo(()=>story.paras.flatMap(p=>splitSentences(p.en)),[story]);
+  const [scope,setScope]=useState('sentence'); const [si,setSi]=useState(0); const [result,setResult]=useState(null); const [undo,setUndo]=useState(null);
+  useEffect(()=>{ setResult(null); },[dictation, scope, si]);
+  const words=countWords(text);
+  const lastLine=()=>{ const ls=text.split('\n').map(l=>l.trim()).filter(Boolean); return ls[ls.length-1]||''; };
+  const play=(i,rate)=>{ const k=Math.max(0,Math.min(sentences.length-1,i)); setSi(k); speakText(sentences[k], rate||.9, voice); };
+  const check=()=>{ const target=scope==='sentence'?sentences[si]:story.paras.map(p=>p.en).join(' '); const mine=scope==='sentence'?lastLine():text;
+    if(!countWords(mine)){ toast('עוד לא כתבת טקסט באנגלית לבדיקה.'); return; }
+    setResult({...diffWords(target, mine), scope}); };
+  const readMine=()=>{ if(!/[A-Za-z]/.test(text)){ toast('אין באזור הכתיבה טקסט באנגלית להקראה.'); return; } speakText(text.replace(/[֐-׿]+/g,' '), .9, voice); };
+  const copyAll=async()=>{ if(!text.trim()){ toast('אזור הכתיבה ריק.'); return; }
+    if(await copyText(text)) toast('הועתק!'); else { const el=areaRef.current; if(el){ el.focus(); el.select(); } toast('הטקסט סומן. לחצו Ctrl+C כדי להעתיק.'); } };
+  const clear=()=>{ if(!text) return; setUndo(text); setText(''); setResult(null); };
+  const pct=result?Math.round(result.hit/Math.max(1,result.total)*100):0;
+  return (<aside className="card practice-pane p-4 sm:p-5 flex flex-col gap-3" aria-label="אזור כתיבה ותרגול">
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="w-9 h-9 rounded-xl grid place-items-center shrink-0" style={{background:'var(--primary-soft)', color:'var(--primary)'}}><IconPen size={18}/></span>
+      <div className="me-auto leading-tight"><h2 className="font-bold text-lg">אזור הכתיבה שלי</h2><div className="text-xs text-muted">{dictation?'הקשיבו וכתבו מה ששמעתם':'העתיקו משפטים, כתבו תרגום, סיכום או הערות'}</div></div>
+      <Toggle id="tg-dict" checked={dictation} onChange={setDictation} label="מצב הכתבה"/>
+    </div>
+
+    {dictation&&<div className="rounded-xl p-3 flex flex-col gap-3" style={{background:'var(--sunk)'}}>
+      <div className="seg self-start" role="group" aria-label="היקף ההכתבה">
+        <button aria-pressed={scope==='sentence'} onClick={()=>setScope('sentence')}>משפט אחר משפט</button>
+        <button aria-pressed={scope==='story'} onClick={()=>setScope('story')}>כל הסיפור</button>
+      </div>
+      {scope==='sentence' ? <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5" dir="ltr">
+          <button className="btn btn-line w-11 h-11" onClick={()=>play(si-1)} disabled={si<=0} aria-label="המשפט הקודם"><IconPrev size={16}/></button>
+          <button className="btn btn-primary h-11 px-4" onClick={()=>play(si)} aria-label="השמעת המשפט"><IconSpeaker size={18}/><span dir="rtl">השמע משפט</span></button>
+          <button className="btn btn-line w-11 h-11 text-lg" onClick={()=>play(si,.55)} aria-label="השמעה איטית של המשפט" title="לאט"><span aria-hidden="true">🐢</span></button>
+          <button className="btn btn-line w-11 h-11" onClick={()=>play(si+1)} disabled={si>=sentences.length-1} aria-label="המשפט הבא"><IconNext size={16}/></button>
+        </div>
+        <span className="text-sm text-muted num">משפט {si+1} מתוך {sentences.length}</span>
+      </div> : <p className="text-sm text-muted">הפעילו את הסיפור בנגן שבתחתית המסך, וכתבו כאן את מה שאתם שומעים.</p>}
+    </div>}
+
+    <textarea id="practice-text" ref={areaRef} dir="auto" spellCheck={false} autoCapitalize="sentences" className="practice-text field book" rows={dictation?6:9}
+      placeholder={dictation?(scope==='sentence'?'כתבו כאן את המשפט ששמעתם, כל משפט בשורה חדשה':'כתבו כאן את הסיפור כפי ששמעתם אותו'):'Write here…'}
+      value={text} onChange={e=>{ setText(e.target.value); if(undo) setUndo(null); }}></textarea>
+
+    <div className="flex items-center gap-2 flex-wrap">
+      {dictation&&<button className="btn btn-primary px-4" onClick={check}><IconCheck size={18}/>בדיקת הכתיבה שלי</button>}
+      <button className="btn btn-ghost px-3 text-sm" onClick={readMine}><IconSpeaker size={16}/>הקראת הכתיבה שלי</button>
+      <button className="btn btn-ghost px-3 text-sm" onClick={copyAll}><IconCopy size={16}/>העתק הכול</button>
+      <button className="btn btn-ghost px-3 text-sm" onClick={clear} disabled={!text}><IconTrash size={16}/>ניקוי</button>
+      {undo!==null&&<button className="btn btn-line px-3 text-sm" onClick={()=>{ setText(undo); setUndo(null); }}>ביטול הניקוי</button>}
+      <span className="text-xs text-muted num ms-auto">{words} מילים</span>
+    </div>
+    {dictation&&scope==='sentence'&&!result&&<p className="text-xs text-muted">הבדיקה משווה את השורה האחרונה שכתבת למשפט <span className="num">{si+1}</span>.</p>}
+
+    {result&&<div className="rise rounded-xl border border-line p-3 flex flex-col gap-3" role="status">
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="font-bold text-lg">{pct>=90?'מצוין!':pct>=60?'כמעט שם':'ממשיכים לתרגל'}</span>
+        <span className="text-sm text-muted num">{result.hit} מתוך {result.total} מילים ({pct}%)</span>
+        <div className="h-2 flex-1 min-w-[80px] rounded-full bg-sunk overflow-hidden" dir="ltr"><div className="h-full bar" style={{width:pct+'%', background:'var(--good)'}}></div></div>
+      </div>
+      <div><div className="text-xs font-semibold text-muted mb-1">הטקסט המקורי</div>
+        <p dir="ltr" className="book text-left leading-loose diff">{result.orig.map((w,k)=><span key={k} className={w.ok?'d-ok':'d-miss'}>{w.t}</span>)}</p></div>
+      {result.typed.some(w=>!w.ok)&&<div><div className="text-xs font-semibold text-muted mb-1">מה שכתבת</div>
+        <p dir="ltr" className="book text-left leading-loose diff">{result.typed.map((w,k)=><span key={k} className={w.ok?'d-ok':'d-miss'}>{w.t}</span>)}</p></div>}
+      <div className="flex items-center gap-3 text-xs text-muted flex-wrap"><span className="flex items-center gap-1.5"><span className="d-ok" dir="ltr">word</span>נכתב נכון</span><span className="flex items-center gap-1.5"><span className="d-miss" dir="ltr">word</span>חסר או שגוי</span>
+        {result.scope==='sentence'&&si<sentences.length-1&&<button className="btn btn-line px-3 text-sm ms-auto" onClick={()=>play(si+1)}>למשפט הבא<IconChevL size={16}/></button>}</div>
+    </div>}
+  </aside>);
+}
+/* floating menu above a text selection inside the story */
+function SelectionPopover({rootRef, disabled, onSpeak, onCopy}){
+  const [sel,setSel]=useState(null);
+  useEffect(()=>{
+    if(disabled){ setSel(null); return; }
+    let t=null;
+    const read=()=>{ const s=window.getSelection&&window.getSelection(); const root=rootRef.current;
+      if(!s||s.isCollapsed||!s.rangeCount||!root||!root.contains(s.anchorNode)||!root.contains(s.focusNode)){ setSel(null); return; }
+      const text=s.toString().replace(/[֐-׿‎‏]+/g,' ').replace(/\s+/g,' ').trim();
+      if(!/[A-Za-z]/.test(text)){ setSel(null); return; }
+      const r=s.getRangeAt(0).getBoundingClientRect(); if(!r.width&&!r.height){ setSel(null); return; }
+      const above=r.top>150; setSel({text, x:Math.max(110, Math.min(window.innerWidth-110, r.left+r.width/2)), y:above?r.top-8:r.bottom+8, above}); };
+    const later=()=>{ clearTimeout(t); t=setTimeout(read,120); };
+    const esc=e=>{ if(e.key==='Escape'){ const s=window.getSelection(); s&&s.removeAllRanges(); setSel(null); } };
+    document.addEventListener('selectionchange',later); window.addEventListener('scroll',later,true); window.addEventListener('resize',later); window.addEventListener('keydown',esc);
+    return ()=>{ clearTimeout(t); document.removeEventListener('selectionchange',later); window.removeEventListener('scroll',later,true); window.removeEventListener('resize',later); window.removeEventListener('keydown',esc); };
+  },[disabled]);
+  if(!sel) return null;
+  const keep=e=>e.preventDefault();   // keep the selection while pressing the buttons
+  return (<div className="sel-pop" role="toolbar" aria-label="פעולות על הטקסט המסומן" style={{left:sel.x, top:sel.y, transform:`translate(-50%, ${sel.above?'-100%':'0'})`}}>
+    <button onMouseDown={keep} onClick={()=>onSpeak(sel.text)}><IconSpeaker size={18}/>השמע</button>
+    <button onMouseDown={keep} onClick={()=>{ onCopy(sel.text); const s=window.getSelection(); s&&s.removeAllRanges(); setSel(null); }}><IconCopy size={18}/>העתק לתרגול</button>
+  </div>);
+}
+
+/* ---------- reader ---------- */
+const FONT_SIZES=['1.15rem','1.32rem','1.5rem','1.72rem'];
+function Reader({story, stories, state, actions, voice, voices, back, toast, onWord}){
+  const {settings}=state; const d=storyData(story);
+  const [finishOpen,setFinishOpen]=useState(false);
+  const [confirmDel,setConfirmDel]=useState(false);
+  const [trans,setTrans]=useState({});
+  const paraRefs=useRef([]);
+  const [dictation,setDictationRaw]=useState(false);
+  const storyRef=useRef(null), areaRef=useRef(null);
+  // words are keyboard-focusable only while the keyboard is in use: a focusable span blocks mouse text selection
+  const [kbd,setKbd]=useState(false);
+  useEffect(()=>{ const k=e=>{ if(e.key==='Tab') setKbd(true); }, m=()=>setKbd(false); window.addEventListener('keydown',k); window.addEventListener('mousedown',m); window.addEventListener('touchstart',m,{passive:true});
+    return ()=>{ window.removeEventListener('keydown',k); window.removeEventListener('mousedown',m); window.removeEventListener('touchstart',m); }; },[]);
+  const split=settings.pane!==false||dictation;
+  const note=(state.notes&&state.notes[story.id])||'';
+  const setDictation=v=>{ setDictationRaw(v); if(v){ player.stop(); const s=window.getSelection&&window.getSelection(); s&&s.removeAllRanges(); } };
+  const copyToPractice=(t)=>{ actions.setNote(story.id, (note&&!note.endsWith('\n')?note+'\n':note)+t+'\n'); if(settings.pane===false) actions.setSetting('pane',true);
+    copyText(t); toast('הועתק לאזור הכתיבה'); const el=areaRef.current; if(el) setTimeout(()=>{ el.scrollTop=el.scrollHeight; },60); };
+  const player=useStoryPlayer(story, settings.rate, voice, {
+    onPara:(p)=>actions.markRead(story,[p]),
+    onFinish:()=>{ actions.addXP(5); toast('האזנת לסיפור עד הסוף! ‎+5'); } });
+  const newCount=d.keys.filter(k=>!state.words[k]).length;
+  const knownCount=d.keys.filter(k=>state.words[k]==='known').length;
+  const doneToday=state.storiesDone[story.id]&&state.storiesDone[story.id].date===todayKey();
+  useEffect(()=>{ if(player.playing){ const el=paraRefs.current[player.curP]; if(el&&el.scrollIntoView) el.scrollIntoView({block:'center', behavior:'smooth'}); } },[player.curP, player.playing]);
+
+  const openWord=(tok)=>{ const s=window.getSelection&&window.getSelection(); if(s&&!s.isCollapsed&&s.toString().trim().length>tok.text.length) return;   // a drag-selection is not a click
+    if(player.playing) player.stop(); if(!state.words[tok.key]) actions.setWordStatus(tok.key,'learning'); onWord(tok.key, tok.text); };
+  const statusCls=k=>{ const s=state.words[k]; return s==='known'?'':s==='learning'?'w-learn':'w-new'; };
+  const jump=(p)=>{ const q=player.jump(p); const el=paraRefs.current[q]; if(el&&el.scrollIntoView) el.scrollIntoView({block:'center', behavior:'smooth'}); };
+  const translatePara=async(p)=>{ setTrans(t=>({...t,[p]:'loading'}));
+    try{ const out=[]; for(const sen of splitSentences(story.paras[p].en)) out.push(await fetchTranslation(sen.slice(0,480))); actions.setParaHe(story.id, p, out.join(' ')); setTrans(t=>({...t,[p]:''})); }
+    catch(e){ setTrans(t=>({...t,[p]:'fail'})); } };
+
+  return (<div className="flex flex-col gap-4" style={{paddingBottom:'130px'}}>
+    <div className="flex items-center gap-3 flex-wrap">
+      <button className="btn btn-ghost px-3 py-2 text-sm" onClick={()=>{ player.stop(); back(); }}><IconChevR size={18}/>הספרייה</button>
+      <span className="tag tag-level">שלב <span className="num">{story.level}</span></span>
+      {story.real&&<span className="tag tag-real">סיפור אמיתי</span>}{story.user&&<span className="tag">שלי</span>}
+      <span className="tag"><IconClock size={11}/>כ־<span className="num">{readMinutes(d.words)}</span> דק׳ · <span className="num">{d.words}</span> מילים</span>
+      <span className="text-sm text-muted num ms-auto">{knownCount}/{d.keys.length} מילים מוכרות</span>
+    </div>
+
+    <section className="card p-4 flex flex-wrap gap-x-6 gap-y-3 items-center">
+      <Toggle id="tg-pron" checked={settings.pron} onChange={v=>actions.setSetting('pron',v)} label="הצג עזרי הגייה" hint="תעתיק עברי מתחת למילים קשות"/>
+      <Toggle id="tg-par" checked={settings.parallel} onChange={v=>actions.setSetting('parallel',v)} label="מצב תרגום מקביל" hint="תרגום מלא מתחת לכל פסקה"/>
+      <Toggle id="tg-pane" checked={split} onChange={v=>{ actions.setSetting('pane',v); if(!v) setDictationRaw(false); }} label="אזור כתיבה" hint="תצוגה מפוצלת: סיפור וכתיבה"/>
+      <div className="flex items-center gap-2 ms-auto">
+        <span className="text-sm text-muted">גודל</span>
+        <div className="seg" role="group" aria-label="גודל אותיות" dir="ltr">
+          <button onClick={()=>actions.setSetting('font',Math.max(0,settings.font-1))} disabled={settings.font<=0} aria-label="הקטנת אותיות" className="book">A−</button>
+          <button onClick={()=>actions.setSetting('font',Math.min(3,settings.font+1))} disabled={settings.font>=3} aria-label="הגדלת אותיות" className="book text-lg">A+</button>
+        </div>
+      </div>
+    </section>
+
+    <div className={split?'split-view':''}>
+    <article ref={storyRef} className={`card px-5 py-8 sm:px-10 sm:py-10 ${split?'split-story':''} ${dictation?'dictation':''}`}>
+      {dictation&&<div className="rounded-xl px-4 py-3 mb-6 text-sm font-semibold flex items-center gap-2 mx-auto" style={{maxWidth:'38rem', background:'var(--sun-soft)', color:'var(--ink)'}}><IconEar size={18}/>מצב הכתבה פעיל: הטקסט מוסתר. הקשיבו, וכתבו באזור הכתיבה.</div>}
+      <div className="mx-auto" style={{maxWidth:'38rem'}}>
+        <header dir="ltr" className="text-left border-b border-line pb-6 mb-8">
+          <div className="text-4xl mb-4" aria-hidden="true">{story.cover}</div>
+          <h1 className="book text-3xl sm:text-[2.5rem] font-bold leading-tight">{story.title}</h1>
+          {story.he&&<div dir="rtl" className="text-muted mt-2 text-right">{story.he}</div>}
+        </header>
+        <div className="flex flex-col gap-6" style={{'--read-size':FONT_SIZES[settings.font]||FONT_SIZES[1]}}>
+          {story.paras.map((para,p)=>{ const isCur=player.playing&&player.curP===p;
+            return (<div key={p} ref={el=>paraRefs.current[p]=el} className="flex flex-col gap-2">
+              <p dir="ltr" aria-hidden={dictation||undefined} className={`reading text-left ${settings.pron&&!dictation?'pron':''}`}>
+                {d.tokens[p].map((tok,i)=>{
+                  if(tok.t==='s') return <span key={i}>{tok.text}</span>;
+                  const act=player.active && player.active.p===p && player.active.wi===tok.wi;
+                  const info=settings.pron&&!dictation?wordInfo(tok.key):null; const showPron=info&&info.hard&&state.words[tok.key]!=='known';
+                  return <span key={i} role="button" tabIndex={kbd?0:undefined} className={`word ${statusCls(tok.key)} ${act?'w-active':''}`}
+                    onClick={()=>openWord(tok)} onKeyDown={e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openWord(tok);} }}>
+                    {showPron ? <span className="wstack"><span>{tok.text}</span><span className="pron-hint" dir="rtl">{info.pron}</span></span> : tok.text}
+                  </span>; })}
+                <button className="hit inline-grid place-items-center align-middle ms-2 w-8 h-8 rounded-full" style={isCur?{background:'var(--karaoke)',color:'var(--karaoke-ink)'}:{background:'var(--sunk)',color:'var(--muted)'}} onClick={()=>player.playPara(p)} aria-label={`הקראת פסקה ${p+1}`} title="הקראת הפסקה הזו"><IconSpeaker size={14}/></button>
+              </p>
+              {settings.parallel&&!dictation&&(para.he ? <p dir="rtl" className="para-he rise">{para.he}</p>
+                : <div dir="rtl" className="para-he text-sm flex items-center gap-2 flex-wrap">
+                    <button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>translatePara(p)} disabled={trans[p]==='loading'}>{trans[p]==='loading'?'מתרגם…':'תרגם פסקה (מקוון)'}</button>
+                    {trans[p]==='fail'&&<span>התרגום המקוון לא זמין כרגע. לחיצה על מילה עדיין מציגה תרגום מהמילון.</span>}
+                  </div>)}
+            </div>); })}
+        </div>
+
+        <div className="mt-12 rounded-2xl p-5 flex flex-col gap-3" style={{background:'var(--primary-soft)'}}>
+          {doneToday ? <div className="font-semibold flex items-center gap-2" style={{color:'var(--good)'}}><IconCheck/>כל הכבוד! קראת את הסיפור הזה היום.</div>
+          : !finishOpen ? <>
+            <div className="text-xl font-bold">סיימת לקרוא?</div>
+            <button className="btn btn-primary py-3 px-5 self-start" onClick={()=>setFinishOpen(true)}><IconCheck/>סיימתי את הסיפור</button>
+          </> : <>
+            <div className="text-xl font-bold">יופי! מה עם המילים הכחולות?</div>
+            <p className="text-sm text-muted">נשארו בסיפור <b className="num">{newCount}</b> מילים חדשות שלא לחצת עליהן. אם הן מוכרות לך, אפשר לסמן את כולן בבת אחת.</p>
+            <div className="flex flex-wrap gap-2">
+              {newCount>0&&<button className="btn btn-primary py-3 px-4" onClick={()=>{ actions.finishStory(story, true); setFinishOpen(false); }}>כל המילים הכחולות מוכרות לי</button>}
+              <button className="btn btn-ghost py-3 px-4" style={{background:'var(--surface)'}} onClick={()=>{ actions.finishStory(story, false); setFinishOpen(false); }}>סיימתי, בלי לשנות מילים</button>
+            </div>
+          </>}
+        </div>
+        {story.user&&<div className="mt-5 flex items-center gap-3 flex-wrap text-sm">
+          {!confirmDel ? <button className="hit text-muted underline flex items-center gap-1" onClick={()=>setConfirmDel(true)}><IconTrash size={15}/>מחיקת הסיפור הזה</button>
+          : <><span>למחוק את הסיפור? המילים שלמדת ממנו יישמרו.</span><button className="btn py-2 px-3" style={{background:'var(--bad)', color:'var(--surface)'}} onClick={()=>{ player.stop(); actions.deleteStory(story.id); back(); }}>כן, למחוק</button><button className="btn btn-ghost py-2 px-3" onClick={()=>setConfirmDel(false)}>ביטול</button></>}
+        </div>}
+      </div>
+    </article>
+    {split&&<PracticePane story={story} text={note} setText={t=>actions.setNote(story.id,t)} voice={voice} toast={toast} dictation={dictation} setDictation={setDictation} areaRef={areaRef}/>}
+    </div>
+    <SelectionPopover rootRef={storyRef} disabled={dictation} onSpeak={t=>{ if(player.playing) player.stop(); speakText(t,.9,voice); }} onCopy={copyToPractice}/>
+
+    <div className="player" dir="rtl">
+      <div className="h-1 bg-sunk" dir="ltr"><div className="h-full bar" style={{width:((player.curP+(player.playing?1:0))/story.paras.length*100)+'%', background:'var(--karaoke)'}} ></div></div>
+      <div className="gutter"><div className="max-w-[860px] mx-auto py-2.5 flex items-center gap-x-3 gap-y-2 flex-wrap">
+        <div className="flex items-center gap-1.5" dir="ltr">
+          <button className="btn btn-ghost w-11 h-11" onClick={()=>jump(player.curP-1)} disabled={player.curP<=0} aria-label="הפסקה הקודמת"><IconPrev size={18}/></button>
+          {player.playing
+            ? <button className="btn w-14 h-14" style={{borderRadius:'50%', background:'var(--karaoke)', color:'var(--karaoke-ink)'}} onClick={player.stop} aria-label="עצירה"><IconStop size={24}/></button>
+            : <button className="btn btn-primary w-14 h-14" style={{borderRadius:'50%'}} onClick={player.play} disabled={!synth} aria-label="הקראת הסיפור"><IconPlay size={24}/></button>}
+          <button className="btn btn-ghost w-11 h-11" onClick={()=>jump(player.curP+1)} disabled={player.curP>=story.paras.length-1} aria-label="הפסקה הבאה"><IconNext size={18}/></button>
+        </div>
+        <div className="min-w-0 flex-1 leading-tight">
+          <div dir="ltr" className="book font-semibold text-sm truncate hidden sm:block text-left">{story.title}</div>
+          <div className="text-xs text-muted num whitespace-nowrap">{synth?<>פסקה {player.curP+1}/{story.paras.length}<span className="hidden sm:inline">{player.playing?' · מוקרא עכשיו':''}</span></>:'אין תמיכה בהקראה'}</div>
+        </div>
+        <div className="hidden sm:block"><div className="seg" role="group" aria-label="מהירות הקראה" dir="ltr">
+          {[[1,'1.0x','רגיל'],[0.75,'0.75x','איטי'],[0.5,'0.5x','איטי מאוד']].map(([r,l,t])=><button key={r} aria-pressed={settings.rate===r} title={t} onClick={()=>actions.setSetting('rate',r)}>{l}</button>)}
+        </div></div>
+        <div className="sm:hidden"><button className="btn btn-ghost px-3 num" dir="ltr" onClick={()=>actions.setSetting('rate', settings.rate===1?0.75:settings.rate===0.75?0.5:1)} aria-label={`מהירות הקראה ${settings.rate}. לחיצה מחליפה מהירות`}>{settings.rate===1?'1.0x':settings.rate+'x'}</button></div>
+        {voices.length>1&&<select id="voice-select" className="rounded-xl bg-sunk px-2 py-2 text-xs max-w-[150px] hidden sm:block" value={(voice&&voice.name)||''} onChange={e=>actions.setSetting('voice',e.target.value)} aria-label="קול הקראה" dir="ltr">
+          {voices.map(v=><option key={v.name} value={v.name}>{v.name.replace(/Microsoft |Google /,'')} ({v.lang})</option>)}
+        </select>}
+      </div></div>
+    </div>
+
+  </div>);
+}
+
+/* ---------- practice ---------- */
+const CHEERS=['מעולה!','בדיוק!','יפה מאוד!','כל הכבוד!','איזה יופי!','נכון!'];
+const COMFORT=['לא נורא! כל טעות עוזרת למוח לזכור טוב יותר.','כמעט! בפעם הבאה זה כבר ייזכר.','זה בסדר לטעות. ככה בדיוק לומדים.','שווה לנסות שוב. המילה הזו תחזור עוד מעט.'];
+const SESSION_SEC=120;
+function makeQuestion(learning, quiz, lastKey, mode){
+  const pool=learning.length>1?learning.filter(k=>k!==lastKey):learning;
+  const weights=pool.map(k=>1/(1+((quiz[k]&&quiz[k].c)||0)));
+  let r=Math.random()*weights.reduce((a,b)=>a+b,0), key=pool[0];
+  for(let i=0;i<pool.length;i++){ r-=weights[i]; if(r<=0){ key=pool[i]; break; } }
+  const info=wordInfo(key);
+  const type=!info.he||mode==='listen' ? 'listen' : mode==='meaning' ? 'meaning' : (Math.random()<.5?'meaning':'listen');
+  let options;
+  if(type==='meaning'){
+    const seen=new Set([info.he]); const ds=[];
+    for(const k of shuffle(QUIZ_POOL)){ const t=MEANING[k]; if(k!==key && !seen.has(t)){ seen.add(t); ds.push(k); } if(ds.length===3) break; }
+    options=shuffle([{key, label:info.he}, ...ds.map(k=>({key:k, label:MEANING[k]}))]);
+  } else {
+    const seenPr=new Set([info.pron]); const ds=[];
+    const near=shuffle(QUIZ_POOL).sort((a,b)=>Math.abs(a.length-key.length)-Math.abs(b.length-key.length)).slice(0,60);
+    for(const k of shuffle(near)){ const pr=wordInfo(k).pron; if(k!==key && !seenPr.has(pr)){ seenPr.add(pr); ds.push(k); } if(ds.length===3) break; }
+    options=shuffle([key,...ds]).map(k=>({key:k, label:k}));
+  }
+  return {key, type, options, id:Math.random()};
+}
+function Practice({state, stories, known, actions, voice, celebrate, goRead, onWord}){
+  const learning=Object.keys(state.words).filter(k=>state.words[k]==='learning');
+  const lvNow=levelFor(known);
+  const fallback=[...new Set(STORIES.filter(s=>s.level<=lvNow).flatMap(s=>storyData(s).keys))].filter(k=>k.length>2 && !NAMES.has(k) && state.words[k]!=='known' && MEANING[k] && !MEANING[k].includes('('));
+  const pool=learning.length?learning:fallback;
+  const [mode,setMode]=useState('mix');
+  const [phase,setPhase]=useState('intro');
+  const [q,setQ]=useState(null);
+  const [picked,setPicked]=useState(null);
+  const [combo,setCombo]=useState(0);
+  const [stats,setStats]=useState({n:0, c:0, best:0, xp:0});
+  const [left,setLeft]=useState(SESSION_SEC);
+  const [msg,setMsg]=useState('');
+  const [graduated,setGraduated]=useState({});
+  const timeUp=left<=0;
+  const start=(m)=>{ const md=m||mode; if(!pool.length) return; setMode(md); setStats({n:0,c:0,best:0,xp:0}); setCombo(0); setLeft(SESSION_SEC); setPicked(null); setGraduated({}); setQ(makeQuestion(pool, state.quiz, null, md)); setPhase('play'); };
+  useEffect(()=>{ if(phase!=='play') return; const t=setInterval(()=>setLeft(l=>Math.max(0,l-1)),1000); return ()=>clearInterval(t); },[phase]);
+  useEffect(()=>{ if(phase==='play' && timeUp && picked===null) setPhase('done'); },[timeUp, phase, picked]);
+  useEffect(()=>{ if(phase==='play' && q && q.type==='listen') speakText(q.key, .85, voice); },[q&&q.id]);
+  const answer=(opt)=>{
+    if(picked!==null) return;
+    const ok=opt.key===q.key; setPicked(opt.key);
+    actions.recordAnswer(q.key, ok);
+    if(ok){ const nc=combo+1; setCombo(nc); setMsg(pick(CHEERS)); setStats(s=>({n:s.n+1, c:s.c+1, best:Math.max(s.best,nc), xp:s.xp+3})); celebrate(nc>=3 && nc%3===0); actions.noteCombo(nc); if(q.type==='meaning') speakText(q.key,.9,voice); }
+    else { setCombo(0); setMsg(pick(COMFORT)); setStats(s=>({...s, n:s.n+1, xp:s.xp+1})); }
+  };
+  const next=()=>{
+    if(timeUp){ setPhase('done'); return; }
+    if(!pool.length){ setPhase('done'); return; }
+    setPicked(null); setQ(makeQuestion(pool, state.quiz, q.key, mode));
+  };
+  useEffect(()=>{ if(phase!=='play') return;
+    const h=e=>{ if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT'||e.target.tagName==='TEXTAREA') return;
+      if(picked===null && /^[1-4]$/.test(e.key) && q){ answer(q.options[+e.key-1]); }
+      else if(picked!==null && e.key==='Enter'){ e.preventDefault(); next(); } };
+    window.addEventListener('keydown',h); return ()=>window.removeEventListener('keydown',h); });
+
+  if(phase==='intro') return (<section className="card p-6 sm:p-8 flex flex-col gap-5">
+    <div className="flex items-center gap-4 flex-wrap">
+      <div className="w-14 h-14 rounded-xl grid place-items-center" style={{background:'var(--learn-bg)'}}><IconBolt size={28}/></div>
+      <div className="flex-1 min-w-0"><h1 className="text-2xl sm:text-3xl font-bold">חזרה מהירה של 2 דקות</h1>
+        <p className="text-muted mt-1">שאלות קצרות על המילים הצהובות, אלה ששמרת לתרגול.</p></div>
+    </div>
+    <div className="grid sm:grid-cols-2 gap-3">
+      <button className="btn-line rounded-xl p-4 flex gap-3 items-start text-start cursor-pointer" onClick={()=>start('meaning')} disabled={!pool.length}><IconBook size={22}/><span className="flex-1"><span className="font-semibold block">מה הפירוש?</span><span className="text-sm text-muted block">רואים מילה באנגלית ובוחרים את התרגום מתוך 4.</span><span className="text-sm font-semibold text-primary block mt-1">תרגול רק מהסוג הזה ←</span></span></button>
+      <button className="btn-line rounded-xl p-4 flex gap-3 items-start text-start cursor-pointer" onClick={()=>start('listen')} disabled={!pool.length}><IconEar size={22}/><span className="flex-1"><span className="font-semibold block">אתגר שמיעה</span><span className="text-sm text-muted block">שומעים מילה בלי לראות אותה ובוחרים מה נאמר.</span><span className="text-sm font-semibold text-primary block mt-1">תרגול רק מהסוג הזה ←</span></span></button>
+    </div>
+    {learning.length>0 ? <>
+      <div className="flex flex-wrap gap-2" dir="ltr">{learning.slice(0,24).map(k=><button key={k} className="word chip w-learn book text-base" onClick={()=>onWord(k,k)} title="פתיחת המילה במילון">{k}</button>)}{learning.length>24&&<span className="text-muted text-sm self-center">+{learning.length-24}</span>}</div>
+      <button className="btn btn-primary py-4 px-6 text-lg self-start" onClick={()=>start('mix')}><IconPlay/>מתחילים, שני הסוגים ({learning.length} מילים)</button>
+    </> : <div className="rounded-xl p-5 border-2 border-dashed border-line flex flex-col gap-3">
+      <div className="font-semibold">עוד לא שמרת מילים לתרגול</div>
+      <p className="text-sm text-muted">בינתיים אפשר לתרגל מילים מהסיפורים של השלב שלך. כשתלחצו על מילים בסיפור הן ייצבעו בצהוב, והתרגול יתמקד בהן.</p>
+      <div className="flex gap-2 flex-wrap">
+        <button className="btn btn-primary py-3 px-5" onClick={()=>start('mix')} disabled={!pool.length}><IconPlay/>מתחילים תרגול</button>
+        <button className="btn btn-ghost py-3 px-5" onClick={goRead}><IconBook/>לסיפורים</button>
+      </div>
+    </div>}
+    <div className="text-xs text-muted hidden sm:block">טיפ: אפשר לענות עם המקשים <bdi dir="ltr">1–4</bdi> ולהמשיך עם <bdi dir="ltr">Enter</bdi>.</div>
+  </section>);
+
+  if(phase==='done') return (<section className="card p-6 sm:p-8 flex flex-col gap-5 items-start rise">
+    <h1 className="text-3xl font-bold">{stats.n===0?'נגמר הזמן':'סיימת סבב!'}</h1>
+    <p className="text-muted">{stats.c>=stats.n*0.8&&stats.n>0?'תוצאה מצוינת. המילים האלה כבר כמעט שלך.':'כל סבב מחזק את הזיכרון. מחר זה יהיה קל יותר.'}</p>
+    <div className="grid grid-cols-3 gap-3 w-full max-w-md">
+      {[[`${stats.c}/${stats.n}`,'תשובות נכונות'],[stats.best,'קומבו הכי ארוך'],[`+${stats.xp}`,'נקודות היום']].map(([v,l])=>
+        <div key={l} className="rounded-xl bg-sunk p-3 text-center"><div className="num text-2xl font-bold" dir="ltr">{v}</div><div className="text-xs text-muted">{l}</div></div>)}
+    </div>
+    <div className="flex gap-2 flex-wrap">
+      <button className="btn btn-primary py-3 px-5" onClick={()=>start(mode)} disabled={!pool.length}>סבב נוסף</button>
+      <button className="btn btn-ghost py-3 px-5" onClick={goRead}>חזרה לסיפורים</button>
+    </div>
+  </section>);
+
+  const correct=q.key; const ci=wordInfo(correct); const mastered=((state.quiz[correct]&&state.quiz[correct].c)||0)>=3;
+  const example=findExample(correct, stories); const pi=picked&&picked!==correct?wordInfo(picked):null;
+  const mm=Math.floor(left/60), ss=pad(left%60);
+  return (<div className="flex flex-col gap-4 pb-24 sm:pb-0">
+    <div className="flex items-center gap-3">
+      <button className="btn btn-ghost px-3 py-2 text-sm" onClick={()=>setPhase('done')}><IconX size={16}/>סיום</button>
+      <div className="flex-1 h-2.5 rounded-full bg-sunk overflow-hidden" dir="ltr"><div className="h-full" style={{width:(left/SESSION_SEC*100)+'%', background:left<20?'var(--coral)':'var(--primary)', transition:'width 1s linear'}}></div></div>
+      <span className="num font-semibold" dir="ltr">{mm}:{ss}</span>
+    </div>
+    <section className={`card p-5 sm:p-8 flex flex-col gap-5 ${picked!==null&&picked!==correct?'shake':''}`} key={q.id}>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm font-semibold text-muted flex items-center gap-1.5">{q.type==='meaning'?<><IconBook size={16}/>מה הפירוש של המילה?</>:<><IconEar size={16}/>איזו מילה שמעת?</>}</span>
+        {combo>=2&&<span key={combo} className="combo-badge font-bold rounded-full px-3 py-1 text-sm flex items-center gap-1" style={{background:'var(--sun)', color:'#3B2A00'}}><IconFlame size={15}/>קומבו ×{combo}</span>}
+      </div>
+      {q.type==='meaning'
+        ? <div dir="ltr" className="flex items-center gap-3"><span className="book text-4xl sm:text-5xl font-semibold">{correct}</span><button className="btn btn-ghost w-11 h-11" onClick={()=>speakText(correct,.9,voice)} aria-label="השמעה"><IconSpeaker/></button></div>
+        : <div className="flex items-center gap-3 flex-wrap">
+            <button className="btn btn-primary w-20 h-20" style={{borderRadius:'50%'}} onClick={()=>speakText(correct,.85,voice)} aria-label="השמע שוב"><IconSpeaker size={34}/></button>
+            <button className="btn btn-ghost h-12 px-4" onClick={()=>speakText(correct,.45,voice)}><span aria-hidden="true">🐢</span>לאט</button>
+          </div>}
+      <div className="grid sm:grid-cols-2 gap-3" dir={q.type==='listen'?'ltr':'rtl'}>
+        {q.options.map((o,i)=>{ const cls=picked===null?'':o.key===correct?'correct':o.key===picked?'wrong':'';
+          return <button key={o.key} disabled={picked!==null} className={`opt flex items-center gap-3 ${cls} ${q.type==='listen'?'book text-xl text-left':'text-lg'}`} onClick={()=>answer(o)}>
+            <span className="num text-xs font-bold w-6 h-6 rounded-md grid place-items-center bg-sunk text-muted shrink-0">{i+1}</span><span className="min-w-0">{q.type==='meaning'?<Bi>{o.label}</Bi>:o.label}</span></button>; })}
+      </div>
+      {picked!==null&&<div ref={el=>{ if(el&&window.innerWidth<640&&el.scrollIntoView) setTimeout(()=>el.scrollIntoView({block:'end', behavior:'smooth'}),60); }} className="rise rounded-xl p-4 pb-24 sm:pb-4 flex flex-col gap-3 scroll-mb-4" style={{background:picked===correct?'var(--good-soft)':'var(--bad-soft)'}}>
+        <div className="text-xl font-bold" style={{color:picked===correct?'var(--good)':'var(--bad)'}}>{msg}{picked===correct&&<span className="text-base font-semibold"> ‎+3</span>}</div>
+        {pi&&<div className="leading-relaxed">התשובה הנכונה: <b dir="ltr" className="book">{correct}</b>{ci.he?<> · <Bi>{ci.he}</Bi></>:null} · נשמע כמו <b>{ci.pron}</b>.
+          {q.type==='listen'&&<> בחרת <span dir="ltr" className="book">{picked}</span> ({pi.pron}). הקשיבו לשתיהן והשוו את הצליל.</>}
+          {q.type==='meaning'&&pi.he&&<div className="text-sm text-muted mt-1">ומה שבחרת, „<Bi>{pi.he}</Bi>”, באנגלית זה <span dir="ltr" className="book">{picked}</span>.</div>}</div>}
+        {example&&<div dir="ltr" className="book text-left text-sm text-muted">“{example}”</div>}
+        <div className="flex flex-wrap gap-2">
+          <button className="btn btn-primary py-3 px-6 dock-mobile" onClick={next} autoFocus>{timeUp?'לסיכום':'המשך'}</button>
+          {pi&&q.type==='listen'&&<button className="btn btn-ghost py-3 px-4" style={{background:'var(--surface)'}} onClick={()=>{ speakText(correct,.7,voice); setTimeout(()=>speakText(picked,.7,voice),1300); }}><IconSpeaker size={18}/>השוואת צלילים</button>}
+          {picked===correct&&mastered&&!graduated[correct]&&<button className="btn py-3 px-4" style={{background:'var(--surface)', color:'var(--good)'}} onClick={()=>{ actions.setWordStatus(correct,'known'); setGraduated(g=>({...g,[correct]:true})); }}><IconCheck size={18}/>אני כבר מכיר! הוצא מהתרגול</button>}
+          {graduated[correct]&&<span className="self-center font-semibold" style={{color:'var(--good)'}}>הועברה למילים המוכרות</span>}
+        </div>
+      </div>}
+    </section>
+  </div>);
+}
+
+/* ---------- progress ---------- */
+const HE_DAYS=['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
+function Progress({state, stories, actions, streak, known}){
+  const [off,setOff]=useState(0);
+  const [confirmReset,setConfirmReset]=useState(false);
+  const today=new Date(); const tk=todayKey();
+  const weekStart=addDays(today, -today.getDay()+off*7);
+  const days=Array.from({length:7},(_,i)=>addDays(weekStart,i));
+  const fmt=new Intl.DateTimeFormat('he-IL',{day:'numeric', month:'long'});
+  const todayH=state.history[tk]||{xp:0,met:false};
+  const metCount=days.filter(d=>state.history[dayKey(d)]&&state.history[dayKey(d)].met).length;
+  const weekWords=days.reduce((a,d)=>a+((state.history[dayKey(d)]&&state.history[dayKey(d)].words)||0),0);
+  const maxW=Math.max(200, ...days.map(d=>(state.history[dayKey(d)]&&state.history[dayKey(d)].words)||0));
+  const learning=Object.values(state.words).filter(s=>s==='learning').length;
+  const acc=state.totals.answered?Math.round(state.totals.correct/state.totals.answered*100):null;
+  const best=Math.max(bestStreak(state.history), streak);
+  const pct=Math.min(100, Math.round(todayH.xp/state.goal*100));
+  const doneCount=stories.filter(s=>state.storiesDone[s.id]).length;
+
+  return (<div className="flex flex-col gap-4">
+    <div className="grid gap-4 md:grid-cols-[1.3fr_1fr]">
+      <section className="card p-5 sm:p-6 flex items-center gap-5 flex-wrap">
+        <Ring value={todayH.xp} max={state.goal} size={124} stroke={13}>
+          <div className="text-center leading-none">{todayH.met ? <span style={{color:'var(--good)'}}><IconCheck size={40} className="mx-auto"/></span> : <><div className="num text-3xl font-bold"><Count value={todayH.xp}/></div><div className="text-xs text-muted mt-1 num">מתוך {state.goal}</div></>}</div>
+        </Ring>
+        <div className="flex-1 min-w-[180px] flex flex-col gap-2">
+          <div className="text-sm text-muted font-semibold">היעד היומי</div>
+          <div className="text-2xl font-bold">{todayH.met?'היעד הושלם היום!':pct>=50?'יותר מחצי דרך!':todayH.xp>0?'התחלה טובה, ממשיכים':'מתחילים את היום'}</div>
+          <div className="text-sm text-muted">{todayH.met?`צברת ${todayH.xp} נקודות היום. אפשר להמשיך בשביל הכיף.`:`עוד ${state.goal-todayH.xp} נקודות להשלמת היעד.`}</div>
+          <div className="seg mt-1 self-start" style={{flexWrap:'wrap', maxWidth:'100%'}} role="group" aria-label="גודל יעד יומי">
+            {[[20,'קליל'],[30,'רגיל'],[50,'רציני']].map(([g,l])=><button key={g} aria-pressed={state.goal===g} onClick={()=>actions.setGoal(g)} style={{padding:'.38rem .55rem'}}>{l} <span className="num">{g}</span></button>)}
+          </div>
+        </div>
+      </section>
+      <section className="card p-5 sm:p-6 flex flex-col justify-center gap-1">
+        <div className="flex items-center gap-3" style={{color:'var(--coral)'}}><IconFlame size={40}/><span className="num text-6xl font-bold leading-none"><Count value={streak}/></span></div>
+        <div className="text-xl font-bold mt-2">{streak===0?'מתחילים רצף היום':streak===1?'יום אחד ברצף':`${streak} ימים ברצף`}</div>
+        <div className="text-sm text-muted">{todayH.met?'הרצף של היום בטוח. נתראה מחר!':streak>0?'השלימו את היעד היום כדי לשמור על הרצף.':'השלימו את היעד היומי ותדליקו את הלהבה.'} · שיא: <span className="num">{best}</span></div>
+      </section>
+    </div>
+
+    <section className="card p-5 sm:p-6 flex flex-col gap-5">
+      <div className="flex items-center gap-2">
+        <button className="btn btn-ghost w-11 h-11" onClick={()=>setOff(o=>o-1)} aria-label="השבוע הקודם"><IconChevR size={18}/></button>
+        <div className="flex-1 text-center">
+          <h2 className="font-bold text-lg">{off===0?'השבוע':off===-1?'שבוע שעבר':off===1?'שבוע הבא':`שבוע ${fmt.format(days[0])}`}</h2>
+          <div className="text-xs text-muted num">{fmt.format(days[0])} – {fmt.format(days[6])}</div>
+        </div>
+        <button className="btn btn-ghost w-11 h-11" onClick={()=>setOff(o=>o+1)} aria-label="השבוע הבא"><IconChevL size={18}/></button>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-xl bg-sunk p-3"><div className="num text-2xl font-bold">{weekWords.toLocaleString('he-IL')}</div><div className="text-xs text-muted">מילים שקראת בשבוע הזה</div></div>
+        <div className="rounded-xl bg-sunk p-3"><div className="num text-2xl font-bold">{metCount}<span className="text-muted text-base font-semibold">/7</span></div><div className="text-xs text-muted">ימים שבהם הושלם היעד</div></div>
+      </div>
+      <div className="grid grid-cols-7 gap-1.5 sm:gap-3" role="list">
+        {days.map((d,i)=>{ const k=dayKey(d); const h=state.history[k]||{}; const isToday=k===tk; const future=d>today && !isToday; const w=h.words||0;
+          return (<div key={k} role="listitem" aria-label={`${fmt.format(d)}: ${w} מילים${h.met?', היעד הושלם':''}`} className="flex flex-col items-center gap-1.5" style={{opacity:future?.45:1}}>
+            <span className="num text-xs font-semibold" style={{color:w?'var(--ink)':'var(--muted)'}}>{w||'–'}</span>
+            <div className="w-full rounded-lg bg-sunk flex items-end overflow-hidden" style={{height:'110px'}}>
+              <div className="w-full rounded-lg bar" style={{height:(w?Math.max(6,w/maxW*100):0)+'%', background:h.met?'var(--good)':'var(--primary)'}}></div>
+            </div>
+            <span className="w-7 h-7 rounded-full grid place-items-center" style={h.met?{background:'var(--good)', color:'var(--surface)'}:{border:'1.5px dashed var(--line)'}}>{h.met?<IconCheck size={16}/>:null}</span>
+            <span className={`text-xs leading-tight text-center rounded-md px-1.5 py-0.5 ${isToday?'font-bold':'text-muted'}`} style={isToday?{background:'var(--primary-soft)', color:'var(--primary)'}:{}}>{HE_DAYS[i]}<br/><span className="num">{d.getDate()}</span></span>
+          </div>); })}
+      </div>
+      <p className="text-xs text-muted">העמודה מראה כמה מילים קראת או שמעת באותו יום. ה־V הירוק מסמן יום שבו הושלם היעד היומי.</p>
+    </section>
+
+    <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      {[[known,'מילים מוכרות','var(--good)'],[learning,'בלמידה','var(--ink)'],[doneCount+'/'+stories.length,'סיפורים שנקראו','var(--primary)'],[acc===null?'–':acc+'%','דיוק בתרגול','var(--coral)']].map(([v,l,c])=>
+        <div key={l} className="rounded-xl bg-sunk p-4"><div className="num text-3xl font-bold" style={{color:c}} dir="ltr">{typeof v==='number'?<Count value={v}/>:v}</div><div className="text-sm text-muted">{l}</div></div>)}
+    </section>
+
+    <section className="card p-5 sm:p-6">
+      <h2 className="text-lg font-bold mb-3">איך צוברים נקודות</h2>
+      <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
+        {[['לחיצה על מילה חדשה','+1'],['סימון מילה כ"כבר מכיר"','+2'],['האזנה לסיפור עד הסוף','+5'],['סיום קריאת סיפור','+10'],['תשובה נכונה בתרגול','+3'],['תשובה שגויה (גם ניסיון שווה!)','+1']].map(([a,b])=>
+          <li key={a} className="flex justify-between gap-3 border-b border-line py-1.5"><span>{a}</span><b className="num" dir="ltr">{b}</b></li>)}
+      </ul>
+    </section>
+
+    <div className="flex items-center gap-3 flex-wrap text-sm">
+      {!confirmReset ? <button className="hit text-muted underline" onClick={()=>setConfirmReset(true)}>איפוס כל ההתקדמות</button>
+      : <><span>למחוק את כל המילים, הרצף, ההיסטוריה והסיפורים שהוספת?</span><button className="btn py-2 px-3" style={{background:'var(--bad)', color:'var(--surface)'}} onClick={()=>{ actions.reset(); setConfirmReset(false); }}>כן, לאפס</button><button className="btn btn-ghost py-2 px-3" onClick={()=>setConfirmReset(false)}>ביטול</button></>}
+    </div>
+  </div>);
+}
+
+/* ---------- learner profiles ---------- */
+function ProfileForm({first, onCreate, onCancel}){
+  const [name,setName]=useState(''); const [avatar,setAvatar]=useState(AVATARS[0]); const [goal,setGoal]=useState(30);
+  const ok=name.trim().length>0;
+  return (<div dir="rtl" className="min-h-full font-he grid place-items-center gutter" style={{paddingBlock:'32px'}}>
+    <form className="card w-full p-6 sm:p-8 flex flex-col gap-5 rise" style={{maxWidth:'30rem'}} onSubmit={e=>{ e.preventDefault(); if(ok) onCreate({name:name.trim().slice(0,24), avatar, goal}); }}>
+      <div className="flex items-center gap-3">
+        <div className="w-12 h-12 rounded-xl grid place-items-center book font-bold text-2xl shrink-0" style={{background:'var(--ink)', color:'var(--bg)'}} aria-hidden="true">L</div>
+        <div><h1 className="text-2xl font-bold">{first?<>ברוכים הבאים ל־<bdi dir="ltr">Lumi English</bdi></>:'משתמש חדש'}</h1>
+          <p className="text-muted text-sm">{first?'כמה פרטים קצרים, ומתחילים לקרוא.':'לכל משתמש יש התקדמות, מילים וכתיבה משלו.'}</p></div>
+      </div>
+      <div className="flex flex-col gap-2"><label htmlFor="pf-name" className="font-semibold">איך קוראים לך?</label>
+        <input id="pf-name" dir="auto" className="field text-lg" autoFocus autoComplete="given-name" maxLength={24} placeholder="השם שלך" value={name} onChange={e=>setName(e.target.value)}/></div>
+      <div className="flex flex-col gap-2"><span className="font-semibold">בחרו דמות</span>
+        <div className="flex flex-wrap gap-1.5">{AVATARS.map(e=><button type="button" key={e} aria-pressed={avatar===e} aria-label={'דמות '+e} onClick={()=>setAvatar(e)} className="w-11 h-11 rounded-xl text-2xl grid place-items-center" style={{background:avatar===e?'var(--primary-soft)':'var(--sunk)', boxShadow:avatar===e?'0 0 0 2px var(--primary) inset':'none'}}>{e}</button>)}</div></div>
+      <div className="flex flex-col gap-2"><span className="font-semibold">כמה רוצים ללמוד כל יום?</span>
+        <div className="seg self-start" style={{flexWrap:'wrap'}} role="group" aria-label="יעד יומי">{[[20,'קליל, כ־5 דקות'],[30,'רגיל, כ־10 דקות'],[50,'רציני, כ־15 דקות']].map(([g,l])=><button type="button" key={g} aria-pressed={goal===g} onClick={()=>setGoal(g)}>{l}</button>)}</div>
+        <span className="text-xs text-muted">אפשר לשנות את זה בכל רגע בלשונית ההתקדמות.</span></div>
+      <div className="flex gap-2 flex-wrap">
+        <button className="btn btn-primary py-3 px-6 text-lg" disabled={!ok}>{first?'מתחילים':'יצירת משתמש'}</button>
+        {onCancel&&<button type="button" className="btn btn-ghost py-3 px-5" onClick={onCancel}>ביטול</button>}
+      </div>
+      <p className="text-xs text-muted">הפרטים וההתקדמות נשמרים רק בדפדפן הזה, בלי סיסמה ובלי הרשמה. במכשיר אחר או בדפדפן אחר מתחילים מחדש.</p>
+    </form>
+  </div>);
+}
+function ProfilePicker({list, onPick, onAdd}){
+  return (<div dir="rtl" className="min-h-full font-he grid place-items-center gutter" style={{paddingBlock:'32px'}}>
+    <div className="card w-full p-6 sm:p-8 flex flex-col gap-5 rise" style={{maxWidth:'30rem'}}>
+      <h1 className="text-2xl font-bold">מי לומד עכשיו?</h1>
+      <div className="flex flex-col gap-2">{list.map(p=><button key={p.id} onClick={()=>onPick(p.id)} className="btn-line rounded-xl p-3 flex items-center gap-3 text-start">
+        <span className="w-12 h-12 rounded-xl grid place-items-center text-2xl bg-sunk" aria-hidden="true">{p.avatar}</span><span className="font-bold text-lg flex-1"><bdi>{p.name}</bdi></span><IconChevL size={18}/></button>)}</div>
+      <button className="btn btn-ghost py-3 px-5 self-start" onClick={onAdd}><IconPlus size={18}/>משתמש נוסף</button>
+    </div>
+  </div>);
+}
+function ProfileSheet({profile, count, onClose, onRename, onSwitch, onAdd, onDelete}){
+  const [closing, close]=useClosing(onClose);
+  const [name,setName]=useState(profile.name); const [avatar,setAvatar]=useState(profile.avatar); const [confirm,setConfirm]=useState(false);
+  useEffect(()=>{ const k=e=>{ if(e.key==='Escape') close(); }; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[]);
+  const changed=name.trim()&&(name.trim()!==profile.name||avatar!==profile.avatar);
+  return (<div className={`overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center ${closing?'out':''}`} style={{background:'color-mix(in srgb,var(--ink) 40%,transparent)'}} onClick={close}>
+    <div role="dialog" aria-modal="true" aria-label="הגדרות המשתמש" className={`sheet card w-full sm:max-w-md rounded-b-none sm:rounded-[20px] p-5 flex flex-col gap-4 ${closing?'out':''}`} style={{maxHeight:'92vh', overflowY:'auto', paddingBottom:'max(20px, env(safe-area-inset-bottom,0px))'}} onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center gap-3"><h2 className="text-xl font-bold me-auto">המשתמש שלי</h2><button className="btn btn-ghost w-11 h-11" onClick={close} aria-label="סגירה"><IconX size={18}/></button></div>
+      <form className="flex flex-col gap-3" onSubmit={e=>{ e.preventDefault(); if(changed){ onRename(name.trim().slice(0,24), avatar); close(); } }}>
+        <label htmlFor="pf-rename" className="font-semibold">שם</label>
+        <input id="pf-rename" dir="auto" className="field" maxLength={24} value={name} onChange={e=>setName(e.target.value)}/>
+        <div className="flex flex-wrap gap-1.5">{AVATARS.map(e=><button type="button" key={e} aria-pressed={avatar===e} aria-label={'דמות '+e} onClick={()=>setAvatar(e)} className="w-11 h-11 rounded-xl text-2xl grid place-items-center" style={{background:avatar===e?'var(--primary-soft)':'var(--sunk)', boxShadow:avatar===e?'0 0 0 2px var(--primary) inset':'none'}}>{e}</button>)}</div>
+        <button className="btn btn-primary py-2.5 px-5 self-start" disabled={!changed}>שמירה</button>
+      </form>
+      <div className="border-t border-line pt-4 flex gap-2 flex-wrap">
+        <button className="btn btn-ghost py-2.5 px-4" onClick={onSwitch}>{count>1?'החלפת משתמש':'מסך המשתמשים'}</button>
+        <button className="btn btn-ghost py-2.5 px-4" onClick={onAdd}><IconPlus size={18}/>משתמש נוסף</button>
+      </div>
+      <div className="flex items-center gap-3 flex-wrap text-sm">
+        {!confirm ? <button className="hit text-muted underline flex items-center gap-1" onClick={()=>setConfirm(true)}><IconTrash size={15}/>מחיקת המשתמש הזה</button>
+        : <><span>למחוק את <bdi>{profile.name}</bdi> ואת כל ההתקדמות שלו? אי אפשר לשחזר.</span><button className="btn py-2 px-3" style={{background:'var(--bad)', color:'var(--surface)'}} onClick={onDelete}>כן, למחוק</button><button className="btn btn-ghost py-2 px-3" onClick={()=>setConfirm(false)}>ביטול</button></>}
+      </div>
+      <p className="text-xs text-muted">המשתמשים נשמרים בדפדפן הזה בלבד, בלי סיסמה. כל מי שמשתמש בדפדפן הזה יכול להיכנס לכל משתמש.</p>
+    </div>
+  </div>);
+}
+function Root(){
+  const [profiles,setProfiles]=useState(loadProfiles);
+  const [active,setActive]=useState(()=>{ const p=loadProfiles(); return p.list.length===1?p.list[0].id:null; });
+  const [adding,setAdding]=useState(false);
+  useEffect(()=>saveProfiles(profiles),[profiles]);
+  const create=({name,avatar,goal})=>{
+    const first=profiles.list.length===0; const id='p'+Date.now().toString(36);
+    const key=first?'lumi-english-v1':'lumi-english-v1:'+id;        // the first learner keeps any progress saved before profiles existed
+    try{ if(!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({...DEFAULT_STATE, goal})); }catch(e){}
+    setProfiles(p=>({list:[...p.list,{id,name,avatar,key}]})); setActive(id); setAdding(false); };
+  const prof=profiles.list.find(x=>x.id===active);
+  if(adding||!profiles.list.length) return <ProfileForm first={!profiles.list.length} onCreate={create} onCancel={profiles.list.length?()=>setAdding(false):null}/>;
+  if(!prof) return <ProfilePicker list={profiles.list} onPick={setActive} onAdd={()=>setAdding(true)}/>;
+  LS_KEY=prof.key;
+  return <App key={prof.id} profile={prof} count={profiles.list.length}
+    onSwitch={()=>{ try{ synth&&synth.cancel(); }catch(e){} setActive(null); }} onAddProfile={()=>{ try{ synth&&synth.cancel(); }catch(e){} setAdding(true); }}
+    onRename={(name,avatar)=>setProfiles(p=>({list:p.list.map(x=>x.id===prof.id?{...x,name,avatar}:x)}))}
+    onDelete={()=>{ try{ synth&&synth.cancel(); localStorage.removeItem(prof.key); }catch(e){} setProfiles(p=>({list:p.list.filter(x=>x.id!==prof.id)})); setActive(null); }}/>;
+}
+
+/* ---------- app ---------- */
+function App({profile, count, onSwitch, onAddProfile, onRename, onDelete}){
+  const [state,setState]=useState(loadState);
+  const [profileOpen,setProfileOpen]=useState(false);
+  const [tab,setTab]=useState('read');
+  const [storyId,setStoryId]=useState(null);
+  const [adding,setAdding]=useState(false);
+  const [burst,setBurst]=useState(null);
+  const [toastMsg,setToastMsg]=useState(null);
+  const voices=useVoices();
+  const voice=useMemo(()=>chooseVoice(voices, state.settings.voice),[voices, state.settings.voice]);
+  const warned=useRef(false);
+  useEffect(()=>{ if(!saveState(state) && !warned.current){ warned.current=true; setTimeout(()=>NOTIFY('הדפדפן חוסם שמירה מקומית, ולכן ההתקדמות לא תישמר אחרי סגירת העמוד.'),600); } },[state]);
+  CUSTOM=state.customDict||{}; NET=state.netDict||{};
+  const voiceRef=useRef(()=>{}); const [listening,setListening]=useState(false);
+  const [card,setCard]=useState(null);
+  const openCard=useCallback((key, display)=>{ const k=String(key).toLowerCase(); if(k) setCard({key:k, display:display||k}); },[]);
+  const stories=useMemo(()=>[...STORIES, ...state.userStories],[state.userStories]);
+
+  const toast=useCallback((m)=>{ const id=Math.random(); setToastMsg({m,id});
+    setTimeout(()=>setToastMsg(t=>t&&t.id===id?{...t,out:true}:t),3600); setTimeout(()=>setToastMsg(t=>t&&t.id===id?null:t),3850); },[]);
+  NOTIFY=toast;
+  useEffect(()=>{ const t=setTimeout(()=>toast(`שלום ${profile.name}, טוב לראות אותך!`),500); return ()=>clearTimeout(t); },[]);
+  const reading=useRef(false);
+  const celebrate=useCallback((big)=>{ if(!reading.current) setBurst({id:Math.random(), big}); },[]);
+  useEffect(()=>{ if(!burst) return; const t=setTimeout(()=>setBurst(null), burst.big?3200:2000); return ()=>clearTimeout(t); },[burst]);
+
+  const tk=todayKey(); const todayH=state.history[tk]||{xp:0,met:false};
+  const prevMet=useRef(todayH.met);
+  useEffect(()=>{ if(todayH.met && !prevMet.current){ celebrate(true); toast('השלמת את היעד היומי! הרצף ממשיך'); } prevMet.current=todayH.met; },[todayH.met]);
+  const known=Object.keys(state.words).filter(k=>state.words[k]==='known' && !NAMES.has(k)).length;
+  const lv=levelFor(known); const prevLv=useRef(lv);
+  useEffect(()=>{ if(lv>prevLv.current){ celebrate(true); toast(`עלית לשלב ${lv}: ${LEVELS[lv-1].name}. נפתחו סיפורים חדשים!`); } prevLv.current=lv; },[lv]);
+
+  const actions=useMemo(()=>({
+    addXP:(n)=>setState(s=>withXP(s,n)),
+    setSetting:(k,v)=>setState(s=>({...s, settings:{...s.settings,[k]:v}})),
+    setGoal:(g)=>setState(s=>{ const d=todayKey(); const h=s.history[d]; const n={...s, goal:g}; if(h && h.xp>=g && !h.met) n.history={...s.history,[d]:{...h, met:true}}; return n; }),
+    setWordStatus:(k,st)=>setState(s=>{ const prev=s.words[k]; if(prev===st) return s;
+      let xp=0; if(st==='known' && !NAMES.has(k)) xp=2; else if(st==='learning' && !prev) xp=1;
+      return withXP({...s, words:{...s.words,[k]:st}}, xp); }),
+    setCustom:(k,he)=>setState(s=>({...s, customDict:{...s.customDict,[k]:he}})),
+    setNet:(k,e)=>setState(s=>({...s, netDict:{...(s.netDict||{}),[k]:e}})),
+    clearWord:(k)=>setState(s=>{ const w={...s.words}; delete w[k]; return {...s, words:w}; }),
+    markRead:(story, idxs)=>setState(s=>withRead(s, story, idxs)),
+    finishStory:(story, markAll)=>setState(s=>{ let words=s.words, bonus=0;
+      if(markAll){ words={...s.words}; for(const k of storyData(story).keys) if(!words[k]){ words[k]='known'; bonus++; } }
+      const prev=s.storiesDone[story.id]; const already=prev&&prev.date===todayKey();
+      const n=withRead({...s, words, storiesDone:{...s.storiesDone,[story.id]:{date:todayKey(), times:((prev&&prev.times)||0)+1}}}, story, story.paras.map((_,i)=>i));
+      return withXP(n, (already?0:10)+Math.min(bonus,15)); }),
+    recordAnswer:(k, ok)=>setState(s=>{ const q=s.quiz[k]||{c:0,w:0};
+      return withXP({...s, quiz:{...s.quiz,[k]:{c:q.c+(ok?1:0), w:q.w+(ok?0:1)}}, totals:{answered:s.totals.answered+1, correct:s.totals.correct+(ok?1:0)}}, ok?3:1); }),
+    noteCombo:(n)=>setState(s=>n>s.bestCombo?{...s, bestCombo:n}:s),
+    setNote:(id,t)=>setState(s=>({...s, notes:{...(s.notes||{}),[id]:t}})),
+    unlock:(n)=>setState(s=>({...s, unlocked:{...s.unlocked,[n]:true}})),
+    addStory:(story)=>setState(s=>({...s, userStories:[story, ...s.userStories]})),
+    deleteStory:(id)=>setState(s=>{ const sd={...s.storiesDone}; delete sd[id]; return {...s, userStories:s.userStories.filter(x=>x.id!==id), storiesDone:sd}; }),
+    setParaHe:(id,p,he)=>setState(s=>({...s, userStories:s.userStories.map(x=>x.id!==id?x:{...x, paras:x.paras.map((q,i)=>i===p?{...q, he}:q)})})),
+    reset:()=>{ setState(DEFAULT_STATE); prevMet.current=false; prevLv.current=1; setStoryId(null); },
+  }),[]);
+
+  const learning=Object.values(state.words).filter(s=>s==='learning').length;
+  const streak=computeStreak(state.history);
+  const story=stories.find(s=>s.id===storyId);
+  reading.current=tab==='read'&&!!story;   // no confetti over the page while reading
+  const changeTab=(t)=>{ setTab(t); try{ synth&&synth.cancel(); }catch(e){} window.scrollTo({top:0}); };
+  const openStory=(id)=>{ setStoryId(id); setTab('read'); window.scrollTo({top:0}); };
+
+  return (<div dir="rtl" className="min-h-full font-he" style={{overflowX:'clip'}}>
+    <DictBar state={state} onOpen={openCard} onAdd={()=>setAdding(true)} onHome={()=>{ setStoryId(null); changeTab('read'); }} voiceRef={voiceRef} onListening={setListening}/>
+    <Header known={known} streak={streak} todayXP={todayH.xp} goal={state.goal} unlocked={state.unlocked} onNav={changeTab} profile={profile} onProfile={()=>setProfileOpen(true)}/>
+    <Tabs tab={tab} setTab={changeTab} learning={learning}/>
+    <main className="gutter" style={{paddingBlock:'24px 56px'}}>
+      <div className="mx-auto" style={{maxWidth:tab==='read'&&story&&state.settings.pane!==false?'1240px':'860px', transition:'max-width .3s ease'}}>
+        {tab==='read' && (story
+          ? <Reader key={story.id} story={story} stories={stories} state={state} actions={actions} voice={voice} voices={voices} back={()=>{ setStoryId(null); window.scrollTo({top:0}); }} toast={toast} onWord={openCard}/>
+          : <Library state={state} known={known} actions={actions} openStory={openStory} onAdd={()=>setAdding(true)} toast={toast}/>)}
+        {tab==='practice' && <Practice state={state} stories={stories} known={known} actions={actions} voice={voice} celebrate={celebrate} goRead={()=>changeTab('read')} onWord={openCard}/>}
+        {tab==='progress' && <Progress state={state} stories={stories} actions={actions} streak={streak} known={known}/>}
+      </div>
+    </main>
+    {adding&&<AddStory state={state} onClose={()=>setAdding(false)} onSave={(st, stats)=>{ actions.addStory(st); setAdding(false); try{ synth&&synth.cancel(); }catch(e){} openStory(st.id);
+      toast(`הסיפור נשמר: ${stats.words} מילים, ${stats.known} מהן כבר מוכרות לך`); }}/>}
+    {tab!=='practice'&&!card&&!adding&&!profileOpen&&<button className="fab sm:hidden" style={{bottom:`calc(${reading.current?104:20}px + env(safe-area-inset-bottom,0px))`, background:listening?'var(--bad)':'var(--primary)', color:listening?'var(--surface)':'var(--primary-ink)'}} onClick={()=>voiceRef.current()} aria-label={listening?'עצירת ההקשבה':'חיפוש קולי במילון: אמרו מילה באנגלית'} aria-pressed={listening}><IconMic size={24}/></button>}
+    {card&&<DictCard wordKey={card.key} display={card.display} state={state} stories={stories} voice={voice} actions={actions} onClose={()=>setCard(null)} onOpenWord={openCard}/>}
+    {profileOpen&&<ProfileSheet profile={profile} count={count} onClose={()=>setProfileOpen(false)} onRename={onRename} onSwitch={onSwitch} onAdd={onAddProfile} onDelete={onDelete}/>}
+    {burst&&<Confetti key={burst.id} big={burst.big}/>}
+    {toastMsg&&<div role="status" className={`toast fixed z-[70] rounded-xl px-5 py-3 ${toastMsg.out?'out':''}`+" font-semibold flex items-center gap-2 text-sm"} style={{top:'calc(124px + env(safe-area-inset-top,0px))', background:'var(--ink)', color:'var(--bg)', width:'max-content', maxWidth:'calc(100vw - 32px)'}}><IconCheck size={18} className="shrink-0"/><span><Bi>{toastMsg.m}</Bi></span></div>}
+  </div>);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Root/>);
