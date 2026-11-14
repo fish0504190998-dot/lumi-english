@@ -1201,7 +1201,13 @@ function Reader({story, stories, state, actions, voice, voices, back, toast, onW
     </div>
 
     <section className="card p-4 flex flex-wrap gap-x-6 gap-y-3 items-center">
-      <Toggle id="tg-pron" checked={settings.pron} onChange={v=>actions.setSetting('pron',v)} label="הצג עזרי הגייה" hint="תעתיק עברי מתחת למילים קשות"/>
+      <div className="flex items-center gap-3 flex-wrap">
+        <Toggle id="tg-pron" checked={settings.pron} onChange={v=>actions.setSetting('pron',v)} label="הצג עזרי הגייה" hint={settings.pronAll?'תעתיק עברי מתחת לכל מילה':'תעתיק עברי מתחת למילים קשות'}/>
+        {settings.pron&&<div className="seg" role="group" aria-label="מתחת לאילו מילים">
+          <button aria-pressed={!settings.pronAll} onClick={()=>actions.setSetting('pronAll',false)}>מילים קשות</button>
+          <button aria-pressed={!!settings.pronAll} onClick={()=>actions.setSetting('pronAll',true)}>כל המילים</button>
+        </div>}
+      </div>
       <Toggle id="tg-par" checked={settings.parallel} onChange={v=>actions.setSetting('parallel',v)} label="מצב תרגום מקביל" hint="תרגום מלא מתחת לכל פסקה"/>
       <Toggle id="tg-pane" checked={split} onChange={v=>{ actions.setSetting('pane',v); if(!v) setDictationRaw(false); }} label="אזור כתיבה" hint="תצוגה מפוצלת: סיפור וכתיבה"/>
       <div className="flex items-center gap-2 ms-auto">
@@ -1225,15 +1231,18 @@ function Reader({story, stories, state, actions, voice, voices, back, toast, onW
         <div className="flex flex-col gap-6" style={{'--read-size':FONT_SIZES[settings.font]||FONT_SIZES[1]}}>
           {story.paras.map((para,p)=>{ const isCur=player.playing&&player.curP===p;
             return (<div key={p} ref={el=>paraRefs.current[p]=el} className="flex flex-col gap-2">
-              <p dir="ltr" aria-hidden={dictation||undefined} className={`reading text-left ${settings.pron&&!dictation?'pron':''}`}>
-                {d.tokens[p].map((tok,i)=>{
-                  if(tok.t==='s') return <span key={i}>{tok.text}</span>;
+              <p dir="ltr" aria-hidden={dictation||undefined} className={`reading text-left ${settings.pron&&!dictation?'pron':''} ${settings.pron&&settings.pronAll&&!dictation?'pron-all':''}`}>
+                {d.tokens[p].map((tok,i,all)=>{
+                  // punctuation right after a word stays glued to it, so a lone "." never wraps to a new line
+                  if(tok.t==='s'){ const prevW=all[i-1]&&all[i-1].t==='w'; const t=prevW?tok.text.replace(/^[^\s]+/,''):tok.text; return t?<span key={i}>{t}</span>:null; }
+                  const nx=all[i+1]; const glue=nx&&nx.t==='s'?(nx.text.match(/^[^\s]+/)||[''])[0]:'';
                   const act=player.active && player.active.p===p && player.active.wi===tok.wi;
-                  const info=settings.pron&&!dictation?wordInfo(tok.key):null; const showPron=info&&info.hard&&state.words[tok.key]!=='known';
-                  return <span key={i} role="button" tabIndex={kbd?0:undefined} className={`word ${statusCls(tok.key)} ${act?'w-active':''}`}
+                  const info=settings.pron&&!dictation?wordInfo(tok.key):null; const showPron=info&&(settings.pronAll||(info.hard&&state.words[tok.key]!=='known'));
+                  const el=<span key={i} role="button" tabIndex={kbd?0:undefined} className={`word ${statusCls(tok.key)} ${act?'w-active':''}`}
                     onClick={()=>openWord(tok)} onKeyDown={e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openWord(tok);} }}>
                     {showPron ? <span className="wstack"><span>{tok.text}</span><span className="pron-hint" dir="rtl">{info.pron}</span></span> : tok.text}
-                  </span>; })}
+                  </span>;
+                  return glue ? <span key={i} className="whitespace-nowrap">{el}{glue}</span> : el; })}
                 <button className="hit inline-grid place-items-center align-middle ms-2 w-8 h-8 rounded-full" style={isCur?{background:'var(--karaoke)',color:'var(--karaoke-ink)'}:{background:'var(--sunk)',color:'var(--muted)'}} onClick={()=>player.playPara(p)} aria-label={`הקראת פסקה ${p+1}`} title="הקראת הפסקה הזו"><IconSpeaker size={14}/></button>
               </p>
               {settings.parallel&&!dictation&&(para.he ? <p dir="rtl" className="para-he rise">{para.he}</p>

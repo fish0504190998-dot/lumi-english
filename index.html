@@ -2127,6 +2127,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   .book{ font-family:Literata,Georgia,'Times New Roman',serif; letter-spacing:.01em; }
   .reading{ font-family:Literata,Georgia,'Times New Roman',serif; font-size:var(--read-size,1.3rem); line-height:2; letter-spacing:.012em; }
   .reading.pron{ line-height:2.5; }
+  .reading.pron-all{ line-height:2.75; word-spacing:.2em; }
+  .reading.pron-all .pron-hint{ font-size:.48em; }
   .word{ border-radius:5px; padding:.04em .12em; margin:0 -.03em; cursor:pointer; transition:background-color .2s, color .2s, box-shadow .2s; }
   .word:hover{ box-shadow:0 0 0 1.5px var(--primary); }
   .w-new{ background:var(--new-bg); }
@@ -7292,13 +7294,25 @@ function Reader({
     className: "text-sm text-muted num ms-auto"
   }, knownCount, "/", d.keys.length, " \u05DE\u05D9\u05DC\u05D9\u05DD \u05DE\u05D5\u05DB\u05E8\u05D5\u05EA")), /*#__PURE__*/React.createElement("section", {
     className: "card p-4 flex flex-wrap gap-x-6 gap-y-3 items-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3 flex-wrap"
   }, /*#__PURE__*/React.createElement(Toggle, {
     id: "tg-pron",
     checked: settings.pron,
     onChange: v => actions.setSetting('pron', v),
     label: "\u05D4\u05E6\u05D2 \u05E2\u05D6\u05E8\u05D9 \u05D4\u05D2\u05D9\u05D9\u05D4",
-    hint: "\u05EA\u05E2\u05EA\u05D9\u05E7 \u05E2\u05D1\u05E8\u05D9 \u05DE\u05EA\u05D7\u05EA \u05DC\u05DE\u05D9\u05DC\u05D9\u05DD \u05E7\u05E9\u05D5\u05EA"
-  }), /*#__PURE__*/React.createElement(Toggle, {
+    hint: settings.pronAll ? 'תעתיק עברי מתחת לכל מילה' : 'תעתיק עברי מתחת למילים קשות'
+  }), settings.pron && /*#__PURE__*/React.createElement("div", {
+    className: "seg",
+    role: "group",
+    "aria-label": "\u05DE\u05EA\u05D7\u05EA \u05DC\u05D0\u05D9\u05DC\u05D5 \u05DE\u05D9\u05DC\u05D9\u05DD"
+  }, /*#__PURE__*/React.createElement("button", {
+    "aria-pressed": !settings.pronAll,
+    onClick: () => actions.setSetting('pronAll', false)
+  }, "\u05DE\u05D9\u05DC\u05D9\u05DD \u05E7\u05E9\u05D5\u05EA"), /*#__PURE__*/React.createElement("button", {
+    "aria-pressed": !!settings.pronAll,
+    onClick: () => actions.setSetting('pronAll', true)
+  }, "\u05DB\u05DC \u05D4\u05DE\u05D9\u05DC\u05D9\u05DD"))), /*#__PURE__*/React.createElement(Toggle, {
     id: "tg-par",
     checked: settings.parallel,
     onChange: v => actions.setSetting('parallel', v),
@@ -7379,15 +7393,22 @@ function Reader({
     }, /*#__PURE__*/React.createElement("p", {
       dir: "ltr",
       "aria-hidden": dictation || undefined,
-      className: `reading text-left ${settings.pron && !dictation ? 'pron' : ''}`
-    }, d.tokens[p].map((tok, i) => {
-      if (tok.t === 's') return /*#__PURE__*/React.createElement("span", {
-        key: i
-      }, tok.text);
+      className: `reading text-left ${settings.pron && !dictation ? 'pron' : ''} ${settings.pron && settings.pronAll && !dictation ? 'pron-all' : ''}`
+    }, d.tokens[p].map((tok, i, all) => {
+      // punctuation right after a word stays glued to it, so a lone "." never wraps to a new line
+      if (tok.t === 's') {
+        const prevW = all[i - 1] && all[i - 1].t === 'w';
+        const t = prevW ? tok.text.replace(/^[^\s]+/, '') : tok.text;
+        return t ? /*#__PURE__*/React.createElement("span", {
+          key: i
+        }, t) : null;
+      }
+      const nx = all[i + 1];
+      const glue = nx && nx.t === 's' ? (nx.text.match(/^[^\s]+/) || [''])[0] : '';
       const act = player.active && player.active.p === p && player.active.wi === tok.wi;
       const info = settings.pron && !dictation ? wordInfo(tok.key) : null;
-      const showPron = info && info.hard && state.words[tok.key] !== 'known';
-      return /*#__PURE__*/React.createElement("span", {
+      const showPron = info && (settings.pronAll || info.hard && state.words[tok.key] !== 'known');
+      const el = /*#__PURE__*/React.createElement("span", {
         key: i,
         role: "button",
         tabIndex: kbd ? 0 : undefined,
@@ -7405,6 +7426,10 @@ function Reader({
         className: "pron-hint",
         dir: "rtl"
       }, info.pron)) : tok.text);
+      return glue ? /*#__PURE__*/React.createElement("span", {
+        key: i,
+        className: "whitespace-nowrap"
+      }, el, glue) : el;
     }), /*#__PURE__*/React.createElement("button", {
       className: "hit inline-grid place-items-center align-middle ms-2 w-8 h-8 rounded-full",
       style: isCur ? {
