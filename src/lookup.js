@@ -3,6 +3,7 @@ const MEANING = {}, PRON = {}, HARD = {};
 for(const k in DICT){ MEANING[k]=DICT[k][0]; PRON[k]=DICT[k][1]; if(DICT[k][2]) HARD[k]=1; }
 for(const k in NAME_HE) MEANING[k]=NAME_HE[k];
 EXTRA_SRC.split('|').forEach(e=>{ const i=e.indexOf('='); if(i<1) return; const k=e.slice(0,i).trim(); if(!(k in MEANING)) MEANING[k]=e.slice(i+1).trim(); });
+VOCAB2.split('|').forEach(e=>{ const [k,he,pr]=e.split('='); if(!k||!he) return; if(!(k in MEANING)) MEANING[k]=he; if(pr && !(k in PRON)) PRON[k]=pr; });
 PRON_SRC.split('|').forEach(e=>{ const i=e.indexOf('='); if(i<1) return; const k=e.slice(0,i).trim(); if(!(k in PRON)) PRON[k]=e.slice(i+1).trim(); });
 let CUSTOM = {};
 let NET = {};              // words fetched from the online dictionary, cached in LocalStorage

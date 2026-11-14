@@ -1,7 +1,27 @@
 <!doctype html>
 <html lang="he"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="לומדים אנגלית בכיף, כל יום: סיפורים מדורגים, צלילים ואותיות, שיחה בקול ותחרות עם חברים. בחינם, בעברית, בלי הרשמה.">
+<meta name="theme-color" content="#2F7D73">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="apple-mobile-web-app-title" content="Lumi English">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Lumi English">
+<meta property="og:title" content="Lumi English · לומדים אנגלית בכיף, כל יום">
+<meta property="og:description" content="סיפורים מדורגים, צלילים ואותיות, שיחה בקול ותחרות עם חברים. בחינם, בעברית, בלי הרשמה.">
+<meta property="og:url" content="https://lumi-english.netlify.app/">
+<meta property="og:image" content="https://lumi-english.netlify.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="he_IL">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://lumi-english.netlify.app/og.png">
+
 <title>Lumi English</title>
 <meta charset="utf-8">
+<link rel="alternate icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22b%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%233A9486%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%231F5F57%22/%3E%3C/linearGradient%3E%3CradialGradient%20id%3D%22g%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%23FFE7A3%22%20stop-opacity%3D%22.95%22/%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23FFE7A3%22%20stop-opacity%3D%220%22/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2216%22%20fill%3D%22url%28%23b%29%22/%3E%3Ccircle%20cx%3D%2244.5%22%20cy%3D%2219.5%22%20r%3D%2214%22%20fill%3D%22url%28%23g%29%22/%3E%3Cpath%20d%3D%22M18%2013h9.5v28.5H46V50H18z%22%20fill%3D%22%23FFFEFB%22/%3E%3Ccircle%20cx%3D%2244.5%22%20cy%3D%2219.5%22%20r%3D%226.2%22%20fill%3D%22%23F4C55B%22/%3E%3C/svg%3E">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600;7..72,700&display=swap">
 <style>*, ::before, ::after {
@@ -605,6 +625,22 @@ video {
   inset-inline-end: -0.375rem;
 }
 
+.end-1 {
+  inset-inline-end: 0.25rem;
+}
+
+.end-2 {
+  inset-inline-end: 0.5rem;
+}
+
+.top-1 {
+  top: 0.25rem;
+}
+
+.top-2 {
+  top: 0.5rem;
+}
+
 .top-full {
   top: 100%;
 }
@@ -632,6 +668,10 @@ video {
 
 .-mb-px {
   margin-bottom: -1px;
+}
+
+.mb-0\.5 {
+  margin-bottom: 0.125rem;
 }
 
 .mb-1 {
@@ -704,6 +744,10 @@ video {
 
 .flex {
   display: flex;
+}
+
+.table {
+  display: table;
 }
 
 .grid {
@@ -786,6 +830,10 @@ video {
   min-height: 48px;
 }
 
+.min-h-\[52px\] {
+  min-height: 52px;
+}
+
 .min-h-full {
   min-height: 100%;
 }
@@ -842,12 +890,20 @@ video {
   min-width: 180px;
 }
 
+.min-w-\[220px\] {
+  min-width: 220px;
+}
+
 .min-w-\[80px\] {
   min-width: 80px;
 }
 
 .max-w-\[150px\] {
   max-width: 150px;
+}
+
+.max-w-\[85\%\] {
+  max-width: 85%;
 }
 
 .max-w-\[860px\] {
@@ -864,6 +920,10 @@ video {
 
 .shrink-0 {
   flex-shrink: 0;
+}
+
+.border-collapse {
+  border-collapse: collapse;
 }
 
 .transform {
@@ -932,12 +992,20 @@ video {
   align-items: baseline;
 }
 
+.justify-end {
+  justify-content: flex-end;
+}
+
 .justify-center {
   justify-content: center;
 }
 
 .justify-between {
   justify-content: space-between;
+}
+
+.gap-0\.5 {
+  gap: 0.125rem;
 }
 
 .gap-1 {
@@ -1010,6 +1078,10 @@ video {
   overflow: hidden;
 }
 
+.overflow-x-auto {
+  overflow-x: auto;
+}
+
 .overflow-y-auto {
   overflow-y: auto;
 }
@@ -1055,6 +1127,14 @@ video {
 .rounded-b-none {
   border-bottom-right-radius: 0px;
   border-bottom-left-radius: 0px;
+}
+
+.rounded-tl-md {
+  border-top-left-radius: 0.375rem;
+}
+
+.rounded-tr-md {
+  border-top-right-radius: 0.375rem;
 }
 
 .border {
@@ -1111,6 +1191,14 @@ video {
 
 .bg-transparent {
   background-color: transparent;
+}
+
+.p-2 {
+  padding: 0.5rem;
+}
+
+.p-2\.5 {
+  padding: 0.625rem;
 }
 
 .p-3 {
@@ -1233,8 +1321,8 @@ video {
   padding-inline-start: 0.375rem;
 }
 
-.ps-3 {
-  padding-inline-start: 0.75rem;
+.ps-2\.5 {
+  padding-inline-start: 0.625rem;
 }
 
 .pt-4 {
@@ -1278,6 +1366,11 @@ video {
 .text-4xl {
   font-size: 2.25rem;
   line-height: 2.5rem;
+}
+
+.text-5xl {
+  font-size: 3rem;
+  line-height: 1;
 }
 
 .text-6xl {
@@ -1338,6 +1431,10 @@ video {
   font-weight: 600;
 }
 
+.uppercase {
+  text-transform: uppercase;
+}
+
 .leading-loose {
   line-height: 2;
 }
@@ -1358,6 +1455,14 @@ video {
   line-height: 1.25;
 }
 
+.tracking-wider {
+  letter-spacing: 0.05em;
+}
+
+.tracking-widest {
+  letter-spacing: 0.1em;
+}
+
 .text-ink {
   color: var(--ink);
 }
@@ -1376,6 +1481,10 @@ video {
 
 .opacity-60 {
   opacity: 0.6;
+}
+
+.opacity-80 {
+  opacity: 0.8;
 }
 
 .outline-none {
@@ -1404,21 +1513,31 @@ video {
   transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
 }
 
+.hover\:bg-sunk:hover {
+  background-color: var(--sunk);
+}
+
 .hover\:text-ink:hover {
   color: var(--ink);
 }
 
+@media (min-width: 400px) {
+  .min-\[400px\]\:block {
+    display: block;
+  }
+}
+
 @media (min-width: 640px) {
+  .sm\:static {
+    position: static;
+  }
+
   .sm\:block {
     display: block;
   }
 
   .sm\:inline {
     display: inline;
-  }
-
-  .sm\:inline-flex {
-    display: inline-flex;
   }
 
   .sm\:hidden {
@@ -1445,6 +1564,10 @@ video {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .sm\:grid-cols-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .sm\:grid-cols-4 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -1459,6 +1582,10 @@ video {
 
   .sm\:items-center {
     align-items: center;
+  }
+
+  .sm\:gap-2 {
+    gap: 0.5rem;
   }
 
   .sm\:gap-3 {
@@ -1486,14 +1613,19 @@ video {
     padding-right: 2.5rem;
   }
 
-  .sm\:px-4 {
-    padding-left: 1rem;
-    padding-right: 1rem;
+  .sm\:px-3 {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
   }
 
   .sm\:py-10 {
     padding-top: 2.5rem;
     padding-bottom: 2.5rem;
+  }
+
+  .sm\:py-3 {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
   }
 
   .sm\:pb-0 {
@@ -1517,13 +1649,14 @@ video {
   .sm\:text-\[2\.5rem\] {
     font-size: 2.5rem;
   }
+
+  .sm\:text-sm {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
 }
 
 @media (min-width: 768px) {
-  .md\:block {
-    display: block;
-  }
-
   .md\:inline {
     display: inline;
   }
@@ -1534,6 +1667,16 @@ video {
 
   .md\:grid-cols-\[1\.3fr_1fr\] {
     grid-template-columns: 1.3fr 1fr;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lg\:block {
+    display: block;
+  }
+
+  .lg\:grid-cols-4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }</style>
 <script>/**
@@ -1897,6 +2040,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   @keyframes sheetout{ to{ transform:translateY(16px); opacity:0 } }
   .dropdown{ opacity:0; transform:translateY(-4px); pointer-events:none; visibility:hidden; transition:opacity .15s ease, transform .15s ease, visibility 0s linear .15s; }
   .dropdown.show{ opacity:1; transform:none; pointer-events:auto; visibility:visible; transition:opacity .15s ease, transform .15s ease; }
+  .toast{ top:calc(124px + env(safe-area-inset-top,0px)); }
+  @media (max-width:639px){ .toast{ top:auto; bottom:calc(104px + env(safe-area-inset-bottom,0px)); } }
   .toast{ left:50%; transform:translateX(-50%); animation:toastin .22s ease-out; transition:opacity .22s ease, transform .22s ease; }
   .toast.out{ opacity:0; transform:translate(-50%,-8px); }
   @keyframes toastin{ from{ opacity:0; transform:translate(-50%,-10px) } to{ opacity:1; transform:translateX(-50%) } }
@@ -1971,6 +2116,8 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   .sel-pop{ position:fixed; z-index:45; display:flex; gap:2px; padding:4px; border-radius:14px; background:var(--ink); box-shadow:0 8px 24px rgba(45,55,72,.28); animation:fade .15s ease-out; direction:rtl; }
   .sel-pop button{ display:inline-flex; align-items:center; gap:.4rem; min-height:44px; padding:0 .85rem; border-radius:10px; color:var(--bg); font-weight:600; font-size:.92rem; white-space:nowrap; }
   .sel-pop button:hover{ background:color-mix(in srgb,var(--bg) 16%,transparent); }
+  @media (max-width:639px){ .dict-drop{ position:fixed; left:max(12px,env(safe-area-inset-left,0px)); right:max(12px,env(safe-area-inset-right,0px)); top:calc(env(safe-area-inset-top,0px) + 70px); max-height:calc(100vh - 180px)!important; } }
+  .talk-composer{ position:sticky; bottom:calc(8px + env(safe-area-inset-bottom,0px)); z-index:20; box-shadow:0 6px 22px rgba(45,55,72,.14); }
   .player{ position:fixed; inset:auto 0 0 0; z-index:35; background:var(--surface); border-top:1px solid var(--line); box-shadow:0 -6px 20px rgba(20,40,46,.08); padding-bottom:env(safe-area-inset-bottom,0px); }
   @media (prefers-reduced-motion: reduce){ *,*::before,*::after{ animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; } .confetti{ display:none; } }
 </style>
@@ -2653,11 +2800,175 @@ Do you understand the question?|אתה מבין את השאלה?
 I remember your name.|אני זוכר את השם שלך.
 It is important to sleep well.|חשוב לישון טוב.`;
 
+/* everyday vocabulary pack: word=Hebrew meaning=pronunciation */
+const VOCAB2 = `cucumber=מלפפון=קְיוּקַמְבֶּר|carrot=גזר=קֶרֶט|potato=תפוח אדמה=פּוֹטֵייטוֹ|onion=בצל=אַנְיֶן|lettuce=חסה=לֶטִיס|pepper=פלפל=פֶּפֶּר|garlic=שום=גַארְלִיק|watermelon=אבטיח=ווֹטֶרְמֶלֶן|grapes=ענבים=גְרֵייפְּס|strawberry=תות=סְטְרוֹבֶּרִי|cherry=דובדבן=צֶ'רִי|pear=אגס=פֶּר|peach=אפרסק=פִּיץ'|plum=שזיף=פְּלַאם|pineapple=אננס=פַּיינֶפֶּל|mango=מנגו=מֶנְגוֹ|avocado=אבוקדו=אֶבוֹקָדוֹ|olive=זית=אוֹלִיב|bean=שעועית=בִּין|butter=חמאה=בַּאטֶר|yogurt=יוגורט=יוֹגֶרְט|sandwich=כריך / סנדוויץ'=סֶנְדְוִויץ'|salad=סלט=סֶלֶד|pasta=פסטה=פָּסְטָה|noodles=אטריות=נוּדֶלְז|cereal=דגני בוקר=סִירִיאֶל|flour=קמח=פְלָאוּאֶר|oil=שמן=אוֹיְל|vinegar=חומץ=וִינֶגֶר|jam=ריבה=גֶ'ם|candy=ממתק=קֶנְדִי|cream=שמנת / קרם=קְרִים|chips=צ'יפס=צִ'יפְּס|popcorn=פופקורן=פּוֹפְּקוֹרְן|pie=פאי=פַּיי|soda=משקה מוגז=סוֹדָה|wine=יין=וַויְן|beer=בירה=בִּיר|plate=צלחת=פְּלֵייט|fork=מזלג=פוֹרְק|knife=סכין=נַייף|bowl=קערה=בּוֹל|napkin=מפית=נֶפְּקִין|pan=מחבת=פֶּן|oven=תנור=אַבֶן|fridge=מקרר=פְרִיג'|sink=כיור=סִינְק|sofa=ספה=סוֹפָה|couch=ספה=קָאוּץ'|pillow=כרית=פִּילוֹ|blanket=שמיכה=בְּלֶנְקֶט|mirror=מראה=מִירֶר|stairs=מדרגות=סְטֶרְז|towel=מגבת=טָאוּאֶל|soap=סבון=סוֹפּ|shampoo=שמפו=שֶׁמְפּוּ|toothbrush=מברשת שיניים=טוּת'בְּרַאשׁ|toothpaste=משחת שיניים=טוּת'פֵּייסְט|comb=מסרק=קוֹם|clock=שעון קיר=קְלוֹק|wallet=ארנק=ווֹלֶט|glasses=משקפיים=גְלֶסֶז|jacket=מעיל קצר / ז'קט=גֶ'קֶט|sweater=סוודר=סְוֶוטֶר|skirt=חצאית=סְקֶרְט|socks=גרביים=סוֹקְס|boots=מגפיים=בּוּטְס|gloves=כפפות=גְלַאבְז|scarf=צעיף=סְקַארְף|belt=חגורה=בֶּלְט|dentist=רופא שיניים=דֶנְטִיסְט|firefighter=כבאי=פַייֶרְפַייטֶר|waiter=מלצר=וֵייטֶר|engineer=מהנדס=אֶנְג'ִינִיר|lawyer=עורך דין=לוֹיֶר|nephew=אחיין=נֶפְיוּ|niece=אחיינית=נִיס|neck=צוואר=נֶק|shoulder=כתף=שׁוֹלְדֶר|elbow=מרפק=אֶלְבּוֹ|knee=ברך=נִי|toe=אצבע ברגל=טוֹ|tongue=לשון=טַאנְג|lip=שפה (בפה)=לִיפּ|cheek=לחי=צִ'יק|chin=סנטר=צִ'ין|eyebrow=גבה=אַייבְּרָאוּ|fever=חום (מחלה)=פִיבֶר|cough=שיעול / להשתעל=קוֹף|headache=כאב ראש=הֶדֵייק|pharmacy=בית מרקחת=פַארְמֶסִי|clinic=מרפאה=קְלִינִיק|bank=בנק=בֶּנְק|post=דואר=פּוֹסְט|airport=שדה תעופה=אֶרְפּוֹרְט|hotel=מלון=הוֹטֶל|museum=מוזיאון=מְיוּזִיאֶם|supermarket=סופרמרקט=סוּפֶּרְמַארְקֶט|bakery=מאפייה=בֵּייקֶרִי|butcher=קצב=בּוּצֶ'ר|zoo=גן חיות=זוּ|desert=מדבר=דֶזֶרְט|taxi=מונית=טֶקְסִי|motorcycle=אופנוע=מוֹטוֹרְסַייקֶל|truck=משאית=טְרַאק|passport=דרכון=פֶּסְפּוֹרְט|rent=שכר דירה / לשכור=רֶנְט|weekend=סוף שבוע=וִויקֶנְד|noon=צהריים=נוּן|bored=משועמם=בּוֹרְד|scared=מפוחד=סְקֶרְד|excited=נרגש=אִיקְסַייטֶד|proud=גאה=פְּרָאוּד|lonely=בודד=לוֹנְלִי|lazy=עצלן=לֵייזִי|text=הודעה / לשלוח הודעה=טֶקְסְט|email=אימייל=אִימֵייל|cost=לעלות (מחיר)=קוֹסְט|borrow=לשאול (חפץ)=בּוֹרוֹ|lend=להשאיל=לֶנְד|practice=לתרגל / תרגול=פְּרֶקְטִיס|search=לחפש=סֶרְץ'|mother=אמא=מַאדֶ'ר|bread=לחם=בְּרֶד|tomato=עגבנייה=טוֹמֵייטוֹ|apple=תפוח=אֶפֶּל|egg=ביצה=אֶג|chicken=עוף / תרנגולת=צִ'יקֶן|fish=דג=פִישׁ|cheese=גבינה=צִ'יז|rice=אורז=רַייס|meat=בשר=מִיט|salt=מלח=סוֹלְט|coffee=קפה=קוֹפִי|cake=עוגה=קֵייק|banana=בננה=בַּנָנָה|fruit=פרי=פְרוּט|vegetable=ירק=וֶג'ְטֶבֶּל|breakfast=ארוחת בוקר=בְּרֶקְפֶסְט|lunch=ארוחת צהריים=לַאנְץ'|dinner=ארוחת ערב=דִינֶר|hungry=רעב=הַאנְגְרִי|thirsty=צמא=ת'ֶרְסְטִי|delicious=טעים מאוד=דִילִישֶׁס|menu=תפריט=מֶנְיוּ|bill=חשבון=בִּיל|tea=תה=טִי|water=מים=ווֹטֶר`;
+
+/* phonics: English spelling patterns -> the Hebrew sound, with example words [en, Hebrew meaning, Hebrew pronunciation] */
+const PHONICS = [
+ { id:'pairs', title:'עיצורים שבאים בזוג', desc:'שתי אותיות שיוצרות יחד צליל אחד.', items:[
+  { p:'sh', he:'שׁ', tip:'בדיוק כמו ש׳ בעברית.', words:[['ship','ספינה','שִׁיפּ'],['fish','דג','פִישׁ'],['shoe','נעל','שׁוּ']] },
+  { p:'ch', he:"צ׳", tip:'בדרך כלל צ׳, כמו במילה "צ׳יפס". לא ח!', ex:'יוצאים מהכלל: לפעמים ק (school, stomach), ובמילים צרפתיות ש (chef).', words:[['chair','כיסא',"צ'ֶר"],['cheese','גבינה',"צִ'יז"],['lunch','ארוחת צהריים',"לַאנְץ'"]] },
+  { p:'tch', he:"צ׳", tip:'ה־t לא נשמעת לבד. tch נשמע בדיוק כמו ch.', words:[['watch','שעון / לצפות',"ווֹץ'"],['kitchen','מטבח',"קִיצֶ'ן"],['catch','לתפוס',"קֶץ'"]] },
+  { p:'th', he:"ת׳", tip:'אין צליל כזה בעברית. שמים את קצה הלשון בין השיניים ונושפים אוויר, בלי קול. לא ט ולא ס.', words:[['think','לחשוב',"ת'ִינְק"],['three','שלוש',"ת'ְרִי"],['bath','אמבטיה',"בֶּת'"]] },
+  { p:'th', key:'th2', he:"ד׳", tip:'אותה תנוחת לשון בין השיניים, אבל עם קול (מרגישים רטט). כך נשמעות מילים קטנות ונפוצות.', words:[['the','ה־ (הידיעה)',"דֶ'ה"],['this','זה',"דִ'יס"],['mother','אמא',"מַאדֶ'ר"]] },
+  { p:'ph', he:'פ', tip:'תמיד פ׳ רכה, כמו f.', words:[['phone','טלפון','פוֹן'],['photo','תמונה','פוֹטוֹ'],['elephant','פיל','אֶלֶפֶנְט']] },
+  { p:'wh', he:'וו', tip:'נשמע כמו w.', ex:'יוצא מהכלל: who, whole נשמעות עם ה (הוּ, הוֹל).', words:[['what','מה','ווֹט'],['when','מתי','וֶן'],['white','לבן','וַואיְט']] },
+  { p:'ck', he:'ק', tip:'שתי אותיות, צליל אחד: ק.', words:[['back','גב / בחזרה','בֶּק'],['duck','ברווז','דַאק'],['clock','שעון קיר','קְלוֹק']] },
+  { p:'ng', he:'נְג', tip:'ה־g כמעט לא נשמעת. האוויר יוצא מהאף בסוף.', words:[['sing','לשיר','סִינְג'],['long','ארוך','לוֹנְג'],['king','מלך','קִינְג']] },
+  { p:'qu', he:'קוו', tip:'q תמיד באה עם u, ויחד הן נשמעות קוו.', words:[['queen','מלכה','קְוִוין'],['quiet','שקט','קְוַואיֶט'],['question','שאלה',"קְוֶסְצֶ'ן"]] }
+ ]},
+ { id:'two', title:'אותיות עם שני צלילים', desc:'אותה אות, צליל שונה לפי מה שבא אחריה.', items:[
+  { p:'c', he:'ק / ס', tip:'לפני e, i או y נשמעת ס. בכל מקום אחר: ק.', words:[['cat','חתול','קֶט'],['city','עיר','סִיטִי'],['ice','קרח','אַייס']] },
+  { p:'g', he:"ג / ג׳", tip:"לרוב ג. לפני e, i או y לפעמים ג׳.", ex:'יש הרבה יוצאים מהכלל: get, give, girl נשמעות עם ג רגילה.', words:[['go','ללכת','גוֹ'],['orange','כתום / תפוז',"אוֹרֶנְג'"],['giraffe','ג׳ירפה',"ג'ִירֶף"]] },
+  { p:'s', he:'ס / ז', tip:'בתחילת מילה ס. בסוף מילה ובין תנועות, לעתים קרובות ז.', words:[['sun','שמש','סַאן'],['is','הוא / היא (להיות)','אִיז'],['rose','ורד','רוֹז']] },
+  { p:'y', he:'י / אַיי / אִי', tip:'בתחילת מילה י. בסוף מילה קצרה אַיי. בסוף מילה ארוכה אִי.', words:[['yes','כן','יֶס'],['my','שלי','מַיי'],['happy','שמח','הֶפִּי']] },
+  { p:'x', he:'קס', tip:'אות אחת, שני צלילים: ק + ס.', words:[['box','קופסה','בּוֹקְס'],['six','שש','סִיקְס'],['taxi','מונית','טֶקְסִי']] },
+  { p:'j', he:"ג׳", tip:"תמיד ג׳, כמו בג׳ירפה.", words:[['jam','ריבה',"גֶ'ם"],['juice','מיץ',"ג'וּס"],['jump','לקפוץ',"גַ'אמְפּ"]] },
+  { p:'w', he:'וו', tip:'מעגלים את השפתיים כמו לפני "אוּ". זה לא ו׳ עברית רגילה (שנשמעת כמו v).', words:[['we','אנחנו','וִוי'],['water','מים','ווֹטֶר'],['window','חלון','וִוינְדוֹ']] },
+  { p:'v', he:'ב (רכה)', tip:'השיניים העליונות על השפה התחתונה. להבדיל מ־w: very ולא wery.', words:[['very','מאוד','וֶרִי'],['five','חמש','פַייב'],['voice','קול','ווֹיְס']] },
+  { p:'h', he:'ה', tip:'תמיד ה׳ רכה. באנגלית אין בכלל צליל ח.', ex:'לפעמים ה־h שקטה: hour (אָאוּאֶר), honest.', words:[['hat','כובע','הֶט'],['home','בית','הוֹם'],['hello','שלום','הֶלוֹ']] },
+  { p:'r', he:'ר', tip:'ה־r האנגלית לא מתגלגלת בגרון. מעגלים את קצה הלשון אחורה, בלי לגעת בחך.', words:[['red','אדום','רֶד'],['rain','גשם','רֵיין'],['car','מכונית','קַאר']] }
+ ]},
+ { id:'short', title:'תנועות קצרות', desc:'תנועה לבד בתוך מילה קצרה (בין שני עיצורים).', items:[
+  { p:'a', he:'אֶ', tip:'פה פתוח, צליל בין אֶ לאַ.', words:[['cat','חתול','קֶט'],['bag','תיק','בֶּג'],['apple','תפוח','אֶפֶּל']] },
+  { p:'e', he:'אֶ', tip:'כמו סגול בעברית.', words:[['bed','מיטה','בֶּד'],['red','אדום','רֶד'],['ten','עשר','טֶן']] },
+  { p:'i', he:'אִ', tip:'אִ קצרה ורפויה.', words:[['sit','לשבת','סִיט'],['big','גדול','בִּיג'],['fish','דג','פִישׁ']] },
+  { p:'o', he:'אוֹ (קצר)', tip:'אוֹ קצרה ופתוחה.', words:[['dog','כלב','דוֹג'],['hot','חם','הוֹט'],['box','קופסה','בּוֹקְס']] },
+  { p:'u', he:'אַ', tip:'בדרך כלל נשמעת אַ, לא אוּ!', words:[['cup','כוס','קַאפּ'],['sun','שמש','סַאן'],['bus','אוטובוס','בַּאס']] }
+ ]},
+ { id:'magic', title:'ה־e השקטה בסוף', desc:'e בסוף מילה לא נשמעת, אבל משנה את התנועה שלפניה: cap (קֶפּ) הופך ל־cape (קֵייפּ).', items:[
+  { p:'a_e', he:'אֵיי', tip:'a + עיצור + e בסוף = אֵיי.', words:[['cake','עוגה','קֵייק'],['name','שם','נֵיים'],['plate','צלחת','פְּלֵייט']] },
+  { p:'i_e', he:'אַיי', tip:'i + עיצור + e בסוף = אַיי.', words:[['five','חמש','פַייב'],['bike','אופניים','בַּייק'],['time','זמן','טַיים']] },
+  { p:'o_e', he:'אוֹ', tip:'o + עיצור + e בסוף = אוֹ ארוכה.', words:[['home','בית','הוֹם'],['nose','אף','נוֹז'],['phone','טלפון','פוֹן']] },
+  { p:'u_e', he:'יוּ / אוּ', tip:'u + עיצור + e בסוף = יוּ (או אוּ).', words:[['cute','חמוד','קְיוּט'],['huge','ענק',"הְיוּג'"],['June','יוני',"ג'וּן"]] }
+ ]},
+ { id:'teams', title:'שתי תנועות ביחד', desc:'שתי אותיות תנועה שיוצרות צליל אחד.', items:[
+  { p:'ee', he:'אִי (ארוכה)', tip:'תמיד אִי ארוכה.', words:[['see','לראות','סִי'],['tree','עץ','טְרִי'],['green','ירוק','גְרִין']] },
+  { p:'ea', he:'אִי', tip:'לרוב אִי ארוכה.', ex:'לפעמים אֶ: bread (בְּרֶד), head (הֶד).', words:[['eat','לאכול','אִיט'],['sea','ים','סִי'],['teacher','מורה',"טִיצֶ'ר"]] },
+  { p:'oo', he:'אוּ (ארוכה)', tip:'אוּ ארוכה ועגולה.', words:[['moon','ירח','מוּן'],['food','אוכל','פוּד'],['school','בית ספר','סְקוּל']] },
+  { p:'oo', key:'oo2', he:'אוּ (קצרה)', tip:'במילים מסוימות אוּ קצרה ורפויה.', words:[['book','ספר','בּוּק'],['look','להסתכל','לוּק'],['good','טוב','גוּד']] },
+  { p:'ai / ay', he:'אֵיי', tip:'ai באמצע מילה, ay בסוף מילה. שתיהן אֵיי.', words:[['rain','גשם','רֵיין'],['day','יום','דֵיי'],['play','לשחק','פְּלֵיי']] },
+  { p:'oa / ow', he:'אוֹ', tip:'oa תמיד אוֹ. ow בסוף מילה הרבה פעמים אוֹ.', words:[['boat','סירה','בּוֹט'],['road','כביש','רוֹד'],['snow','שלג','סְנוֹ']] },
+  { p:'ou / ow', he:'אָאוּ', tip:'כמו "אָאוּ" כשמשהו כואב.', ex:'ow יכולה להיות גם אוֹ (snow). צריך להכיר את המילה.', words:[['house','בית','הָאוּס'],['cow','פרה','קָאוּ'],['now','עכשיו','נָאוּ']] },
+  { p:'oi / oy', he:'אוֹי', tip:'כמו "אוֹי" בעברית.', words:[['boy','ילד','בּוֹי'],['toy','צעצוע','טוֹי'],['coin','מטבע','קוֹיְן']] },
+  { p:'igh', he:'אַיי', tip:'ה־gh שקטה. igh = אַיי.', words:[['night','לילה','נַייט'],['light','אור','לַייט'],['high','גבוה','הַיי']] },
+  { p:'au / aw', he:'אוֹ', tip:'אוֹ פתוחה ועמוקה.', words:[['saw','ראה','סוֹ'],['draw','לצייר','דְרוֹ'],['sauce','רוטב','סוֹס']] },
+  { p:'ew', he:'יוּ / אוּ', tip:'בדרך כלל יוּ.', words:[['new','חדש','נְיוּ'],['few','מעט','פְיוּ'],['grew','גדל','גְרוּ']] }
+ ]},
+ { id:'r', title:'תנועה עם r', desc:'r אחרי תנועה משנה את הצליל שלה.', items:[
+  { p:'ar', he:'אַר', tip:'אַ פתוחה ואחריה r.', words:[['car','מכונית','קַאר'],['star','כוכב','סְטַאר'],['park','פארק','פַּארְק']] },
+  { p:'er / ir / ur', he:'אֶר', tip:'שלוש כתיבות, אותו צליל.', words:[['her','שלה','הֶר'],['bird','ציפור','בֶּרְד'],['nurse','אחות','נֶרְס']] },
+  { p:'or', he:'אוֹר', tip:'כמו המילה "אור".', words:[['for','בשביל','פוֹר'],['horse','סוס','הוֹרְס'],['morning','בוקר','מוֹרְנִינְג']] },
+  { p:'air / are', he:'אֶר', tip:'כמו "אֶר" ארוכה.', words:[['chair','כיסא',"צ'ֶר"],['hair','שיער','הֶר'],['care','אכפתיות / לדאוג','קֶר']] }
+ ]},
+ { id:'silent', title:'אותיות שקטות', desc:'אותיות שכותבים אבל לא הוגים.', items:[
+  { p:'kn', he:'נ', tip:'ה־k בתחילת מילה לפני n שקטה.', words:[['know','לדעת','נוֹ'],['knife','סכין','נַייף'],['knee','ברך','נִי']] },
+  { p:'wr', he:'ר', tip:'ה־w לפני r שקטה.', words:[['write','לכתוב','רַייט'],['wrong','לא נכון','רוֹנְג'],['wrap','לעטוף','רֶפּ']] },
+  { p:'gh', he:'(שקטה) / פ', tip:'בדרך כלל שקטה לגמרי. לפעמים נשמעת פ.', words:[['night','לילה','נַייט'],['daughter','בת','דוֹטֶר'],['laugh','לצחוק','לָאף']] },
+  { p:'mb', he:'מ', tip:'b אחרי m בסוף מילה שקטה.', words:[['comb','מסרק','קוֹם'],['climb','לטפס','קְלַיים'],['thumb','אגודל',"ת'ַאם"]] },
+  { p:'alk / alf', he:'אוֹק / אָף', tip:'ה־l שקטה.', words:[['walk','ללכת','ווֹק'],['talk','לדבר','טוֹק'],['half','חצי','הָף']] }
+ ]},
+ { id:'endings', title:'סיומות נפוצות', desc:'סיומות שחוזרות בהמון מילים.', items:[
+  { p:'-tion', he:'שֶׁן', tip:'tion בסוף מילה = שֶׁן.', words:[['station','תחנה','סְטֵיישֶׁן'],['action','פעולה','אֶקְשֶׁן'],['vacation','חופשה','וֵייקֵיישֶׁן']] },
+  { p:'-ed', he:'ד / ט / אֶד', tip:'סיומת עבר. אחרי t או d נשמעת אֶד. אחרי צליל "קשה" (p, k, s, sh, ch) נשמעת ט. בכל השאר ד.', words:[['played','שיחק','פְּלֵייד'],['walked','הלך','ווֹקְט'],['wanted','רצה','ווֹנְטֶד']] },
+  { p:'-s / -es', he:'ס / ז / אֶז', tip:'סיומת רבים. אחרי p, t, k נשמעת ס. אחרי s, sh, ch, x נשמעת אֶז. בכל השאר ז.', words:[['cats','חתולים','קֶטְס'],['dogs','כלבים','דוֹגְז'],['buses','אוטובוסים','בַּאסֶז']] },
+  { p:'-le', he:'אֶל', tip:'le בסוף מילה = אֶל.', words:[['table','שולחן','טֵייבֶּל'],['apple','תפוח','אֶפֶּל'],['little','קטן','לִיטֶל']] },
+  { p:'-ture', he:"צֶ׳ר", tip:"ture בסוף מילה = צֶ׳ר.", words:[['picture','תמונה',"פִּיקְצֶ'ר"],['nature','טבע',"נֵייצֶ'ר"],['future','עתיד',"פְיוּצֶ'ר"]] },
+  { p:'-ing', he:'אִינְג', tip:'סיומת של "עושה עכשיו".', words:[['eating','אוכל (עכשיו)','אִיטִינְג'],['going','הולך','גוֹאִינְג'],['reading','קורא','רִידִינְג']] }
+ ]}
+];
+/* Hebrew sound -> how it is written in English */
+const HE2EN = [
+ ['ב','b'],['ב (רכה)','v'],['ג','g'],["ג׳",'j / g'],['ד','d'],['ה','h'],['ו','v'],['וו','w'],['ז','z / s'],
+ ['ח','ch / kh (רק בשמות עבריים)'],['ט / ת','t'],["ת׳",'th'],['י','y'],['כ / ק','k / c / ck / q'],['כ (רכה)','ch / kh (רק בשמות)'],
+ ['ל','l'],['מ','m'],['נ','n'],['ס','s / c'],['פ','p'],['פ (רכה)','f / ph'],['צ','ts / tz'],["צ׳",'ch / tch'],['ר','r'],['שׁ','sh'],['שׂ','s'],['א / ע','(רק תנועה)']
+];
+PHONICS.forEach(c=>c.items.forEach(it=>{ it.key=it.key||it.p.replace(/[^a-z]/g,'')||it.p; }));
+
+/* spoken conversation scenarios. ok: words/phrases that make a fitting answer; free: any English answer is fine */
+const TALKS = [
+ { id:'meet', cover:'👋', title:'Nice to meet you', he:'היכרות', level:1, steps:[
+  { bot:"Hi! I'm Lumi. What's your name?", he:'היי! אני לומי. איך קוראים לך?', free:true, save:'name',
+    say:[["My name is Dana.",'קוראים לי דנה.'],["I'm Noam.",'אני נועם.']] },
+  { bot:'Nice to meet you, {name}! How are you today?', he:'נעים להכיר, {name}! מה שלומך היום?', ok:['fine','good','great','ok','okay','well','not bad','so so','tired','happy','bad','excellent','amazing','alright','all right'],
+    say:[["I'm fine, thank you. And you?",'אני בסדר, תודה. ואתה?'],["I'm good, thanks.",'אני טוב, תודה.'],["I'm a little tired.",'אני קצת עייף.']] },
+  { bot:"I'm great, thanks! Where are you from?", he:'אני מצוין, תודה! מאיפה אתה?', free:true,
+    say:[["I'm from Israel.",'אני מישראל.'],['I live in Tel Aviv.','אני גר בתל אביב.']] },
+  { bot:'Cool! How old are you?', he:'מגניב! בן כמה אתה?', ok:['old','years','#'],
+    say:[["I'm twenty-five years old.",'אני בן עשרים וחמש.'],["I'm thirty.",'אני בן שלושים.']] },
+  { bot:'What do you like to do in your free time?', he:'מה אתה אוהב לעשות בזמן הפנוי?', free:true,
+    say:[['I like to read books.','אני אוהב לקרוא ספרים.'],['I like music and sports.','אני אוהב מוזיקה וספורט.']] },
+  { bot:'That sounds fun! It was nice talking to you. Bye!', he:'נשמע כיף! היה נחמד לדבר איתך. ביי!', ok:['bye','goodbye','see you','you too','thank','thanks','nice'],
+    say:[['Bye! See you soon.','ביי! נתראה בקרוב.'],['Nice talking to you too!','גם לי היה נחמד לדבר איתך!']] }
+ ]},
+ { id:'cafe', cover:'☕', title:'At the café', he:'בבית קפה', level:1, steps:[
+  { bot:'Hi! What would you like to drink?', he:'היי! מה תרצה לשתות?', ok:['coffee','tea','water','juice','cola','coke','milk','latte','cappuccino','espresso','soda','chocolate','lemonade',"i'd like",'can i have','please'],
+    say:[['A coffee, please.','קפה, בבקשה.'],['Can I have a tea, please?','אפשר תה, בבקשה?'],["I'd like an orange juice.",'הייתי רוצה מיץ תפוזים.']] },
+  { bot:'Sure. Small or large?', he:'בטח. קטן או גדול?', ok:['small','large','big','medium','regular'],
+    say:[['Large, please.','גדול, בבקשה.'],['Small, please.','קטן, בבקשה.']] },
+  { bot:'Would you like something to eat?', he:'תרצה משהו לאכול?', ok:['yes','no','cake','sandwich','cookie','croissant','salad','nothing','muffin','toast','please','thank'],
+    say:[['Yes, a sandwich, please.','כן, כריך בבקשה.'],['No, thank you.','לא, תודה.']] },
+  { bot:"OK. That's twenty shekels. Cash or card?", he:'בסדר. זה עשרים שקלים. מזומן או כרטיס?', ok:['cash','card','credit'],
+    say:[['Card, please.','בכרטיס, בבקשה.'],['Cash.','מזומן.']] },
+  { bot:'Here you go. Have a nice day!', he:'בבקשה. יום נעים!', ok:['thank','thanks','you too','bye'],
+    say:[['Thank you! You too.','תודה! גם לך.'],['Thanks, bye!','תודה, ביי!']] }
+ ]},
+ { id:'shop', cover:'👕', title:'In a clothing store', he:'בחנות בגדים', level:2, steps:[
+  { bot:'Hello! Can I help you?', he:'שלום! אפשר לעזור לך?', ok:['looking','want','need','yes','no','shirt','shoes','dress','pants','jacket','just'],
+    say:[["Yes, I'm looking for a shirt.",'כן, אני מחפש חולצה.'],["No, thanks. I'm just looking.",'לא, תודה. אני רק מסתכל.']] },
+  { bot:'What size do you need?', he:'איזו מידה אתה צריך?', ok:['small','medium','large','size','extra','#','s','m','l','xl'],
+    say:[['Medium, please.','מדיום, בבקשה.'],["I'm a large.",'אני לארג׳.']] },
+  { bot:'What color do you like?', he:'איזה צבע אתה אוהב?', ok:['black','white','blue','red','green','yellow','gray','grey','pink','purple','brown','orange','color'],
+    say:[['Blue, please.','כחול, בבקשה.'],['I like black.','אני אוהב שחור.']] },
+  { bot:'Here you are. Do you want to try it on?', he:'בבקשה. תרצה למדוד?', ok:['yes','no','sure','ok','okay','please','thank'],
+    say:[['Yes, please. Where is the fitting room?','כן, בבקשה. איפה תא המדידה?'],['No, thank you.','לא, תודה.']] },
+  { bot:"It's eighty shekels.", he:'זה שמונים שקלים.', ok:['take','buy','ok','okay','expensive','cheaper','discount','great','fine','pay'],
+    say:[["OK, I'll take it.",'בסדר, אני אקח את זה.'],["That's too expensive.",'זה יקר מדי.']] },
+  { bot:'Thank you for shopping with us. Goodbye!', he:'תודה שקנית אצלנו. להתראות!', ok:['thank','thanks','bye','goodbye'],
+    say:[['Thank you. Goodbye!','תודה. להתראות!']] }
+ ]},
+ { id:'way', cover:'🗺️', title:'Asking for directions', he:'שאלת דרך', level:2, steps:[
+  { bot:'Hi! You look lost. Can I help you?', he:'היי! נראה שהלכת לאיבוד. אפשר לעזור?', ok:['yes','where','looking','station','bank','hotel','museum','how do i','get to','find','please','excuse'],
+    say:[['Yes, please. Where is the train station?','כן, בבקשה. איפה תחנת הרכבת?'],['Excuse me, how do I get to the bank?','סליחה, איך מגיעים לבנק?']] },
+  { bot:'Go straight and turn left at the bank. Do you understand?', he:'לך ישר ופנה שמאלה ליד הבנק. הבנת?', ok:['yes','understand','got it','no','again','repeat','left','ok','okay','sorry','slowly'],
+    say:[['Yes, I understand. Thank you.','כן, הבנתי. תודה.'],['Sorry, can you say that again?','סליחה, אתה יכול להגיד את זה שוב?']] },
+  { bot:"It's about five minutes on foot.", he:'זה בערך חמש דקות ברגל.', ok:['thank','thanks','great','ok','okay','far','close','good'],
+    say:[['Great, thank you so much!','מעולה, תודה רבה!'],['Is it far?','זה רחוק?']] },
+  { bot:"You're welcome. Good luck!", he:'בבקשה. בהצלחה!', ok:['thank','thanks','bye','you too'],
+    say:[['Thanks, bye!','תודה, ביי!']] }
+ ]},
+ { id:'day', cover:'🍕', title:'How was your day?', he:'איך היה היום שלך?', level:2, steps:[
+  { bot:'Hey! How was your day?', he:'היי! איך היה היום שלך?', ok:['good','great','bad','ok','okay','fine','long','busy','tired','nice','boring','amazing','terrible','so so','not bad'],
+    say:[['It was great, thanks.','היה מצוין, תודה.'],['It was a long day.','זה היה יום ארוך.']] },
+  { bot:'Oh really? What did you do today?', he:'באמת? מה עשית היום?', free:true,
+    say:[['I worked and then I went to the gym.','עבדתי ואחר כך הלכתי לחדר כושר.'],['I studied English.','למדתי אנגלית.']] },
+  { bot:'Nice! Are you hungry?', he:'יפה! אתה רעב?', ok:['yes','no','little','starving','bit','very','not'],
+    say:[['Yes, I am very hungry.','כן, אני מאוד רעב.'],['A little.','קצת.']] },
+  { bot:"Let's order pizza. Do you like pizza?", he:'בוא נזמין פיצה. אתה אוהב פיצה?', ok:['yes','no','love','like','sure','great','idea'],
+    say:[['Yes, I love pizza!','כן, אני אוהב פיצה!'],["Sure, good idea.",'בטח, רעיון טוב.']] },
+  { bot:"Great, I'll order now. See you soon!", he:'מעולה, אני מזמין עכשיו. נתראה בקרוב!', ok:['bye','see you','ok','okay','great','thanks','cool'],
+    say:[['OK, see you soon!','בסדר, נתראה בקרוב!']] }
+ ]},
+ { id:'doctor', cover:'🩺', title:'At the doctor', he:'אצל הרופא', level:3, steps:[
+  { bot:"Hello. What's the problem?", he:'שלום. מה הבעיה?', ok:['hurt','hurts','pain','sick','fever','cough','headache','ache','feel','cold','throat','stomach','tired'],
+    say:[['I have a headache.','יש לי כאב ראש.'],['My stomach hurts.','כואבת לי הבטן.'],['I have a fever and a cough.','יש לי חום ושיעול.']] },
+  { bot:'How long have you felt like this?', he:'כמה זמן אתה מרגיש ככה?', ok:['day','days','week','weeks','yesterday','since','morning','hours','today','#'],
+    say:[['Since yesterday.','מאתמול.'],['For two days.','כבר יומיים.']] },
+  { bot:'Do you have a fever?', he:'יש לך חום?', ok:['yes','no','little','think','not','high'],
+    say:[['Yes, a little.','כן, קצת.'],["No, I don't.",'לא, אין לי.']] },
+  { bot:'OK. Take this medicine twice a day and drink a lot of water.', he:'בסדר. קח את התרופה הזאת פעמיים ביום ותשתה הרבה מים.', ok:['ok','okay','thank','thanks','sure','will','understand'],
+    say:[['OK, thank you, doctor.','בסדר, תודה, דוקטור.'],['How many days?','כמה ימים?']] },
+  { bot:'Feel better soon!', he:'החלמה מהירה!', ok:['thank','thanks','bye'],
+    say:[['Thank you. Goodbye!','תודה. להתראות!']] }
+ ]}
+];
+
 /* ---------- word lookup: meaning + pronunciation for ANY English word ---------- */
 const MEANING = {}, PRON = {}, HARD = {};
 for(const k in DICT){ MEANING[k]=DICT[k][0]; PRON[k]=DICT[k][1]; if(DICT[k][2]) HARD[k]=1; }
 for(const k in NAME_HE) MEANING[k]=NAME_HE[k];
 EXTRA_SRC.split('|').forEach(e=>{ const i=e.indexOf('='); if(i<1) return; const k=e.slice(0,i).trim(); if(!(k in MEANING)) MEANING[k]=e.slice(i+1).trim(); });
+VOCAB2.split('|').forEach(e=>{ const [k,he,pr]=e.split('='); if(!k||!he) return; if(!(k in MEANING)) MEANING[k]=he; if(pr && !(k in PRON)) PRON[k]=pr; });
 PRON_SRC.split('|').forEach(e=>{ const i=e.indexOf('='); if(i<1) return; const k=e.slice(0,i).trim(); if(!(k in PRON)) PRON[k]=e.slice(i+1).trim(); });
 let CUSTOM = {};
 let NET = {};              // words fetched from the online dictionary, cached in LocalStorage
@@ -3181,6 +3492,139 @@ try {
     DICTATION = d;
   }).catch(() => {});
 } catch (e) {}
+const LISTEN_ERR = {
+  not_granted: 'אין הרשאה למיקרופון. לחצו על סמל המנעול ליד כתובת האתר, אשרו מיקרופון ונסו שוב.',
+  unavailable: 'זיהוי דיבור לא זמין כאן. אפשר להקליד.',
+  rate_limited: 'יותר מדי ניסיונות. נסו שוב בעוד רגע.',
+  upstream_error: 'המיקרופון או שירות זיהוי הדיבור לא הגיבו. בדקו שהמיקרופון מחובר ונסו שוב.',
+  nospeech: 'לא שמעתי כלום. לחצו על המיקרופון ודברו מיד.',
+  network: 'זיהוי הדיבור צריך חיבור לאינטרנט.',
+  unsupported: 'הדפדפן הזה לא תומך בזיהוי דיבור. נסו ב־Chrome או ב־Edge, או הקלידו.',
+  failed: 'זיהוי הדיבור לא הצליח. נסו שוב או הקלידו.'
+};
+/* listen for one phrase. lang: 'en' | 'he'. Returns a stop function. */
+let ACTIVE_LISTEN = null;
+function listenOnce({
+  lang,
+  onPartial,
+  onText,
+  onError,
+  onState
+}) {
+  if (ACTIVE_LISTEN) {
+    try {
+      ACTIVE_LISTEN();
+    } catch (e) {}
+    ACTIVE_LISTEN = null;
+  }
+  try {
+    synth && synth.cancel();
+  } catch (e) {}
+  let done = false,
+    partial = '';
+  const finish = (text, err) => {
+    if (done) return;
+    done = true;
+    ACTIVE_LISTEN = null;
+    onState && onState(false);
+    if (text && text.trim()) onText(text.trim());else if (err) onError && onError(LISTEN_ERR[err] || LISTEN_ERR.failed);
+  };
+  if (DICTATION) {
+    const d = DICTATION;
+    const offs = [];
+    offs.push(d.onPartial(({
+      text
+    }) => {
+      if (text && text.trim()) {
+        partial = text;
+        onPartial && onPartial(text.trim());
+      }
+    }));
+    offs.push(d.onFinal(({
+      text
+    }) => {
+      if (String(text || '').trim()) {
+        cleanup();
+        d.stop().catch(() => {});
+        finish(text);
+      }
+    }));
+    offs.push(d.onState(({
+      state,
+      reason
+    }) => {
+      if (state === 'idle') {
+        cleanup();
+        finish(partial, partial ? null : LISTEN_ERR[reason] ? reason : reason === 'stopped' || reason === 'viewer_stopped' ? null : 'failed');
+      } else onState && onState(true);
+    }));
+    function cleanup() {
+      offs.splice(0).forEach(f => {
+        try {
+          f();
+        } catch (e) {}
+      });
+    }
+    onState && onState(true);
+    d.start({
+      language: lang === 'he' ? 'he' : 'en'
+    }).catch(e => {
+      cleanup();
+      finish(partial, e && LISTEN_ERR[e.code] ? e.code : e && e.code === 'stopped' ? null : 'failed');
+    });
+    ACTIVE_LISTEN = () => {
+      d.stop().catch(() => {});
+    };
+    return ACTIVE_LISTEN;
+  }
+  if (!SR) {
+    onError && onError(LISTEN_ERR.unsupported);
+    return () => {};
+  }
+  const r = new SR();
+  r.lang = lang === 'he' ? 'he-IL' : 'en-US';
+  r.interimResults = true;
+  r.maxAlternatives = 1;
+  r.onresult = e => {
+    let fin = '',
+      tmp = '';
+    for (let i = 0; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) fin += t;else tmp += t;
+    }
+    if (tmp || fin) {
+      partial = fin || tmp;
+      onPartial && onPartial(partial.trim());
+    }
+    if (fin) {
+      try {
+        r.stop();
+      } catch (x) {}
+      finish(fin);
+    }
+  };
+  r.onerror = e => {
+    const c = e.error === 'not-allowed' || e.error === 'service-not-allowed' ? 'not_granted' : e.error === 'no-speech' ? 'nospeech' : e.error === 'network' ? 'network' : e.error === 'aborted' ? null : 'failed';
+    finish(partial, c);
+  };
+  r.onend = () => finish(partial, partial ? null : 'nospeech');
+  try {
+    r.start();
+    onState && onState(true);
+  } catch (e) {
+    finish('', 'failed');
+  }
+  ACTIVE_LISTEN = () => {
+    try {
+      r.stop();
+    } catch (e) {}
+  };
+  return ACTIVE_LISTEN;
+}
+let MIC_LANG = 'en';
+try {
+  MIC_LANG = localStorage.getItem('lumi-mic-lang') === 'he' ? 'he' : 'en';
+} catch (e) {}
 
 /* ---------- speech ---------- */
 const synth = typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;
@@ -3339,7 +3783,23 @@ function useStoryPlayer(story, rate, voice, cbs) {
       out = [];
     const re = /[^.!?]+[.!?]+["”’)]*\s*|[^.!?]+$/g;
     let m;
+    const parts = [];
     while (m = re.exec(text)) {
+      const seg = m[0];
+      const wc = (seg.match(WORD_RE) || []).length;
+      if (wc > 9) {
+        const cut = /[\s\S]*?[,;:](?=\s)\s*|[\s\S]+$/g;
+        let c;
+        while (c = cut.exec(seg)) if (c[0].trim()) parts.push({
+          index: m.index + c.index,
+          0: c[0]
+        });
+      } else parts.push({
+        index: m.index,
+        0: seg
+      });
+    }
+    for (const m of parts) {
       const s = m.index,
         e = s + m[0].length;
       const words = [];
@@ -3659,6 +4119,84 @@ const IconPen = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React
 }), /*#__PURE__*/React.createElement("path", {
   d: "M14 7l3 3"
 }));
+const IconWave = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10M21 12h0"
+}));
+const IconChat = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M4 5h16v11H9l-5 4z"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M8 10h8M8 13h5"
+}));
+const IconUsers = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("circle", {
+  cx: "9",
+  cy: "8",
+  r: "3.2"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M16 4.6a3.2 3.2 0 0 1 0 6.3M18 14.3c1.9.9 3 2.9 3 5.7"
+}));
+const IconTrophy = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M8 4h8v5a4 4 0 0 1-8 0z"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M8 6H4.5a3 3 0 0 0 3.5 4M16 6h3.5a3 3 0 0 1-3.5 4M12 13v4M8.5 20h7"
+}));
+/* brand mark: a white "L" with a warm light dot (Lumi = light) on a sage tile */
+function LogoMark({
+  size = 44,
+  radius = 12
+}) {
+  return /*#__PURE__*/React.createElement("svg", {
+    width: size,
+    height: size,
+    viewBox: "0 0 64 64",
+    "aria-hidden": "true",
+    style: {
+      display: 'block',
+      borderRadius: radius
+    }
+  }, /*#__PURE__*/React.createElement("defs", null, /*#__PURE__*/React.createElement("linearGradient", {
+    id: "lg-bg",
+    x1: "0",
+    y1: "0",
+    x2: "1",
+    y2: "1"
+  }, /*#__PURE__*/React.createElement("stop", {
+    offset: "0",
+    stopColor: "#3A9486"
+  }), /*#__PURE__*/React.createElement("stop", {
+    offset: "1",
+    stopColor: "#1F5F57"
+  })), /*#__PURE__*/React.createElement("radialGradient", {
+    id: "lg-glow"
+  }, /*#__PURE__*/React.createElement("stop", {
+    offset: "0",
+    stopColor: "#FFE7A3",
+    stopOpacity: ".95"
+  }), /*#__PURE__*/React.createElement("stop", {
+    offset: "1",
+    stopColor: "#FFE7A3",
+    stopOpacity: "0"
+  }))), /*#__PURE__*/React.createElement("rect", {
+    width: "64",
+    height: "64",
+    rx: "16",
+    fill: "url(#lg-bg)"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: "44.5",
+    cy: "19.5",
+    r: "14",
+    fill: "url(#lg-glow)"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M18 13h9.5v28.5H46V50H18z",
+    fill: "#FFFEFB"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: "44.5",
+    cy: "19.5",
+    r: "6.2",
+    fill: "#F4C55B"
+  }));
+}
 const IconTrash = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
   d: "M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"
 }));
@@ -3932,7 +4470,7 @@ function Tabs({
   setTab,
   learning
 }) {
-  const tabs = [['read', 'סיפורים', IconBook], ['practice', 'תרגול', IconBolt], ['progress', 'התקדמות', IconChart]];
+  const tabs = [['read', 'סיפורים', IconBook], ['sounds', 'צלילים', IconWave], ['talk', 'שיחה', IconChat], ['practice', 'תרגול', IconBolt], ['progress', 'התקדמות', IconChart]];
   return /*#__PURE__*/React.createElement("nav", {
     className: "sticky z-30 bg-surface border-b border-line",
     style: {
@@ -3947,11 +4485,11 @@ function Tabs({
     key: k,
     onClick: () => setTab(k),
     "aria-current": tab === k ? 'page' : undefined,
-    className: `flex items-center justify-center gap-2 flex-1 sm:flex-none px-2 sm:px-4 py-3 text-sm font-semibold border-b-2 -mb-px ${tab === k ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-ink'}`
+    className: `flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 flex-1 sm:flex-none px-1 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-semibold border-b-2 -mb-px relative ${tab === k ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-ink'}`
   }, /*#__PURE__*/React.createElement(I, {
     size: 17
   }), l, k === 'practice' && learning > 0 && /*#__PURE__*/React.createElement("span", {
-    className: "num text-[11px] rounded-full px-1.5 py-0.5",
+    className: "num text-[10px] rounded-full px-1.5 py-0.5 absolute sm:static top-1 end-1",
     style: {
       background: 'var(--learn-bg)',
       color: 'var(--ink)'
@@ -4052,9 +4590,18 @@ function Library({
     className: "flex flex-col sm:flex-row gap-4 sm:items-end"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex-1 min-w-0"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3"
   }, /*#__PURE__*/React.createElement("h1", {
-    className: "text-2xl sm:text-3xl font-bold"
-  }, "\u05D4\u05E1\u05E4\u05E8\u05D9\u05D9\u05D4 \u05E9\u05DC\u05DA"), /*#__PURE__*/React.createElement("p", {
+    className: "text-2xl sm:text-3xl font-bold me-auto"
+  }, "\u05D4\u05E1\u05E4\u05E8\u05D9\u05D9\u05D4 \u05E9\u05DC\u05DA"), /*#__PURE__*/React.createElement("span", {
+    className: "sm:hidden"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary px-4 text-sm",
+    onClick: onAdd
+  }, /*#__PURE__*/React.createElement(IconPlus, {
+    size: 18
+  }), "\u05D4\u05D5\u05E1\u05E3 \u05E1\u05D9\u05E4\u05D5\u05E8"))), /*#__PURE__*/React.createElement("p", {
     className: "text-muted mt-1 leading-relaxed"
   }, "\u05DC\u05D7\u05E6\u05D5 \u05E2\u05DC \u05DB\u05DC \u05DE\u05D9\u05DC\u05D4 \u05D1\u05E1\u05D9\u05E4\u05D5\u05E8 \u05DB\u05D3\u05D9 \u05DC\u05E8\u05D0\u05D5\u05EA \u05EA\u05E8\u05D2\u05D5\u05DD \u05D5\u05D4\u05D2\u05D9\u05D9\u05D4. \u05DB\u05DB\u05DC \u05E9\u05EA\u05E1\u05DE\u05E0\u05D5 \u05D9\u05D5\u05EA\u05E8 \u05DE\u05D9\u05DC\u05D9\u05DD \u05DB\u05DE\u05D5\u05DB\u05E8\u05D5\u05EA, \u05D9\u05D9\u05E4\u05EA\u05D7\u05D5 \u05E1\u05D9\u05E4\u05D5\u05E8\u05D9\u05DD \u05D0\u05E8\u05D5\u05DB\u05D9\u05DD \u05D5\u05D0\u05DE\u05D9\u05EA\u05D9\u05D9\u05DD \u05D9\u05D5\u05EA\u05E8.")), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-3 text-sm shrink-0 flex-wrap"
@@ -4138,9 +4685,17 @@ function Library({
         actions.unlock(L.n);
         toast(`שלב ${L.n} נפתח. בהצלחה!`);
       }
-    }, "\u05D1\u05D0 \u05DC\u05D9 \u05D0\u05EA\u05D2\u05E8, \u05E4\u05EA\u05D7 \u05E2\u05DB\u05E9\u05D9\u05D5")), open && L.n > lv && /*#__PURE__*/React.createElement("span", {
+    }, "\u05D1\u05D0 \u05DC\u05D9 \u05D0\u05EA\u05D2\u05E8, \u05E4\u05EA\u05D7 \u05E2\u05DB\u05E9\u05D9\u05D5")), open && L.n > lv && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", {
       className: "tag"
-    }, "\u05E0\u05E4\u05EA\u05D7 \u05D9\u05D3\u05E0\u05D9\u05EA")), /*#__PURE__*/React.createElement("div", {
+    }, "\u05E0\u05E4\u05EA\u05D7 \u05D9\u05D3\u05E0\u05D9\u05EA"), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-line px-3 py-1.5 text-sm",
+      onClick: () => {
+        actions.lock(L.n);
+        toast(`שלב ${L.n} ננעל שוב. הוא ייפתח לבד כשתגיעו ל־${L.min} מילים מוכרות.`);
+      }
+    }, /*#__PURE__*/React.createElement(IconLock, {
+      size: 14
+    }), "\u05E0\u05E2\u05D9\u05DC\u05D4 \u05DE\u05D7\u05D3\u05E9"))), /*#__PURE__*/React.createElement("div", {
       className: "grid gap-3 md:grid-cols-2"
     }, list.map(s => /*#__PURE__*/React.createElement(StoryCard, {
       key: s.id,
@@ -4417,14 +4972,7 @@ function DictBar({
   const [vmsg, setVmsg] = useState('');
   const [busy, setBusy] = useState(false);
   const inputRef = useRef(null),
-    boxRef = useRef(null),
-    rec = useRef(null),
-    wired = useRef(false),
-    heard = useRef({
-      partial: '',
-      done: false
-    }),
-    tries = useRef(0);
+    boxRef = useRef(null);
   const results = useMemo(() => searchDict(q), [q, state.customDict, state.netDict]);
   const typed = q.trim();
   const heQ = isHebrew(typed);
@@ -4461,14 +5009,15 @@ function DictBar({
     inputRef.current && inputRef.current.blur();
     onOpen(k, k);
   };
-  const online = async () => {
-    if (!heQ) {
-      go(enWord);
+  const online = async text => {
+    const src = typeof text === 'string' ? text : typed;
+    if (!isHebrew(src)) {
+      go(src.toLowerCase().replace(/[^a-z'-]/g, ''));
       return;
     }
     setBusy(true);
     try {
-      const t = (await fetchTranslation(typed, 'he|en')).toLowerCase().replace(/[^a-z' -]/g, '').trim();
+      const t = (await fetchTranslation(src, 'he|en')).toLowerCase().replace(/[^a-z' -]/g, '').trim();
       const w = t.split(/\s+/).filter(x => !['to', 'a', 'an', 'the'].includes(x))[0];
       if (!w) throw 0;
       setQ(w);
@@ -4497,105 +5046,54 @@ function DictBar({
       e.target.blur();
     }
   };
-  const gotVoice = text => {
+  const [micLang, setMicLangRaw] = useState(MIC_LANG);
+  const setMicLang = l => {
+    MIC_LANG = l;
+    setMicLangRaw(l);
+    try {
+      localStorage.setItem('lumi-mic-lang', l);
+    } catch (e) {}
+  };
+  const gotVoice = (text, lang) => {
+    if (lang === 'he') {
+      const t = String(text || '').replace(/[^א-ת ]/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!t) {
+        setVmsg('לא זיהיתי מילה בעברית. נסו שוב, לאט וברור.');
+        return;
+      }
+      setQ(t);
+      const r = searchDict(t);
+      if (r.length) {
+        go(r[0]);
+      } else online(t);
+      return;
+    }
     const t = String(text || '').toLowerCase().replace(/[^a-z' -]/g, ' ').trim();
     const w = t.split(/\s+/)[0];
     if (!w) {
-      setVmsg('לא זיהיתי מילה באנגלית. נסו שוב, לאט וברור.');
+      setVmsg(isHebrew(String(text || '')) ? 'שמעתי עברית. כדי לחפש בעברית, החליפו את שפת המיקרופון ל"עב".' : 'לא זיהיתי מילה באנגלית. נסו שוב, לאט וברור.');
       return;
     }
     setQ(t);
     go(w);
   };
-  const VERR = {
-    not_granted: 'אין הרשאה למיקרופון. אפשר לאשר אותה בהגדרות ההרשאות של העמוד.',
-    unavailable: 'חיפוש קולי לא זמין כאן. אפשר להקליד.',
-    rate_limited: 'יותר מדי ניסיונות. נסו שוב בעוד רגע.',
-    upstream_error: 'המיקרופון או שירות זיהוי הדיבור לא הגיבו. בדקו שמיקרופון מחובר ושהדפדפן מאשר אותו לאתר, ואז נסו שוב. אפשר גם להקליד את המילה.'
-  };
+  const stopRef = useRef(null);
   const voice = () => {
     setVmsg('');
-    if (DICTATION) {
-      const d = DICTATION;
-      if (listening) {
-        d.stop().catch(() => {});
-        return;
-      }
-      if (!wired.current) {
-        wired.current = true;
-        d.onPartial(({
-          text
-        }) => {
-          if (text && text.trim()) {
-            heard.current.partial = text;
-            setQ(text.trim());
-          }
-        });
-        d.onFinal(({
-          text
-        }) => {
-          if (heard.current.done || !String(text).trim()) return;
-          heard.current.done = true;
-          gotVoice(text);
-          d.stop().catch(() => {});
-        });
-        d.onState(({
-          state: st,
-          reason
-        }) => {
-          setListening(st === 'listening' || st === 'starting');
-          if (st === 'idle' && !heard.current.done) {
-            if (heard.current.partial) {
-              heard.current.done = true;
-              gotVoice(heard.current.partial);
-            } else if (VERR[reason]) setVmsg(VERR[reason]);
-          }
-        });
-      }
-      heard.current = {
-        partial: '',
-        done: false
-      };
-      tries.current++;
-      d.start({
-        language: tries.current % 2 ? 'en' : 'en-US'
-      }).catch(e => {
-        setListening(false);
-        if (e && VERR[e.code] && !heard.current.done && !heard.current.partial) setVmsg(VERR[e.code]);
-      });
-      return;
-    }
     if (listening) {
-      try {
-        rec.current && rec.current.stop();
-      } catch (e) {}
+      stopRef.current && stopRef.current();
       return;
     }
-    if (!SR) {
-      setVmsg('הדפדפן הזה לא תומך בחיפוש קולי. נסו ב־Chrome או ב־Edge, או הקלידו את המילה.');
-      return;
-    }
-    try {
-      synth && synth.cancel();
-    } catch (e) {}
-    const r = new SR();
-    rec.current = r;
-    r.lang = 'en-US';
-    r.interimResults = false;
-    r.maxAlternatives = 1;
-    r.onresult = e => {
-      gotVoice(e.results[0][0].transcript);
-    };
-    r.onerror = e => {
-      setVmsg(e.error === 'not-allowed' || e.error === 'service-not-allowed' ? 'אין הרשאה למיקרופון. אשרו לדפדפן גישה למיקרופון ונסו שוב.' : e.error === 'no-speech' ? 'לא שמעתי כלום. נסו שוב.' : e.error === 'network' ? 'זיהוי הדיבור בדפדפן צריך חיבור לאינטרנט.' : 'החיפוש הקולי לא הצליח. נסו שוב או הקלידו.');
-    };
-    r.onend = () => setListening(false);
-    try {
-      r.start();
-      setListening(true);
-    } catch (e) {
-      setVmsg('החיפוש הקולי לא הצליח להתחיל.');
-    }
+    const lang = MIC_LANG;
+    stopRef.current = listenOnce({
+      lang,
+      onPartial: t => {
+        setQ(t);
+      },
+      onText: t => gotVoice(t, lang),
+      onError: m => setVmsg(m),
+      onState: setListening
+    });
   };
   voiceRef.current = voice;
   useEffect(() => {
@@ -4609,21 +5107,19 @@ function DictBar({
   }, /*#__PURE__*/React.createElement("div", {
     className: "gutter"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "max-w-[860px] mx-auto h-16 flex items-center gap-2.5"
+    className: "max-w-[860px] mx-auto h-16 flex items-center gap-2"
   }, /*#__PURE__*/React.createElement("button", {
     onClick: onHome,
-    className: "w-11 h-11 rounded-xl grid place-items-center book font-bold text-xl shrink-0",
-    style: {
-      background: 'var(--ink)',
-      color: 'var(--bg)'
-    },
+    className: "w-11 h-11 rounded-xl shrink-0 hidden min-[400px]:block",
     "aria-label": "\u05D7\u05D6\u05E8\u05D4 \u05DC\u05E1\u05E4\u05E8\u05D9\u05D9\u05D4",
     title: "\u05D7\u05D6\u05E8\u05D4 \u05DC\u05E1\u05E4\u05E8\u05D9\u05D9\u05D4"
-  }, "L"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(LogoMark, {
+    size: 44
+  })), /*#__PURE__*/React.createElement("div", {
     ref: boxRef,
     className: "relative flex-1 min-w-0"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "flex items-center gap-1 rounded-xl border-[1.5px] bg-bg ps-3 pe-1 h-12",
+    className: "flex items-center gap-1 rounded-xl border-[1.5px] bg-bg ps-2.5 pe-1 h-12",
     style: {
       borderColor: open ? 'var(--primary)' : 'var(--line)'
     }
@@ -4642,7 +5138,7 @@ function DictBar({
     "aria-controls": "dict-results",
     "aria-label": "\u05D7\u05D9\u05E4\u05D5\u05E9 \u05D1\u05DE\u05D9\u05DC\u05D5\u05DF",
     className: "flex-1 min-w-0 h-full bg-transparent outline-none px-2 text-base",
-    placeholder: listening ? 'מקשיב… אמרו מילה' : 'חיפוש במילון',
+    placeholder: listening ? micLang === 'he' ? 'מקשיב… אמרו מילה בעברית' : 'Listening… say a word' : 'חיפוש במילון',
     value: q,
     onChange: e => {
       setQ(e.target.value);
@@ -4661,9 +5157,19 @@ function DictBar({
   }, /*#__PURE__*/React.createElement(IconX, {
     size: 16
   })), /*#__PURE__*/React.createElement("kbd", {
-    className: "hidden md:block text-[11px] text-muted border border-line rounded px-1.5 py-0.5 num",
+    className: "hidden lg:block text-[11px] text-muted border border-line rounded px-1.5 py-0.5 num",
     dir: "ltr"
   }, "/"), /*#__PURE__*/React.createElement("button", {
+    className: "hit h-8 px-1.5 rounded-md text-xs font-bold shrink-0 num",
+    style: {
+      background: 'var(--sunk)',
+      color: 'var(--ink)',
+      minWidth: '2rem'
+    },
+    onClick: () => setMicLang(micLang === 'he' ? 'en' : 'he'),
+    "aria-label": `שפת המיקרופון: ${micLang === 'he' ? 'עברית' : 'אנגלית'}. לחיצה מחליפה`,
+    title: "\u05E9\u05E4\u05EA \u05D4\u05DE\u05D9\u05E7\u05E8\u05D5\u05E4\u05D5\u05DF"
+  }, micLang === 'he' ? 'עב' : 'EN'), /*#__PURE__*/React.createElement("button", {
     className: `hit w-10 h-10 grid place-items-center rounded-lg shrink-0 ${listening ? 'pop' : ''}`,
     style: listening ? {
       background: 'var(--bad)',
@@ -4673,7 +5179,7 @@ function DictBar({
       color: 'var(--primary-ink)'
     },
     onClick: voice,
-    "aria-label": listening ? 'עצירת ההקשבה' : 'חיפוש קולי: אמרו מילה באנגלית',
+    "aria-label": listening ? 'עצירת ההקשבה' : `חיפוש קולי: אמרו מילה ב${micLang === 'he' ? 'עברית' : 'אנגלית'}`,
     "aria-pressed": listening,
     title: "\u05D7\u05D9\u05E4\u05D5\u05E9 \u05E7\u05D5\u05DC\u05D9"
   }, /*#__PURE__*/React.createElement(IconMic, {
@@ -4681,7 +5187,7 @@ function DictBar({
   }))), (typed || vmsg) && /*#__PURE__*/React.createElement("div", {
     id: "dict-results",
     role: "listbox",
-    className: `dropdown absolute inset-x-0 top-full mt-1.5 card overflow-hidden ${open && (rows > 0 || typed) || vmsg ? 'show' : ''}`,
+    className: `dropdown dict-drop absolute inset-x-0 top-full mt-1.5 card overflow-hidden ${open && (rows > 0 || typed) || vmsg ? 'show' : ''}`,
     style: {
       maxHeight: '70vh',
       overflowY: 'auto'
@@ -4701,7 +5207,7 @@ function DictBar({
       "aria-selected": sel === i,
       onMouseEnter: () => setSel(i),
       onClick: () => go(k),
-      className: "w-full flex items-center gap-3 px-4 py-2.5 text-start border-b border-line",
+      className: "w-full flex items-center gap-3 px-4 py-2.5 min-h-[52px] text-start border-b border-line",
       style: {
         background: sel === i ? 'var(--sunk)' : 'transparent'
       }
@@ -4709,8 +5215,10 @@ function DictBar({
       dir: "ltr",
       className: "book font-semibold text-lg shrink-0 text-left"
     }, k), info.pos && /*#__PURE__*/React.createElement("span", {
-      className: "tag hidden sm:inline-flex"
-    }, info.pos), /*#__PURE__*/React.createElement("span", {
+      className: "hidden sm:inline"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "tag"
+    }, info.pos)), /*#__PURE__*/React.createElement("span", {
       className: "flex-1 min-w-0 truncate text-muted"
     }, /*#__PURE__*/React.createElement(Bi, null, info.he)), st && /*#__PURE__*/React.createElement("span", {
       className: "w-2.5 h-2.5 rounded-full shrink-0",
@@ -4736,15 +5244,15 @@ function DictBar({
     className: "book"
   }, enWord), " \u05D1\u05DE\u05D9\u05DC\u05D5\u05DF \u05D4\u05DE\u05E7\u05D5\u05D5\u05DF")), open && typed && !rows && !vmsg && /*#__PURE__*/React.createElement("div", {
     className: "px-4 py-3 text-sm text-muted"
-  }, "\u05DC\u05D0 \u05E0\u05DE\u05E6\u05D0\u05D5 \u05DE\u05D9\u05DC\u05D9\u05DD \u05DE\u05EA\u05D0\u05D9\u05DE\u05D5\u05EA."))), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-primary h-11 px-3 sm:px-4 text-sm shrink-0",
+  }, "\u05DC\u05D0 \u05E0\u05DE\u05E6\u05D0\u05D5 \u05DE\u05D9\u05DC\u05D9\u05DD \u05DE\u05EA\u05D0\u05D9\u05DE\u05D5\u05EA."))), /*#__PURE__*/React.createElement("span", {
+    className: "hidden sm:block shrink-0"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary h-11 px-4 text-sm",
     onClick: onAdd,
     "aria-label": "\u05D4\u05D5\u05E1\u05E3 \u05E1\u05D9\u05E4\u05D5\u05E8 \u05D7\u05D3\u05E9"
   }, /*#__PURE__*/React.createElement(IconPlus, {
     size: 18
-  }), /*#__PURE__*/React.createElement("span", {
-    className: "hidden sm:inline"
-  }, "\u05D4\u05D5\u05E1\u05E3 \u05E1\u05D9\u05E4\u05D5\u05E8 \u05D7\u05D3\u05E9")))));
+  }), "\u05D4\u05D5\u05E1\u05E3 \u05E1\u05D9\u05E4\u05D5\u05E8 \u05D7\u05D3\u05E9")))));
 }
 
 /* ---------- dictionary card ---------- */
@@ -6330,6 +6838,1197 @@ function Practice({
   }, "\u05D4\u05D5\u05E2\u05D1\u05E8\u05D4 \u05DC\u05DE\u05D9\u05DC\u05D9\u05DD \u05D4\u05DE\u05D5\u05DB\u05E8\u05D5\u05EA")))));
 }
 
+/* ---------- sounds (phonics) ---------- */
+const PH_POOL = PHONICS.flatMap(c => c.items.flatMap(it => it.words.map(([w, he, pr]) => ({
+  w,
+  he,
+  pr,
+  it
+}))));
+function PatternLabel({
+  p
+}) {
+  return /*#__PURE__*/React.createElement("bdi", {
+    dir: "ltr",
+    className: "book"
+  }, p);
+}
+function SoundSheet({
+  item,
+  voice,
+  onClose,
+  onWord
+}) {
+  const [closing, close] = useClosing(onClose);
+  useEffect(() => {
+    const k = e => {
+      if (e.key === 'Escape') close();
+    };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, []);
+  const playAll = () => {
+    item.words.forEach(([w], i) => setTimeout(() => speakText(w, .8, voice), i * 1300));
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: `overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center ${closing ? 'out' : ''}`,
+    style: {
+      background: 'color-mix(in srgb,var(--ink) 40%,transparent)'
+    },
+    onClick: close
+  }, /*#__PURE__*/React.createElement("div", {
+    role: "dialog",
+    "aria-modal": "true",
+    "aria-label": `הצליל ${item.p}`,
+    className: `sheet card w-full sm:max-w-lg rounded-b-none sm:rounded-[20px] p-5 flex flex-col gap-4 ${closing ? 'out' : ''}`,
+    style: {
+      maxHeight: '92vh',
+      overflowY: 'auto',
+      paddingBottom: 'max(20px, env(safe-area-inset-bottom,0px))'
+    },
+    onClick: e => e.stopPropagation()
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-start gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 flex items-center gap-4 flex-wrap"
+  }, /*#__PURE__*/React.createElement("span", {
+    dir: "ltr",
+    className: "book text-5xl font-bold"
+  }, item.p), /*#__PURE__*/React.createElement("span", {
+    className: "text-3xl text-muted",
+    "aria-hidden": "true"
+  }, "="), /*#__PURE__*/React.createElement("span", {
+    className: "text-4xl font-bold",
+    style: {
+      color: 'var(--primary)'
+    }
+  }, item.he)), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost w-11 h-11 shrink-0",
+    onClick: close,
+    "aria-label": "\u05E1\u05D2\u05D9\u05E8\u05D4"
+  }, /*#__PURE__*/React.createElement(IconX, {
+    size: 18
+  }))), /*#__PURE__*/React.createElement("p", {
+    className: "text-lg leading-relaxed"
+  }, /*#__PURE__*/React.createElement(Bi, null, item.tip)), item.ex && /*#__PURE__*/React.createElement("p", {
+    className: "rounded-xl p-3 text-sm leading-relaxed",
+    style: {
+      background: 'var(--sun-soft)'
+    }
+  }, /*#__PURE__*/React.createElement("b", null, "\u05D9\u05D5\u05E6\u05D0 \u05DE\u05D4\u05DB\u05DC\u05DC: "), /*#__PURE__*/React.createElement(Bi, null, item.ex.replace(/^יוצא(ים)? מהכלל:\s*/, ''))), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "font-bold me-auto"
+  }, "\u05DE\u05D9\u05DC\u05D9\u05DD \u05DC\u05D3\u05D5\u05D2\u05DE\u05D4"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-3 text-sm",
+    onClick: playAll
+  }, /*#__PURE__*/React.createElement(IconPlay, {
+    size: 16
+  }), "\u05D4\u05E9\u05DE\u05E2 \u05D0\u05EA \u05DB\u05D5\u05DC\u05DF")), /*#__PURE__*/React.createElement("ul", {
+    className: "flex flex-col gap-2"
+  }, item.words.map(([w, he, pr]) => /*#__PURE__*/React.createElement("li", {
+    key: w,
+    className: "flex items-center gap-3 rounded-xl bg-sunk p-2.5"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary w-11 h-11 shrink-0",
+    style: {
+      borderRadius: '50%'
+    },
+    onClick: () => speakText(w, .85, voice),
+    "aria-label": `השמעת ${w}`
+  }, /*#__PURE__*/React.createElement(IconSpeaker, {
+    size: 18
+  })), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-line w-11 h-11 shrink-0 text-lg",
+    style: {
+      borderRadius: '50%'
+    },
+    onClick: () => speakText(w, .45, voice),
+    "aria-label": `השמעה איטית של ${w}`
+  }, /*#__PURE__*/React.createElement("span", {
+    "aria-hidden": "true"
+  }, "\uD83D\uDC22")), /*#__PURE__*/React.createElement("button", {
+    className: "flex-1 min-w-0 text-start",
+    onClick: () => onWord(w, w),
+    title: "\u05E4\u05EA\u05D9\u05D7\u05D4 \u05D1\u05DE\u05D9\u05DC\u05D5\u05DF"
+  }, /*#__PURE__*/React.createElement("div", {
+    dir: "ltr",
+    className: "book text-xl font-semibold text-left"
+  }, w), /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold text-ink"
+  }, pr), " \xB7 ", he)))))));
+}
+function makeSoundQ(last) {
+  const pool = PH_POOL.filter(x => x.w !== last);
+  const c = pick(pool);
+  const type = Math.random() < .5 ? 'read' : 'listen';
+  const others = shuffle(PH_POOL.filter(x => x.it.key !== c.it.key && x.pr !== c.pr && x.w !== c.w));
+  const ds = [];
+  for (const x of others) {
+    if (type === 'read' ? !ds.some(d => d.pr === x.pr) : !ds.some(d => d.w === x.w)) ds.push(x);
+    if (ds.length === 3) break;
+  }
+  return {
+    c,
+    type,
+    opts: shuffle([c, ...ds]),
+    id: Math.random()
+  };
+}
+const SOUND_QUIZ_LEN = 10;
+function Sounds({
+  state,
+  actions,
+  voice,
+  celebrate,
+  onWord
+}) {
+  const [item, setItem] = useState(null);
+  const [table, setTable] = useState(false);
+  const [quiz, setQuiz] = useState(null); // {n, right, q, picked}
+  const phon = state.phon || {};
+  const learned = k => ((phon[k] || {}).c || 0) >= 2;
+  const total = PHONICS.reduce((a, c) => a + c.items.length, 0);
+  const done = PHONICS.reduce((a, c) => a + c.items.filter(i => learned(i.key)).length, 0);
+  useEffect(() => {
+    if (quiz && quiz.q && quiz.q.type === 'listen' && quiz.picked == null) speakText(quiz.q.c.w, .8, voice);
+  }, [quiz && quiz.q && quiz.q.id]);
+  const answer = o => {
+    if (quiz.picked != null) return;
+    const ok = o.w === quiz.q.c.w;
+    actions.recordSound(quiz.q.c.it.key, ok);
+    if (ok && quiz.right + 1 >= 3 && (quiz.right + 1) % 3 === 0) celebrate(false);
+    if (quiz.q.type === 'read') speakText(quiz.q.c.w, .85, voice);
+    setQuiz(z => ({
+      ...z,
+      picked: o.w,
+      right: z.right + (ok ? 1 : 0)
+    }));
+  };
+  const next = () => setQuiz(z => z.n + 1 >= SOUND_QUIZ_LEN ? {
+    ...z,
+    done: true
+  } : {
+    ...z,
+    n: z.n + 1,
+    q: makeSoundQ(z.q.c.w),
+    picked: null
+  });
+  if (quiz && !quiz.done) {
+    const {
+      q
+    } = quiz;
+    const ok = quiz.picked === q.c.w;
+    return /*#__PURE__*/React.createElement("div", {
+      className: "flex flex-col gap-4 pb-24 sm:pb-0"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center gap-3"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost px-3 text-sm",
+      onClick: () => setQuiz(null)
+    }, /*#__PURE__*/React.createElement(IconX, {
+      size: 16
+    }), "\u05D9\u05E6\u05D9\u05D0\u05D4"), /*#__PURE__*/React.createElement("div", {
+      className: "flex-1 h-2.5 rounded-full bg-sunk overflow-hidden",
+      dir: "ltr"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "h-full bar",
+      style: {
+        width: (quiz.n + (quiz.picked != null ? 1 : 0)) / SOUND_QUIZ_LEN * 100 + '%',
+        background: 'var(--primary)'
+      }
+    })), /*#__PURE__*/React.createElement("span", {
+      className: "num text-sm text-muted"
+    }, quiz.n + 1, "/", SOUND_QUIZ_LEN)), /*#__PURE__*/React.createElement("section", {
+      className: `card p-5 sm:p-8 flex flex-col gap-5 ${quiz.picked != null && !ok ? 'shake' : ''}`,
+      key: q.id
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "text-sm font-semibold text-muted"
+    }, q.type === 'read' ? 'איך קוראים את המילה הזו?' : 'איזו מילה שמעת?'), q.type === 'read' ? /*#__PURE__*/React.createElement("div", {
+      dir: "ltr",
+      className: "book text-5xl font-bold text-left"
+    }, q.c.w) : /*#__PURE__*/React.createElement("div", {
+      className: "flex gap-3 items-center"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-primary w-20 h-20",
+      style: {
+        borderRadius: '50%'
+      },
+      onClick: () => speakText(q.c.w, .8, voice),
+      "aria-label": "\u05D4\u05E9\u05DE\u05E2 \u05E9\u05D5\u05D1"
+    }, /*#__PURE__*/React.createElement(IconSpeaker, {
+      size: 34
+    })), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-ghost h-12 px-4",
+      onClick: () => speakText(q.c.w, .45, voice)
+    }, /*#__PURE__*/React.createElement("span", {
+      "aria-hidden": "true"
+    }, "\uD83D\uDC22"), "\u05DC\u05D0\u05D8")), /*#__PURE__*/React.createElement("div", {
+      className: "grid sm:grid-cols-2 gap-3",
+      dir: q.type === 'listen' ? 'ltr' : 'rtl'
+    }, q.opts.map((o, i) => {
+      const cls = quiz.picked == null ? '' : o.w === q.c.w ? 'correct' : o.w === quiz.picked ? 'wrong' : '';
+      return /*#__PURE__*/React.createElement("button", {
+        key: o.w,
+        disabled: quiz.picked != null,
+        className: `opt flex items-center gap-3 ${cls} ${q.type === 'listen' ? 'book text-xl text-left' : 'text-2xl font-semibold'}`,
+        onClick: () => answer(o)
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "num text-xs font-bold w-6 h-6 rounded-md grid place-items-center bg-sunk text-muted shrink-0"
+      }, i + 1), /*#__PURE__*/React.createElement("span", null, q.type === 'read' ? o.pr : o.w));
+    })), quiz.picked != null && /*#__PURE__*/React.createElement("div", {
+      className: "rise rounded-xl p-4 flex flex-col gap-2 pb-24 sm:pb-4",
+      style: {
+        background: ok ? 'var(--good-soft)' : 'var(--bad-soft)'
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "text-xl font-bold",
+      style: {
+        color: ok ? 'var(--good)' : 'var(--bad)'
+      }
+    }, ok ? pick(CHEERS) + ' +2' : 'כמעט! ככה זה נשמע:'), /*#__PURE__*/React.createElement("div", {
+      className: "text-lg"
+    }, /*#__PURE__*/React.createElement("bdi", {
+      dir: "ltr",
+      className: "book font-semibold"
+    }, q.c.w), " = ", /*#__PURE__*/React.createElement("b", null, q.c.pr), " \xB7 ", q.c.he), /*#__PURE__*/React.createElement("div", {
+      className: "text-sm leading-relaxed"
+    }, "\u05D4\u05E6\u05DC\u05D9\u05DC: ", /*#__PURE__*/React.createElement(PatternLabel, {
+      p: q.c.it.p
+    }), " = ", /*#__PURE__*/React.createElement("b", null, q.c.it.he), ". ", /*#__PURE__*/React.createElement(Bi, null, q.c.it.tip)), /*#__PURE__*/React.createElement("button", {
+      className: "btn btn-primary py-3 px-6 self-start dock-mobile",
+      onClick: next,
+      autoFocus: true
+    }, quiz.n + 1 >= SOUND_QUIZ_LEN ? 'לסיכום' : 'המשך'))));
+  }
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-6"
+  }, quiz && quiz.done && /*#__PURE__*/React.createElement("section", {
+    className: "card p-5 flex items-center gap-4 flex-wrap rise",
+    role: "status"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-2xl font-bold me-auto"
+  }, quiz.right >= 8 ? 'מצוין!' : quiz.right >= 5 ? 'יפה מאוד!' : 'ממשיכים לתרגל', " ", /*#__PURE__*/React.createElement("span", {
+    className: "num text-muted text-lg"
+  }, quiz.right, "/", SOUND_QUIZ_LEN)), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary px-5",
+    onClick: () => setQuiz({
+      n: 0,
+      right: 0,
+      q: makeSoundQ(),
+      picked: null
+    })
+  }, "\u05D1\u05D5\u05D7\u05DF \u05E0\u05D5\u05E1\u05E3"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-4",
+    onClick: () => setQuiz(null)
+  }, "\u05E1\u05D2\u05D9\u05E8\u05D4")), /*#__PURE__*/React.createElement("section", {
+    className: "card p-5 sm:p-6 flex flex-col gap-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-start gap-4 flex-wrap"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 min-w-[220px]"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: "text-2xl sm:text-3xl font-bold"
+  }, "\u05E6\u05DC\u05D9\u05DC\u05D9\u05DD \u05D5\u05D0\u05D5\u05EA\u05D9\u05D5\u05EA"), /*#__PURE__*/React.createElement("p", {
+    className: "text-muted mt-1 leading-relaxed"
+  }, "\u05D1\u05D0\u05E0\u05D2\u05DC\u05D9\u05EA \u05D0\u05D5\u05EA\u05DF \u05D0\u05D5\u05EA\u05D9\u05D5\u05EA \u05DC\u05D0 \u05EA\u05DE\u05D9\u05D3 \u05E0\u05E9\u05DE\u05E2\u05D5\u05EA \u05D0\u05D5\u05EA\u05D5 \u05D3\u05D1\u05E8. \u05DB\u05D0\u05DF \u05DC\u05D5\u05DE\u05D3\u05D9\u05DD \u05D0\u05EA \u05D4\u05E6\u05D9\u05E8\u05D5\u05E4\u05D9\u05DD \u05D4\u05D7\u05E9\u05D5\u05D1\u05D9\u05DD, \u05E2\u05DD \u05D4\u05E6\u05DC\u05D9\u05DC \u05D4\u05DE\u05E7\u05D1\u05D9\u05DC \u05D1\u05E2\u05D1\u05E8\u05D9\u05EA \u05D5\u05DE\u05D9\u05DC\u05D9\u05DD \u05DC\u05D3\u05D5\u05D2\u05DE\u05D4.")), /*#__PURE__*/React.createElement("div", {
+    className: "text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "num text-3xl font-bold",
+    style: {
+      color: 'var(--good)'
+    }
+  }, done, /*#__PURE__*/React.createElement("span", {
+    className: "text-muted text-lg"
+  }, "/", total)), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs text-muted"
+  }, "\u05E6\u05DC\u05D9\u05DC\u05D9\u05DD \u05E9\u05DC\u05DE\u05D3\u05EA"))), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 flex-wrap"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary px-5",
+    onClick: () => setQuiz({
+      n: 0,
+      right: 0,
+      q: makeSoundQ(),
+      picked: null
+    })
+  }, /*#__PURE__*/React.createElement(IconPlay, {
+    size: 18
+  }), "\u05D1\u05D5\u05D7\u05DF \u05E6\u05DC\u05D9\u05DC\u05D9\u05DD (10 \u05E9\u05D0\u05DC\u05D5\u05EA)"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-4",
+    onClick: () => setTable(t => !t),
+    "aria-expanded": table
+  }, table ? 'הסתרת' : 'הצגת', " \u05D4\u05D8\u05D1\u05DC\u05D4: \u05D0\u05D9\u05DA \u05DB\u05D5\u05EA\u05D1\u05D9\u05DD \u05E6\u05DC\u05D9\u05DC \u05E2\u05D1\u05E8\u05D9 \u05D1\u05D0\u05E0\u05D2\u05DC\u05D9\u05EA")), table && /*#__PURE__*/React.createElement("div", {
+    className: "rise overflow-x-auto"
+  }, /*#__PURE__*/React.createElement("table", {
+    className: "w-full text-sm border-collapse"
+  }, /*#__PURE__*/React.createElement("thead", null, /*#__PURE__*/React.createElement("tr", {
+    className: "text-muted text-xs"
+  }, /*#__PURE__*/React.createElement("th", {
+    className: "text-start py-1.5 px-2"
+  }, "\u05E6\u05DC\u05D9\u05DC \u05D1\u05E2\u05D1\u05E8\u05D9\u05EA"), /*#__PURE__*/React.createElement("th", {
+    className: "text-start py-1.5 px-2"
+  }, "\u05DB\u05D5\u05EA\u05D1\u05D9\u05DD \u05D1\u05D0\u05E0\u05D2\u05DC\u05D9\u05EA"))), /*#__PURE__*/React.createElement("tbody", null, HE2EN.map(([h, e]) => /*#__PURE__*/React.createElement("tr", {
+    key: h,
+    className: "border-t border-line"
+  }, /*#__PURE__*/React.createElement("td", {
+    className: "py-1.5 px-2 font-bold text-lg"
+  }, h), /*#__PURE__*/React.createElement("td", {
+    className: "py-1.5 px-2"
+  }, /*#__PURE__*/React.createElement(Bi, null, e)))))), /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-muted mt-2"
+  }, "\u05E9\u05D9\u05DE\u05D5 \u05DC\u05D1: \u05D1\u05D0\u05E0\u05D2\u05DC\u05D9\u05EA \u05D0\u05D9\u05DF \u05E6\u05DC\u05D9\u05DC \u05D7 \u05D5\u05D0\u05D9\u05DF \u05E2. ch \u05D1\u05D0\u05E0\u05D2\u05DC\u05D9\u05EA \u05E0\u05E9\u05DE\u05E2 \u05DB\u05DE\u05E2\u05D8 \u05EA\u05DE\u05D9\u05D3 \u05E6\u05F3 (chair), \u05D5\u05D7 \u05DB\u05D5\u05EA\u05D1\u05D9\u05DD \u05DB\u05BEch \u05D0\u05D5 kh \u05E8\u05E7 \u05D1\u05E9\u05DE\u05D5\u05EA \u05E2\u05D1\u05E8\u05D9\u05D9\u05DD (Chanukah)."))), PHONICS.map(cat => /*#__PURE__*/React.createElement("section", {
+    key: cat.id,
+    className: "flex flex-col gap-3"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h2", {
+    className: "text-lg font-bold"
+  }, cat.title), /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-muted"
+  }, /*#__PURE__*/React.createElement(Bi, null, cat.desc))), /*#__PURE__*/React.createElement("div", {
+    className: "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
+  }, cat.items.map(it => /*#__PURE__*/React.createElement("button", {
+    key: it.key,
+    onClick: () => setItem(it),
+    className: "card card-btn card-lift p-4 text-start flex flex-col gap-1.5 relative"
+  }, learned(it.key) && /*#__PURE__*/React.createElement("span", {
+    className: "absolute top-2 end-2 w-6 h-6 rounded-full grid place-items-center",
+    style: {
+      background: 'var(--good)',
+      color: 'var(--surface)'
+    },
+    title: "\u05E0\u05DC\u05DE\u05D3"
+  }, /*#__PURE__*/React.createElement(IconCheck, {
+    size: 14
+  })), /*#__PURE__*/React.createElement("span", {
+    dir: "ltr",
+    className: "book text-3xl font-bold text-left"
+  }, it.p), /*#__PURE__*/React.createElement("span", {
+    className: "text-xl font-bold",
+    style: {
+      color: 'var(--primary)'
+    }
+  }, it.he), /*#__PURE__*/React.createElement("span", {
+    className: "text-sm text-muted"
+  }, /*#__PURE__*/React.createElement("bdi", {
+    dir: "ltr",
+    className: "book"
+  }, it.words[0][0]), " \xB7 ", it.words[0][2])))))), item && /*#__PURE__*/React.createElement(SoundSheet, {
+    item: item,
+    voice: voice,
+    onClose: () => setItem(null),
+    onWord: onWord
+  }));
+}
+
+/* ---------- talk: spoken conversations ---------- */
+const NUM_WORDS = /\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)\b/;
+function talkFits(step, text) {
+  const t = ' ' + text.toLowerCase().replace(/[’`]/g, "'").replace(/[^a-z0-9' ]+/g, ' ').replace(/\s+/g, ' ').trim() + ' ';
+  if (!/[a-z0-9]/.test(t)) return false;
+  if (step.free) return true;
+  return step.ok.some(o => o === '#' ? /\d/.test(t) || NUM_WORDS.test(t) : t.includes(' ' + o + ' ') || o.length > 3 && t.includes(' ' + o));
+}
+function takeName(text) {
+  const m = text.match(/(?:name is|name's|i am|i'm|im|call me|it's)\s+([A-Za-zא-ת][A-Za-zא-ת'-]*)/i);
+  let n = m ? m[1] : text.trim().split(/\s+/).filter(w => !/^(hi|hello|hey|my|name|is|i|am|i'm)$/i.test(w)).pop() || '';
+  n = n.replace(/[^A-Za-zא-ת'-]/g, '');
+  return n ? n[0].toUpperCase() + n.slice(1) : '';
+}
+function TalkChat({
+  talk,
+  voice,
+  actions,
+  onBack,
+  onNext,
+  settings,
+  defaultName
+}) {
+  const [msgs, setMsgs] = useState([]);
+  const [si, setSi] = useState(0);
+  const [text, setText] = useState('');
+  const [listening, setListening] = useState(false);
+  const [hints, setHints] = useState(false);
+  const [vars, setVars] = useState({
+    name: defaultName || 'friend'
+  });
+  const [finished, setFinished] = useState(false);
+  const [err, setErr] = useState('');
+  const endRef = useRef(null),
+    stopRef = useRef(null),
+    timer = useRef(null);
+  const fill = (s, v) => s.replace(/\{name\}/g, (v || vars).name);
+  const showHe = settings.talkHe !== false;
+  const botSay = (i, v) => {
+    const st = talk.steps[i];
+    const en = fill(st.bot, v),
+      he = fill(st.he, v);
+    setMsgs(m => [...m, {
+      from: 'bot',
+      en,
+      he
+    }]);
+    speakText(en, .9, voice);
+    setHints(false);
+  };
+  useEffect(() => {
+    timer.current = setTimeout(() => botSay(0), 350);
+    return () => {
+      clearTimeout(timer.current);
+      stopRef.current && stopRef.current();
+    };
+  }, []);
+  useEffect(() => {
+    endRef.current && endRef.current.scrollIntoView && endRef.current.scrollIntoView({
+      block: 'end',
+      behavior: 'smooth'
+    });
+  }, [msgs.length, hints, finished]);
+  const step = talk.steps[si];
+  const advance = v => {
+    const nx = si + 1;
+    if (nx >= talk.steps.length) {
+      setFinished(true);
+      actions.finishTalk(talk.id);
+      return;
+    }
+    setSi(nx);
+    timer.current = setTimeout(() => botSay(nx, v), 700);
+  };
+  const submit = (raw, spoken) => {
+    const t = String(raw || '').trim();
+    if (!t || finished) return;
+    setText('');
+    setErr('');
+    if (isHebrew(t) && !/[A-Za-z]/.test(t)) {
+      setMsgs(m => [...m, {
+        from: 'me',
+        text: t,
+        ok: false,
+        spoken
+      }, {
+        from: 'sys',
+        text: 'נסו לענות באנגלית. הנה כמה דוגמאות:'
+      }]);
+      setHints(true);
+      return;
+    }
+    const ok = talkFits(step, t);
+    setMsgs(m => [...m, {
+      from: 'me',
+      text: t,
+      ok,
+      spoken
+    }]);
+    if (ok) {
+      let v = vars;
+      if (step.save === 'name') {
+        const n = takeName(t);
+        if (n) {
+          v = {
+            ...vars,
+            name: n
+          };
+          setVars(v);
+        }
+      }
+      actions.addXP(2);
+      advance(v);
+    } else {
+      setMsgs(m => [...m, {
+        from: 'sys',
+        text: 'לא בטוח שהבנתי. נסו לענות על השאלה, למשל:'
+      }]);
+      setHints(true);
+    }
+  };
+  const mic = () => {
+    setErr('');
+    if (listening) {
+      stopRef.current && stopRef.current();
+      return;
+    }
+    stopRef.current = listenOnce({
+      lang: 'en',
+      onPartial: t => setText(t),
+      onText: t => submit(t, true),
+      onError: m => setErr(m),
+      onState: setListening
+    });
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2 flex-wrap"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-3 text-sm",
+    onClick: () => {
+      stopRef.current && stopRef.current();
+      onBack();
+    }
+  }, /*#__PURE__*/React.createElement(IconChevR, {
+    size: 18
+  }), "\u05DB\u05DC \u05D4\u05E9\u05D9\u05D7\u05D5\u05EA"), /*#__PURE__*/React.createElement("span", {
+    className: "text-2xl",
+    "aria-hidden": "true"
+  }, talk.cover), /*#__PURE__*/React.createElement("div", {
+    className: "leading-tight me-auto"
+  }, /*#__PURE__*/React.createElement("div", {
+    dir: "ltr",
+    className: "book font-bold text-left"
+  }, talk.title), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs text-muted"
+  }, talk.he)), /*#__PURE__*/React.createElement(Toggle, {
+    id: "tg-talkhe",
+    checked: showHe,
+    onChange: v => actions.setSetting('talkHe', v),
+    label: "\u05EA\u05E8\u05D2\u05D5\u05DD"
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "h-1.5 rounded-full bg-sunk overflow-hidden",
+    dir: "ltr"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "h-full bar",
+    style: {
+      width: (finished ? talk.steps.length : si) / talk.steps.length * 100 + '%',
+      background: 'var(--good)'
+    }
+  })), /*#__PURE__*/React.createElement("section", {
+    className: "card p-3 sm:p-5 flex flex-col gap-3",
+    style: {
+      minHeight: '50vh'
+    },
+    "aria-live": "polite"
+  }, msgs.map((m, i) => m.from === 'bot' ? /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "flex gap-2 items-start rise",
+    dir: "ltr"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "shrink-0 mt-1"
+  }, /*#__PURE__*/React.createElement(LogoMark, {
+    size: 34,
+    radius: 10
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "rounded-2xl rounded-tl-md px-4 py-3 max-w-[85%]",
+    style: {
+      background: 'var(--sunk)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "book text-lg leading-relaxed text-left"
+  }, m.en), showHe && /*#__PURE__*/React.createElement("div", {
+    dir: "rtl",
+    className: "text-sm text-muted mt-1 text-right"
+  }, m.he)), /*#__PURE__*/React.createElement("button", {
+    className: "hit w-9 h-9 rounded-full grid place-items-center shrink-0 mt-1",
+    style: {
+      background: 'var(--sunk)',
+      color: 'var(--muted)'
+    },
+    onClick: () => speakText(m.en, .9, voice),
+    "aria-label": "\u05D4\u05E9\u05DE\u05E2 \u05E9\u05D5\u05D1"
+  }, /*#__PURE__*/React.createElement(IconSpeaker, {
+    size: 15
+  })), /*#__PURE__*/React.createElement("button", {
+    className: "hit w-9 h-9 rounded-full grid place-items-center shrink-0 mt-1 text-sm",
+    style: {
+      background: 'var(--sunk)'
+    },
+    onClick: () => speakText(m.en, .55, voice),
+    "aria-label": "\u05D4\u05E9\u05DE\u05E2\u05D4 \u05D0\u05D9\u05D8\u05D9\u05EA"
+  }, /*#__PURE__*/React.createElement("span", {
+    "aria-hidden": "true"
+  }, "\uD83D\uDC22"))) : m.from === 'me' ? /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "flex justify-end rise",
+    dir: "ltr"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "rounded-2xl rounded-tr-md px-4 py-3 max-w-[85%]",
+    style: {
+      background: m.ok ? 'var(--primary)' : 'var(--bad-soft)',
+      color: m.ok ? 'var(--primary-ink)' : 'var(--ink)'
+    }
+  }, m.spoken && /*#__PURE__*/React.createElement("div", {
+    dir: "rtl",
+    className: "text-xs opacity-80 mb-0.5 text-right flex items-center gap-1"
+  }, /*#__PURE__*/React.createElement(IconMic, {
+    size: 12
+  }), "\u05E9\u05DE\u05E2\u05EA\u05D9:"), /*#__PURE__*/React.createElement("div", {
+    dir: "auto",
+    className: "book text-lg leading-relaxed"
+  }, m.text))) : /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "text-sm text-center text-muted rise"
+  }, /*#__PURE__*/React.createElement(Bi, null, m.text))), finished && /*#__PURE__*/React.createElement("div", {
+    className: "rounded-2xl p-5 text-center flex flex-col gap-3 items-center rise",
+    style: {
+      background: 'var(--good-soft)'
+    },
+    role: "status"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-2xl font-bold",
+    style: {
+      color: 'var(--good)'
+    }
+  }, "\u05DB\u05DC \u05D4\u05DB\u05D1\u05D5\u05D3! \u05E1\u05D9\u05D9\u05DE\u05EA \u05D0\u05EA \u05D4\u05E9\u05D9\u05D7\u05D4 +10"), /*#__PURE__*/React.createElement("p", {
+    className: "text-sm"
+  }, "\u05E9\u05D9\u05D7\u05D4 \u05D4\u05D9\u05D0 \u05D4\u05D3\u05E8\u05DA \u05D4\u05DB\u05D9 \u05D8\u05D5\u05D1\u05D4 \u05DC\u05D4\u05EA\u05E8\u05D2\u05DC \u05DC\u05D3\u05D1\u05E8. \u05E0\u05E1\u05D5 \u05E9\u05D5\u05D1 \u05D1\u05DC\u05D9 \u05DC\u05D4\u05E1\u05EA\u05DB\u05DC \u05E2\u05DC \u05D4\u05D3\u05D5\u05D2\u05DE\u05D0\u05D5\u05EA."), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 flex-wrap justify-center"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary px-5",
+    onClick: onNext
+  }, "\u05DC\u05E9\u05D9\u05D7\u05D4 \u05D4\u05D1\u05D0\u05D4"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-4",
+    style: {
+      background: 'var(--surface)'
+    },
+    onClick: onBack
+  }, "\u05DB\u05DC \u05D4\u05E9\u05D9\u05D7\u05D5\u05EA"))), !finished && step && (hints ? /*#__PURE__*/React.createElement("div", {
+    className: "rounded-xl border border-line p-3 flex flex-col gap-2 rise"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-xs font-semibold text-muted"
+  }, "\u05D0\u05E4\u05E9\u05E8 \u05DC\u05E2\u05E0\u05D5\u05EA \u05DC\u05DE\u05E9\u05DC (\u05DC\u05D7\u05D9\u05E6\u05D4 \u05DE\u05DE\u05DC\u05D0\u05EA \u05D0\u05EA \u05D4\u05EA\u05E9\u05D5\u05D1\u05D4):"), step.say.map(([en, he]) => /*#__PURE__*/React.createElement("div", {
+    key: en,
+    className: "flex items-center gap-2",
+    dir: "ltr"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "hit w-9 h-9 rounded-full grid place-items-center shrink-0",
+    style: {
+      background: 'var(--sunk)'
+    },
+    onClick: () => speakText(fill(en), .85, voice),
+    "aria-label": `השמע: ${fill(en)}`
+  }, /*#__PURE__*/React.createElement(IconSpeaker, {
+    size: 15
+  })), /*#__PURE__*/React.createElement("button", {
+    className: "flex-1 min-w-0 text-left rounded-xl px-3 py-2 hover:bg-sunk",
+    onClick: () => setText(fill(en))
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "book text-lg"
+  }, fill(en)), /*#__PURE__*/React.createElement("span", {
+    dir: "rtl",
+    className: "block text-sm text-muted text-right"
+  }, he)))), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-3 text-sm self-start",
+    onClick: () => {
+      setMsgs(m => [...m, {
+        from: 'sys',
+        text: 'דילגת. ממשיכים.'
+      }]);
+      advance(vars);
+    }
+  }, "\u05D3\u05DC\u05D2 \u05E2\u05DC \u05D4\u05E9\u05D0\u05DC\u05D4")) : /*#__PURE__*/React.createElement("button", {
+    className: "text-sm text-primary font-semibold self-start hit",
+    onClick: () => setHints(true)
+  }, "\u05DC\u05D0 \u05D9\u05D5\u05D3\u05E2 \u05DE\u05D4 \u05DC\u05E2\u05E0\u05D5\u05EA? \u05D4\u05E6\u05D2 \u05D3\u05D5\u05D2\u05DE\u05D0\u05D5\u05EA")), /*#__PURE__*/React.createElement("div", {
+    ref: endRef
+  })), !finished && /*#__PURE__*/React.createElement("div", {
+    className: "talk-composer card p-2 flex items-center gap-2",
+    dir: "ltr"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: `btn w-14 h-14 shrink-0 ${listening ? 'pop' : ''}`,
+    style: {
+      borderRadius: '50%',
+      background: listening ? 'var(--bad)' : 'var(--primary)',
+      color: 'var(--primary-ink)'
+    },
+    onClick: mic,
+    "aria-label": listening ? 'עצירת ההקשבה' : 'דברו באנגלית',
+    "aria-pressed": listening
+  }, /*#__PURE__*/React.createElement(IconMic, {
+    size: 24
+  })), /*#__PURE__*/React.createElement("form", {
+    className: "flex-1 min-w-0 flex items-center gap-2",
+    onSubmit: e => {
+      e.preventDefault();
+      submit(text, false);
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    id: "talk-input",
+    dir: "ltr",
+    className: "field book text-lg flex-1 min-w-0",
+    style: {
+      minHeight: '48px'
+    },
+    autoComplete: "off",
+    placeholder: listening ? 'Listening…' : 'Speak or type your answer',
+    value: text,
+    onChange: e => setText(e.target.value)
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary h-12 px-4 shrink-0",
+    disabled: !text.trim(),
+    "aria-label": "\u05E9\u05DC\u05D9\u05D7\u05D4"
+  }, /*#__PURE__*/React.createElement("span", {
+    dir: "rtl"
+  }, "\u05E9\u05DC\u05D7")))), err && /*#__PURE__*/React.createElement("div", {
+    className: "rounded-xl p-3 text-sm",
+    role: "alert",
+    style: {
+      background: 'var(--bad-soft)',
+      color: 'var(--bad)'
+    }
+  }, /*#__PURE__*/React.createElement(Bi, null, err)));
+}
+function Talk({
+  state,
+  actions,
+  voice,
+  profileName
+}) {
+  const [id, setId] = useState(null);
+  const [run, setRun] = useState(0);
+  const t = TALKS.find(x => x.id === id);
+  const done = state.talkDone || {};
+  if (t) return /*#__PURE__*/React.createElement(TalkChat, {
+    key: t.id + ':' + run,
+    talk: t,
+    voice: voice,
+    actions: actions,
+    settings: state.settings,
+    defaultName: profileName,
+    onBack: () => setId(null),
+    onNext: () => {
+      const i = TALKS.indexOf(t);
+      setId(TALKS[(i + 1) % TALKS.length].id);
+      setRun(r => r + 1);
+      window.scrollTo({
+        top: 0
+      });
+    }
+  });
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-5"
+  }, /*#__PURE__*/React.createElement("section", {
+    className: "card p-5 sm:p-6 flex flex-col gap-3"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: "text-2xl sm:text-3xl font-bold"
+  }, "\u05DE\u05D3\u05D1\u05E8\u05D9\u05DD \u05D0\u05E0\u05D2\u05DC\u05D9\u05EA"), /*#__PURE__*/React.createElement("p", {
+    className: "text-muted leading-relaxed"
+  }, "\u05E9\u05D9\u05D7\u05D5\u05EA \u05E7\u05E6\u05E8\u05D5\u05EA \u05DE\u05D4\u05D7\u05D9\u05D9\u05DD. \u05DC\u05D5\u05DE\u05D9 \u05D0\u05D5\u05DE\u05E8\u05EA \u05DE\u05E9\u05E4\u05D8, \u05D5\u05D0\u05EA\u05DD \u05E2\u05D5\u05E0\u05D9\u05DD \u05D1\u05E7\u05D5\u05DC (\u05DB\u05E4\u05EA\u05D5\u05E8 \u05D4\u05DE\u05D9\u05E7\u05E8\u05D5\u05E4\u05D5\u05DF) \u05D0\u05D5 \u05D1\u05D4\u05E7\u05DC\u05D3\u05D4. \u05D0\u05DD \u05EA\u05E9\u05D5\u05D1\u05D4 \u05DC\u05D0 \u05DE\u05EA\u05D0\u05D9\u05DE\u05D4, \u05EA\u05E7\u05D1\u05DC\u05D5 \u05D3\u05D5\u05D2\u05DE\u05D0\u05D5\u05EA \u05DC\u05EA\u05E9\u05D5\u05D1\u05D5\u05EA \u05D8\u05D5\u05D1\u05D5\u05EA."), /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-muted"
+  }, "\u05D4\u05DE\u05D9\u05E7\u05E8\u05D5\u05E4\u05D5\u05DF \u05E2\u05D5\u05D1\u05D3 \u05D1\u05BEChrome \u05D5\u05D1\u05BEEdge. \u05D1\u05E4\u05E2\u05DD \u05D4\u05E8\u05D0\u05E9\u05D5\u05E0\u05D4 \u05D4\u05D3\u05E4\u05D3\u05E4\u05DF \u05D9\u05D1\u05E7\u05E9 \u05D4\u05E8\u05E9\u05D0\u05D4.")), /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-3 sm:grid-cols-2"
+  }, TALKS.map(x => /*#__PURE__*/React.createElement("button", {
+    key: x.id,
+    onClick: () => {
+      setId(x.id);
+      window.scrollTo({
+        top: 0
+      });
+    },
+    className: "card card-btn card-lift p-4 flex items-center gap-4 text-start"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "w-14 h-14 rounded-xl grid place-items-center text-3xl bg-sunk shrink-0",
+    "aria-hidden": "true"
+  }, x.cover), /*#__PURE__*/React.createElement("span", {
+    className: "flex-1 min-w-0"
+  }, /*#__PURE__*/React.createElement("span", {
+    dir: "ltr",
+    className: "book font-bold text-lg block text-left"
+  }, x.title), /*#__PURE__*/React.createElement("span", {
+    className: "text-sm text-muted block"
+  }, x.he, " \xB7 ", /*#__PURE__*/React.createElement("span", {
+    className: "num"
+  }, x.steps.length), " \u05E9\u05D0\u05DC\u05D5\u05EA \xB7 \u05E9\u05DC\u05D1 ", /*#__PURE__*/React.createElement("span", {
+    className: "num"
+  }, x.level))), done[x.id] ? /*#__PURE__*/React.createElement("span", {
+    className: "tag",
+    style: {
+      background: 'var(--good-soft)',
+      color: 'var(--good)'
+    }
+  }, /*#__PURE__*/React.createElement(IconCheck, {
+    size: 12
+  }), "\u05D1\u05D5\u05E6\u05E2") : /*#__PURE__*/React.createElement(IconChevL, {
+    size: 18
+  })))));
+}
+
+/* ---------- study groups: weekly leaderboard shared through the site's small API ---------- */
+const SITE_URL = 'https://lumi-english.netlify.app';
+const ON_SITE = typeof location !== 'undefined' && /(^|\.)netlify\.app$|^localhost$/.test(location.hostname);
+const GROUP_API = ON_SITE ? '/api/groups' : SITE_URL + '/api/groups';
+let JOIN_CODE = '';
+try {
+  const m = (location.search + location.hash).match(/join[=-]([A-Za-z2-9]{6})/);
+  if (m) JOIN_CODE = m[1].toUpperCase();
+} catch (e) {}
+const GERR = {
+  not_found: 'לא מצאתי קבוצה עם הקוד הזה. בדקו שהקוד נכון.',
+  bad_code: 'קוד קבוצה הוא 6 אותיות ומספרים באנגלית.',
+  full: 'הקבוצה מלאה (עד 40 חברים).',
+  not_member: 'החיבור שלך לקבוצה כבר לא בתוקף. הצטרפו שוב עם הקוד.',
+  bad_name: 'צריך שם.',
+  bad_group_name: 'צריך לתת שם לקבוצה.',
+  net: ON_SITE ? 'אין חיבור לשרת כרגע. בדקו את האינטרנט ונסו שוב.' : 'קבוצות עובדות רק באתר lumi-english.netlify.app. פתחו את האפליקציה שם.'
+};
+async function groupCall(body) {
+  let r;
+  try {
+    r = await fetch(GROUP_API, body ? {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    } : undefined);
+  } catch (e) {
+    throw new Error('net');
+  }
+  let j = null;
+  try {
+    j = await r.json();
+  } catch (e) {}
+  if (!r.ok) throw new Error(j && j.error || 'net');
+  return j;
+}
+const weekStartKey = () => {
+  const d = new Date();
+  return dayKey(addDays(d, -d.getDay()));
+};
+function weekTotals(history) {
+  const s = new Date(weekStartKey() + 'T12:00:00');
+  let xp = 0,
+    words = 0;
+  for (let i = 0; i < 7; i++) {
+    const h = history[dayKey(addDays(s, i))];
+    if (h) {
+      xp += h.xp || 0;
+      words += h.words || 0;
+    }
+  }
+  return {
+    xp,
+    words
+  };
+}
+function groupStats(state, profile, known, streak) {
+  const w = weekTotals(state.history);
+  return {
+    name: profile.name,
+    avatar: profile.avatar,
+    known,
+    streak,
+    week: weekStartKey(),
+    weekXp: w.xp,
+    weekWords: w.words
+  };
+}
+const MEDALS = ['🥇', '🥈', '🥉'];
+function GroupCard({
+  state,
+  actions,
+  profile,
+  known,
+  streak,
+  toast
+}) {
+  const g = state.group;
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState(JOIN_CODE ? 'join' : '');
+  const [gname, setGname] = useState('');
+  const [code, setCode] = useState(JOIN_CODE);
+  const [confirm, setConfirm] = useState(false);
+  const refresh = useCallback(async () => {
+    if (!g) return;
+    try {
+      const d = await groupCall({
+        action: 'report',
+        code: g.code,
+        memberId: g.memberId,
+        token: g.token,
+        stats: groupStats(state, profile, known, streak)
+      });
+      setData(d);
+      setErr('');
+    } catch (e) {
+      if (e.message === 'not_member' || e.message === 'not_found') {
+        actions.setGroup(null);
+        toast(GERR[e.message]);
+      } else setErr(GERR[e.message] || GERR.net);
+    }
+  }, [g && g.code, known, streak, state.history]);
+  useEffect(() => {
+    refresh();
+    if (!g) return;
+    const t = setInterval(() => {
+      if (!document.hidden) refresh();
+    }, 60000);
+    return () => clearInterval(t);
+  }, [g && g.code]);
+  const create = async e => {
+    e.preventDefault();
+    setBusy(true);
+    setErr('');
+    try {
+      const r = await groupCall({
+        action: 'create',
+        name: gname,
+        member: {
+          name: profile.name,
+          avatar: profile.avatar
+        }
+      });
+      actions.setGroup({
+        code: r.code,
+        memberId: r.memberId,
+        token: r.token,
+        name: r.group.name
+      });
+      setData(r.group);
+      toast('הקבוצה נוצרה! שלחו את הקוד לחברים');
+    } catch (e) {
+      setErr(GERR[e.message] || GERR.net);
+    }
+    setBusy(false);
+  };
+  const join = async e => {
+    e.preventDefault();
+    setBusy(true);
+    setErr('');
+    try {
+      const r = await groupCall({
+        action: 'join',
+        code,
+        member: {
+          name: profile.name,
+          avatar: profile.avatar
+        }
+      });
+      actions.setGroup({
+        code: r.code,
+        memberId: r.memberId,
+        token: r.token,
+        name: r.group.name
+      });
+      setData(r.group);
+      JOIN_CODE = '';
+      toast(`הצטרפת לקבוצה ${r.group.name}`);
+    } catch (e) {
+      setErr(GERR[e.message] || GERR.net);
+    }
+    setBusy(false);
+  };
+  const leave = async () => {
+    setBusy(true);
+    try {
+      await groupCall({
+        action: 'leave',
+        code: g.code,
+        memberId: g.memberId,
+        token: g.token
+      });
+    } catch (e) {}
+    actions.setGroup(null);
+    setData(null);
+    setConfirm(false);
+    setBusy(false);
+    setMode('');
+    setCode('');
+    toast('עזבת את הקבוצה');
+  };
+  const link = g ? `${SITE_URL}/?join=${g.code}` : '';
+  const invite = g ? `בואו ללמוד איתי אנגלית ב־Lumi English ולהתחרות מי לומד יותר השבוע!\nקוד הקבוצה: ${g.code}\n${link}` : '';
+  const copy = async () => {
+    if (await copyText(invite)) toast('ההזמנה הועתקה');else toast(`קוד הקבוצה: ${g.code}`);
+  };
+  if (!g) return /*#__PURE__*/React.createElement("section", {
+    className: "card p-5 sm:p-6 flex flex-col gap-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "w-11 h-11 rounded-xl grid place-items-center shrink-0",
+    style: {
+      background: 'var(--sun-soft)'
+    }
+  }, /*#__PURE__*/React.createElement(IconTrophy, {
+    size: 22
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h2", {
+    className: "text-lg font-bold"
+  }, "\u05E7\u05D1\u05D5\u05E6\u05EA \u05DC\u05D9\u05DE\u05D5\u05D3"), /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-muted"
+  }, "\"\u05E7\u05E0\u05D0\u05EA \u05E1\u05D5\u05E4\u05E8\u05D9\u05DD \u05EA\u05E8\u05D1\u05D4 \u05D7\u05DB\u05DE\u05D4\": \u05DC\u05D5\u05DE\u05D3\u05D9\u05DD \u05D9\u05D7\u05D3 \u05E2\u05DD \u05D7\u05D1\u05E8\u05D9\u05DD \u05D0\u05D5 \u05DE\u05E9\u05E4\u05D7\u05D4, \u05D5\u05E8\u05D5\u05D0\u05D9\u05DD \u05DE\u05D9 \u05E6\u05D1\u05E8 \u05D4\u05DB\u05D9 \u05D4\u05E8\u05D1\u05D4 \u05E0\u05E7\u05D5\u05D3\u05D5\u05EA \u05D4\u05E9\u05D1\u05D5\u05E2."))), !mode && /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 flex-wrap"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary px-5",
+    onClick: () => setMode('create')
+  }, /*#__PURE__*/React.createElement(IconPlus, {
+    size: 18
+  }), "\u05D9\u05E6\u05D9\u05E8\u05EA \u05E7\u05D1\u05D5\u05E6\u05D4"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-5",
+    onClick: () => setMode('join')
+  }, /*#__PURE__*/React.createElement(IconUsers, {
+    size: 18
+  }), "\u05D4\u05E6\u05D8\u05E8\u05E4\u05D5\u05EA \u05E2\u05DD \u05E7\u05D5\u05D3")), mode === 'create' && /*#__PURE__*/React.createElement("form", {
+    className: "flex flex-col gap-2",
+    onSubmit: create
+  }, /*#__PURE__*/React.createElement("label", {
+    htmlFor: "g-name",
+    className: "font-semibold"
+  }, "\u05E9\u05DD \u05D4\u05E7\u05D1\u05D5\u05E6\u05D4"), /*#__PURE__*/React.createElement("input", {
+    id: "g-name",
+    className: "field",
+    maxLength: 40,
+    placeholder: "\u05DC\u05DE\u05E9\u05DC: \u05DE\u05E9\u05E4\u05D7\u05EA \u05DB\u05D4\u05DF",
+    value: gname,
+    onChange: e => setGname(e.target.value),
+    autoFocus: true
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary px-5",
+    disabled: !gname.trim() || busy
+  }, busy ? 'יוצר…' : 'יצירה'), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "btn btn-ghost px-4",
+    onClick: () => setMode('')
+  }, "\u05D1\u05D9\u05D8\u05D5\u05DC"))), mode === 'join' && /*#__PURE__*/React.createElement("form", {
+    className: "flex flex-col gap-2",
+    onSubmit: join
+  }, /*#__PURE__*/React.createElement("label", {
+    htmlFor: "g-code",
+    className: "font-semibold"
+  }, "\u05E7\u05D5\u05D3 \u05D4\u05E7\u05D1\u05D5\u05E6\u05D4"), /*#__PURE__*/React.createElement("input", {
+    id: "g-code",
+    dir: "ltr",
+    className: "field text-left num text-xl tracking-widest uppercase",
+    maxLength: 6,
+    placeholder: "ABC123",
+    value: code,
+    onChange: e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '')),
+    autoFocus: true
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary px-5",
+    disabled: code.length !== 6 || busy
+  }, busy ? 'מצטרף…' : 'הצטרפות'), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    className: "btn btn-ghost px-4",
+    onClick: () => setMode('')
+  }, "\u05D1\u05D9\u05D8\u05D5\u05DC"))), err && /*#__PURE__*/React.createElement("div", {
+    className: "rounded-xl p-3 text-sm",
+    role: "alert",
+    style: {
+      background: 'var(--bad-soft)',
+      color: 'var(--bad)'
+    }
+  }, /*#__PURE__*/React.createElement(Bi, null, err)), /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-muted"
+  }, "\u05D1\u05E7\u05D1\u05D5\u05E6\u05D4 \u05E8\u05D5\u05D0\u05D9\u05DD \u05E8\u05E7 \u05E9\u05DD, \u05D3\u05DE\u05D5\u05EA \u05D5\u05E0\u05E7\u05D5\u05D3\u05D5\u05EA. \u05D4\u05E1\u05D9\u05E4\u05D5\u05E8\u05D9\u05DD, \u05D4\u05DB\u05EA\u05D9\u05D1\u05D4 \u05D5\u05D4\u05E1\u05D9\u05E1\u05DE\u05D4 \u05E9\u05DC\u05DB\u05DD \u05DC\u05D0 \u05E0\u05E9\u05DC\u05D7\u05D9\u05DD \u05DC\u05E9\u05D5\u05DD \u05DE\u05E7\u05D5\u05DD."));
+  const week = weekStartKey();
+  const rows = (data ? data.members : []).map(m => ({
+    ...m,
+    wx: m.week === week ? m.weekXp : 0
+  })).sort((a, b) => b.wx - a.wx || b.known - a.known);
+  const max = Math.max(1, ...rows.map(r => r.wx));
+  return /*#__PURE__*/React.createElement("section", {
+    className: "card p-5 sm:p-6 flex flex-col gap-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3 flex-wrap"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "w-11 h-11 rounded-xl grid place-items-center shrink-0",
+    style: {
+      background: 'var(--sun-soft)'
+    }
+  }, /*#__PURE__*/React.createElement(IconTrophy, {
+    size: 22
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "me-auto min-w-0"
+  }, /*#__PURE__*/React.createElement("h2", {
+    className: "text-lg font-bold truncate"
+  }, g.name), /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted"
+  }, "\u05D8\u05D1\u05DC\u05EA \u05D4\u05E9\u05D1\u05D5\u05E2 \xB7 \u05E7\u05D5\u05D3 ", /*#__PURE__*/React.createElement("bdi", {
+    dir: "ltr",
+    className: "num font-bold text-ink tracking-wider"
+  }, g.code))), /*#__PURE__*/React.createElement("a", {
+    className: "btn btn-primary px-4 text-sm",
+    href: 'https://wa.me/?text=' + encodeURIComponent(invite),
+    target: "_blank",
+    rel: "noopener noreferrer"
+  }, "\u05D4\u05D6\u05DE\u05E0\u05D4 \u05D1\u05D5\u05D5\u05D0\u05D8\u05E1\u05D0\u05E4"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-3 text-sm",
+    onClick: copy
+  }, /*#__PURE__*/React.createElement(IconCopy, {
+    size: 16
+  }), "\u05D4\u05E2\u05EA\u05E7\u05EA \u05D4\u05D6\u05DE\u05E0\u05D4")), err && /*#__PURE__*/React.createElement("div", {
+    className: "rounded-xl p-3 text-sm",
+    role: "alert",
+    style: {
+      background: 'var(--bad-soft)',
+      color: 'var(--bad)'
+    }
+  }, /*#__PURE__*/React.createElement(Bi, null, err)), !data && !err && /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted"
+  }, "\u05D8\u05D5\u05E2\u05DF \u05D0\u05EA \u05D4\u05D8\u05D1\u05DC\u05D4\u2026"), data && /*#__PURE__*/React.createElement("ol", {
+    className: "flex flex-col gap-2"
+  }, rows.map((m, i) => {
+    const me = m.id === g.memberId;
+    return /*#__PURE__*/React.createElement("li", {
+      key: m.id,
+      className: "rounded-xl p-3 flex items-center gap-3",
+      style: {
+        background: me ? 'var(--primary-soft)' : 'var(--sunk)'
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "w-8 text-center text-xl shrink-0 num font-bold"
+    }, m.wx > 0 && i < 3 ? MEDALS[i] : i + 1), /*#__PURE__*/React.createElement("span", {
+      className: "w-10 h-10 rounded-lg grid place-items-center text-2xl bg-surface shrink-0",
+      "aria-hidden": "true"
+    }, m.avatar), /*#__PURE__*/React.createElement("div", {
+      className: "flex-1 min-w-0"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "font-bold truncate"
+    }, /*#__PURE__*/React.createElement("bdi", null, m.name), me && /*#__PURE__*/React.createElement("span", {
+      className: "tag ms-2"
+    }, "\u05D0\u05EA/\u05D4")), /*#__PURE__*/React.createElement("div", {
+      className: "h-1.5 rounded-full bg-surface overflow-hidden mt-1",
+      dir: "ltr"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "h-full bar",
+      style: {
+        width: m.wx / max * 100 + '%',
+        background: i === 0 && m.wx > 0 ? 'var(--sun)' : 'var(--primary)'
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      className: "text-xs text-muted mt-1 num"
+    }, m.known, " \u05DE\u05D9\u05DC\u05D9\u05DD \u05DE\u05D5\u05DB\u05E8\u05D5\u05EA \xB7 ", /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: 'var(--coral)'
+      }
+    }, "\uD83D\uDD25 ", m.streak))), /*#__PURE__*/React.createElement("div", {
+      className: "text-center shrink-0"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "num text-2xl font-bold"
+    }, m.wx), /*#__PURE__*/React.createElement("div", {
+      className: "text-[11px] text-muted"
+    }, "\u05E0\u05E7\u05F3 \u05D4\u05E9\u05D1\u05D5\u05E2")));
+  })), data && rows.length === 1 && /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-muted"
+  }, "\u05D0\u05EA\u05DD \u05D4\u05E8\u05D0\u05E9\u05D5\u05E0\u05D9\u05DD \u05D1\u05E7\u05D1\u05D5\u05E6\u05D4. \u05E9\u05DC\u05D7\u05D5 \u05D0\u05EA \u05D4\u05D4\u05D6\u05DE\u05E0\u05D4 \u05DC\u05D7\u05D1\u05E8\u05D9\u05DD \u05DB\u05D3\u05D9 \u05E9\u05D9\u05E6\u05D8\u05E8\u05E4\u05D5."), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3 flex-wrap text-sm"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "hit text-primary font-semibold",
+    onClick: refresh
+  }, "\u05E8\u05E2\u05E0\u05D5\u05DF"), !confirm ? /*#__PURE__*/React.createElement("button", {
+    className: "hit text-muted underline",
+    onClick: () => setConfirm(true)
+  }, "\u05E2\u05D6\u05D9\u05D1\u05EA \u05D4\u05E7\u05D1\u05D5\u05E6\u05D4") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("span", null, "\u05DC\u05E2\u05D6\u05D5\u05D1 \u05D0\u05EA ", /*#__PURE__*/React.createElement("bdi", null, g.name), "?"), /*#__PURE__*/React.createElement("button", {
+    className: "btn py-2 px-3",
+    style: {
+      background: 'var(--bad)',
+      color: 'var(--surface)'
+    },
+    onClick: leave,
+    disabled: busy
+  }, "\u05DB\u05DF, \u05DC\u05E2\u05D6\u05D5\u05D1"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost py-2 px-3",
+    onClick: () => setConfirm(false)
+  }, "\u05D1\u05D9\u05D8\u05D5\u05DC"))));
+}
+
 /* ---------- progress ---------- */
 const HE_DAYS = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
 function Progress({
@@ -6337,7 +8036,9 @@ function Progress({
   stories,
   actions,
   streak,
-  known
+  known,
+  profile,
+  toast
 }) {
   const [off, setOff] = useState(0);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -6365,7 +8066,14 @@ function Progress({
   const doneCount = stories.filter(s => state.storiesDone[s.id]).length;
   return /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col gap-4"
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement(GroupCard, {
+    state: state,
+    actions: actions,
+    profile: profile,
+    known: known,
+    streak: streak,
+    toast: toast
+  }), /*#__PURE__*/React.createElement("div", {
     className: "grid gap-4 md:grid-cols-[1.3fr_1fr]"
   }, /*#__PURE__*/React.createElement("section", {
     className: "card p-5 sm:p-6 flex items-center gap-5 flex-wrap"
@@ -6608,13 +8316,11 @@ function ProfileForm({
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-3"
   }, /*#__PURE__*/React.createElement("div", {
-    className: "w-12 h-12 rounded-xl grid place-items-center book font-bold text-2xl shrink-0",
-    style: {
-      background: 'var(--ink)',
-      color: 'var(--bg)'
-    },
-    "aria-hidden": "true"
-  }, "L"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h1", {
+    className: "shrink-0"
+  }, /*#__PURE__*/React.createElement(LogoMark, {
+    size: 52,
+    radius: 14
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h1", {
     className: "text-2xl font-bold"
   }, first ? /*#__PURE__*/React.createElement(React.Fragment, null, "\u05D1\u05E8\u05D5\u05DB\u05D9\u05DD \u05D4\u05D1\u05D0\u05D9\u05DD \u05DC\u05BE", /*#__PURE__*/React.createElement("bdi", {
     dir: "ltr"
@@ -7210,7 +8916,8 @@ function App({
   }, []);
   NOTIFY = toast;
   useEffect(() => {
-    const t = setTimeout(() => toast(`שלום ${profile.name}, טוב לראות אותך!`), 500);
+    const t = setTimeout(() => toast(JOIN_CODE && !state.group ? `הוזמנת לקבוצת לימוד! הקוד ${JOIN_CODE} כבר ממולא` : `שלום ${profile.name}, טוב לראות אותך!`), 500);
+    if (JOIN_CODE && !state.group) setTab('progress');
     return () => clearTimeout(t);
   }, []);
   const reading = useRef(false);
@@ -7358,6 +9065,34 @@ function App({
         }
       }, ok ? 3 : 1);
     }),
+    recordSound: (k, ok) => setState(s => {
+      const ph = s.phon || {};
+      const q = ph[k] || {
+        c: 0,
+        w: 0
+      };
+      return withXP({
+        ...s,
+        phon: {
+          ...ph,
+          [k]: {
+            c: q.c + (ok ? 1 : 0),
+            w: q.w + (ok ? 0 : 1)
+          }
+        }
+      }, ok ? 2 : 0);
+    }),
+    finishTalk: id => setState(s => {
+      const td = s.talkDone || {};
+      const first = !td[id] || td[id] !== todayKey();
+      return withXP({
+        ...s,
+        talkDone: {
+          ...td,
+          [id]: todayKey()
+        }
+      }, first ? 10 : 0);
+    }),
     noteCombo: n => setState(s => n > s.bestCombo ? {
       ...s,
       bestCombo: n
@@ -7369,6 +9104,10 @@ function App({
         [id]: t
       }
     })),
+    setGroup: g => setState(s => ({
+      ...s,
+      group: g
+    })),
     unlock: n => setState(s => ({
       ...s,
       unlocked: {
@@ -7376,6 +9115,16 @@ function App({
         [n]: true
       }
     })),
+    lock: n => setState(s => {
+      const u = {
+        ...s.unlocked
+      };
+      for (const k in u) if (+k >= n) delete u[k];
+      return {
+        ...s,
+        unlocked: u
+      };
+    }),
     addStory: story => setState(s => ({
       ...s,
       userStories: [story, ...s.userStories]
@@ -7491,7 +9240,18 @@ function App({
     openStory: openStory,
     onAdd: () => setAdding(true),
     toast: toast
-  })), tab === 'practice' && /*#__PURE__*/React.createElement(Practice, {
+  })), tab === 'sounds' && /*#__PURE__*/React.createElement(Sounds, {
+    state: state,
+    actions: actions,
+    voice: voice,
+    celebrate: celebrate,
+    onWord: openCard
+  }), tab === 'talk' && /*#__PURE__*/React.createElement(Talk, {
+    state: state,
+    actions: actions,
+    voice: voice,
+    profileName: profile.name
+  }), tab === 'practice' && /*#__PURE__*/React.createElement(Practice, {
     state: state,
     stories: stories,
     known: known,
@@ -7505,7 +9265,9 @@ function App({
     stories: stories,
     actions: actions,
     streak: streak,
-    known: known
+    known: known,
+    profile: profile,
+    toast: toast
   }))), adding && /*#__PURE__*/React.createElement(AddStory, {
     state: state,
     onClose: () => setAdding(false),
@@ -7518,7 +9280,7 @@ function App({
       openStory(st.id);
       toast(`הסיפור נשמר: ${stats.words} מילים, ${stats.known} מהן כבר מוכרות לך`);
     }
-  }), tab !== 'practice' && !card && !adding && !profileOpen && /*#__PURE__*/React.createElement("button", {
+  }), tab !== 'practice' && tab !== 'talk' && !card && !adding && !profileOpen && /*#__PURE__*/React.createElement("button", {
     className: "fab sm:hidden",
     style: {
       bottom: `calc(${reading.current ? 104 : 20}px + env(safe-area-inset-bottom,0px))`,
@@ -7556,7 +9318,6 @@ function App({
     role: "status",
     className: `toast fixed z-[70] rounded-xl px-5 py-3 ${toastMsg.out ? 'out' : ''}` + " font-semibold flex items-center gap-2 text-sm",
     style: {
-      top: 'calc(124px + env(safe-area-inset-top,0px))',
       background: 'var(--ink)',
       color: 'var(--bg)',
       width: 'max-content',

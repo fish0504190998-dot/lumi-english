@@ -176,6 +176,44 @@ function searchDict(raw){
 const SR = typeof window!=='undefined' && (window.SpeechRecognition||window.webkitSpeechRecognition);
 let DICTATION=null;
 try{ if(window.claude&&window.claude.use) window.claude.use('dictation').then(d=>{ DICTATION=d; }).catch(()=>{}); }catch(e){}
+const LISTEN_ERR={
+  not_granted:'אין הרשאה למיקרופון. לחצו על סמל המנעול ליד כתובת האתר, אשרו מיקרופון ונסו שוב.',
+  unavailable:'זיהוי דיבור לא זמין כאן. אפשר להקליד.',
+  rate_limited:'יותר מדי ניסיונות. נסו שוב בעוד רגע.',
+  upstream_error:'המיקרופון או שירות זיהוי הדיבור לא הגיבו. בדקו שהמיקרופון מחובר ונסו שוב.',
+  nospeech:'לא שמעתי כלום. לחצו על המיקרופון ודברו מיד.',
+  network:'זיהוי הדיבור צריך חיבור לאינטרנט.',
+  unsupported:'הדפדפן הזה לא תומך בזיהוי דיבור. נסו ב־Chrome או ב־Edge, או הקלידו.',
+  failed:'זיהוי הדיבור לא הצליח. נסו שוב או הקלידו.'
+};
+/* listen for one phrase. lang: 'en' | 'he'. Returns a stop function. */
+let ACTIVE_LISTEN=null;
+function listenOnce({lang, onPartial, onText, onError, onState}){
+  if(ACTIVE_LISTEN){ try{ ACTIVE_LISTEN(); }catch(e){} ACTIVE_LISTEN=null; }
+  try{ synth&&synth.cancel(); }catch(e){}
+  let done=false, partial='';
+  const finish=(text,err)=>{ if(done) return; done=true; ACTIVE_LISTEN=null; onState&&onState(false);
+    if(text&&text.trim()) onText(text.trim()); else if(err) onError&&onError(LISTEN_ERR[err]||LISTEN_ERR.failed); };
+  if(DICTATION){ const d=DICTATION; const offs=[];
+    offs.push(d.onPartial(({text})=>{ if(text&&text.trim()){ partial=text; onPartial&&onPartial(text.trim()); } }));
+    offs.push(d.onFinal(({text})=>{ if(String(text||'').trim()){ cleanup(); d.stop().catch(()=>{}); finish(text); } }));
+    offs.push(d.onState(({state, reason})=>{ if(state==='idle'){ cleanup(); finish(partial, partial?null:(LISTEN_ERR[reason]?reason:(reason==='stopped'||reason==='viewer_stopped'?null:'failed'))); } else onState&&onState(true); }));
+    function cleanup(){ offs.splice(0).forEach(f=>{ try{ f(); }catch(e){} }); }
+    onState&&onState(true);
+    d.start({language: lang==='he'?'he':'en'}).catch(e=>{ cleanup(); finish(partial, e&&LISTEN_ERR[e.code]?e.code:(e&&e.code==='stopped'?null:'failed')); });
+    ACTIVE_LISTEN=()=>{ d.stop().catch(()=>{}); };
+    return ACTIVE_LISTEN; }
+  if(!SR){ onError&&onError(LISTEN_ERR.unsupported); return ()=>{}; }
+  const r=new SR(); r.lang=lang==='he'?'he-IL':'en-US'; r.interimResults=true; r.maxAlternatives=1;
+  r.onresult=e=>{ let fin='', tmp=''; for(let i=0;i<e.results.length;i++){ const t=e.results[i][0].transcript; if(e.results[i].isFinal) fin+=t; else tmp+=t; }
+    if(tmp||fin){ partial=fin||tmp; onPartial&&onPartial(partial.trim()); } if(fin){ try{ r.stop(); }catch(x){} finish(fin); } };
+  r.onerror=e=>{ const c=e.error==='not-allowed'||e.error==='service-not-allowed'?'not_granted':e.error==='no-speech'?'nospeech':e.error==='network'?'network':e.error==='aborted'?null:'failed'; finish(partial, c); };
+  r.onend=()=>finish(partial, partial?null:'nospeech');
+  try{ r.start(); onState&&onState(true); }catch(e){ finish('', 'failed'); }
+  ACTIVE_LISTEN=()=>{ try{ r.stop(); }catch(e){} };
+  return ACTIVE_LISTEN;
+}
+let MIC_LANG='en'; try{ MIC_LANG=localStorage.getItem('lumi-mic-lang')==='he'?'he':'en'; }catch(e){}
 
 /* ---------- speech ---------- */
 const synth = typeof window!=='undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;
@@ -246,7 +284,10 @@ function useStoryPlayer(story, rate, voice, cbs){
   // and when a voice gives no word events its real speed is measured and used for the next sentences.
   const units=useMemo(()=>story.paras.map((para,p)=>{
     const text=para.en, toks=tokens[p], out=[]; const re=/[^.!?]+[.!?]+["”’)]*\s*|[^.!?]+$/g; let m;
-    while((m=re.exec(text))){ const s=m.index, e=s+m[0].length;
+    const parts=[]; while((m=re.exec(text))){ const seg=m[0]; const wc=(seg.match(WORD_RE)||[]).length;
+      if(wc>9){ const cut=/[\s\S]*?[,;:](?=\s)\s*|[\s\S]+$/g; let c; while((c=cut.exec(seg))) if(c[0].trim()) parts.push({index:m.index+c.index, 0:c[0]}); }
+      else parts.push({index:m.index, 0:seg}); }
+    for(const m of parts){ const s=m.index, e=s+m[0].length;
       const words=[]; toks.forEach((t,i)=>{ if(t.t==='w'&&t.start>=s&&t.start<e){ const sep=toks[i+1]&&toks[i+1].t==='s'?toks[i+1].text:''; words.push({wi:t.wi, start:t.start, w:wordWeight(t.text), pause:pauseWeight(sep)}); } });
       if(words.length) out.push({s, lead:m[0].length-m[0].trimStart().length, text:m[0].trim(), words}); }
     if(!out.length) out.push({s:0, lead:0, text, words:toks.filter(t=>t.t==='w').map(t=>({wi:t.wi, start:t.start, w:wordWeight(t.text), pause:0}))});
@@ -316,6 +357,21 @@ const IconSearch=p=><Svg {...p}><circle cx="11" cy="11" r="7"/><path d="M20 20l-
 const IconMic=p=><Svg {...p}><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></Svg>;
 const IconCopy=p=><Svg {...p}><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></Svg>;
 const IconPen=p=><Svg {...p}><path d="M4 20l1-4L16.5 4.5a2 2 0 0 1 3 3L8 19z"/><path d="M14 7l3 3"/></Svg>;
+const IconWave=p=><Svg {...p}><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10M21 12h0"/></Svg>;
+const IconChat=p=><Svg {...p}><path d="M4 5h16v11H9l-5 4z"/><path d="M8 10h8M8 13h5"/></Svg>;
+const IconUsers=p=><Svg {...p}><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.6a3.2 3.2 0 0 1 0 6.3M18 14.3c1.9.9 3 2.9 3 5.7"/></Svg>;
+const IconTrophy=p=><Svg {...p}><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H4.5a3 3 0 0 0 3.5 4M16 6h3.5a3 3 0 0 1-3.5 4M12 13v4M8.5 20h7"/></Svg>;
+/* brand mark: a white "L" with a warm light dot (Lumi = light) on a sage tile */
+function LogoMark({size=44, radius=12}){
+  return (<svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" style={{display:'block', borderRadius:radius}}>
+    <defs><linearGradient id="lg-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#3A9486"/><stop offset="1" stopColor="#1F5F57"/></linearGradient>
+      <radialGradient id="lg-glow"><stop offset="0" stopColor="#FFE7A3" stopOpacity=".95"/><stop offset="1" stopColor="#FFE7A3" stopOpacity="0"/></radialGradient></defs>
+    <rect width="64" height="64" rx="16" fill="url(#lg-bg)"/>
+    <circle cx="44.5" cy="19.5" r="14" fill="url(#lg-glow)"/>
+    <path d="M18 13h9.5v28.5H46V50H18z" fill="#FFFEFB"/>
+    <circle cx="44.5" cy="19.5" r="6.2" fill="#F4C55B"/>
+  </svg>);
+}
 const IconTrash=p=><Svg {...p}><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></Svg>;
 
 /* ---------- small UI ---------- */
@@ -387,11 +443,11 @@ function Header({known, streak, todayXP, goal, unlocked, onNav, profile, onProfi
   </header>);
 }
 function Tabs({tab, setTab, learning}){
-  const tabs=[['read','סיפורים',IconBook],['practice','תרגול',IconBolt],['progress','התקדמות',IconChart]];
+  const tabs=[['read','סיפורים',IconBook],['sounds','צלילים',IconWave],['talk','שיחה',IconChat],['practice','תרגול',IconBolt],['progress','התקדמות',IconChart]];
   return (<nav className="sticky z-30 bg-surface border-b border-line" style={{top:'calc(env(safe-area-inset-top,0px) + 64px)'}} aria-label="ניווט">
     <div className="gutter"><div className="max-w-[860px] mx-auto flex gap-1">
       {tabs.map(([k,l,I])=><button key={k} onClick={()=>setTab(k)} aria-current={tab===k?'page':undefined}
-        className={`flex items-center justify-center gap-2 flex-1 sm:flex-none px-2 sm:px-4 py-3 text-sm font-semibold border-b-2 -mb-px ${tab===k?'border-primary text-primary':'border-transparent text-muted hover:text-ink'}`}><I size={17}/>{l}{k==='practice'&&learning>0&&<span className="num text-[11px] rounded-full px-1.5 py-0.5" style={{background:'var(--learn-bg)', color:'var(--ink)'}}>{learning}</span>}</button>)}
+        className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 flex-1 sm:flex-none px-1 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-semibold border-b-2 -mb-px relative ${tab===k?'border-primary text-primary':'border-transparent text-muted hover:text-ink'}`}><I size={17}/>{l}{k==='practice'&&learning>0&&<span className="num text-[10px] rounded-full px-1.5 py-0.5 absolute sm:static top-1 end-1" style={{background:'var(--learn-bg)', color:'var(--ink)'}}>{learning}</span>}</button>)}
     </div></div>
   </nav>);
 }
@@ -428,7 +484,8 @@ function Library({state, known, actions, openStory, onAdd, toast}){
   return (<div className="flex flex-col gap-7">
     <section className="flex flex-col sm:flex-row gap-4 sm:items-end">
       <div className="flex-1 min-w-0">
-        <h1 className="text-2xl sm:text-3xl font-bold">הספרייה שלך</h1>
+        <div className="flex items-center gap-3"><h1 className="text-2xl sm:text-3xl font-bold me-auto">הספרייה שלך</h1>
+          <span className="sm:hidden"><button className="btn btn-primary px-4 text-sm" onClick={onAdd}><IconPlus size={18}/>הוסף סיפור</button></span></div>
         <p className="text-muted mt-1 leading-relaxed">לחצו על כל מילה בסיפור כדי לראות תרגום והגייה. ככל שתסמנו יותר מילים כמוכרות, ייפתחו סיפורים ארוכים ואמיתיים יותר.</p>
       </div>
       <div className="flex gap-3 text-sm shrink-0 flex-wrap">
@@ -453,7 +510,7 @@ function Library({state, known, actions, openStory, onAdd, toast}){
           {L.n===lv&&<span className="tag tag-level">השלב שלך</span>}
           {!open&&<><span className="text-sm text-muted">נפתח בעוד <b className="num text-ink">{need}</b> מילים</span>
             <button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>{ actions.unlock(L.n); toast(`שלב ${L.n} נפתח. בהצלחה!`); }}>בא לי אתגר, פתח עכשיו</button></>}
-          {open&&L.n>lv&&<span className="tag">נפתח ידנית</span>}
+          {open&&L.n>lv&&<><span className="tag">נפתח ידנית</span><button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>{ actions.lock(L.n); toast(`שלב ${L.n} ננעל שוב. הוא ייפתח לבד כשתגיעו ל־${L.min} מילים מוכרות.`); }}><IconLock size={14}/>נעילה מחדש</button></>}
         </div>
         <div className="grid gap-3 md:grid-cols-2">{list.map(s=><StoryCard key={s.id} story={s} state={state} locked={!open} onOpen={()=>openStory(s.id)} onLocked={()=>toast(`הסיפור נעול. חסרות ${need} מילים מוכרות, או לחצו "בא לי אתגר, פתח עכשיו" בכותרת של שלב ${L.n}.`)}/>)}</div>
       </section>); })}
@@ -532,7 +589,7 @@ function AddStory({state, onClose, onSave}){
 function DictBar({state, onOpen, onAdd, onHome, voiceRef, onListening}){
   const [q,setQ]=useState(''); const [open,setOpen]=useState(false); const [sel,setSel]=useState(0);
   const [listening,setListening]=useState(false); const [vmsg,setVmsg]=useState(''); const [busy,setBusy]=useState(false);
-  const inputRef=useRef(null), boxRef=useRef(null), rec=useRef(null), wired=useRef(false), heard=useRef({partial:'', done:false}), tries=useRef(0);
+  const inputRef=useRef(null), boxRef=useRef(null);
   const results=useMemo(()=>searchDict(q),[q, state.customDict, state.netDict]);
   const typed=q.trim(); const heQ=isHebrew(typed); const enWord=!heQ?typed.toLowerCase().replace(/[^a-z'-]/g,''):'';
   const offerOnline=typed.length>=2 && ((!heQ && enWord && !results.includes(enWord)) || (heQ && results.length<3));
@@ -546,60 +603,53 @@ function DictBar({state, onOpen, onAdd, onHome, voiceRef, onListening}){
     return ()=>{ window.removeEventListener('keydown',key); window.removeEventListener('mousedown',click); };
   },[]);
   const go=(k)=>{ setOpen(false); setVmsg(''); inputRef.current&&inputRef.current.blur(); onOpen(k, k); };
-  const online=async()=>{
-    if(!heQ){ go(enWord); return; }
-    setBusy(true); try{ const t=(await fetchTranslation(typed,'he|en')).toLowerCase().replace(/[^a-z' -]/g,'').trim(); const w=t.split(/\s+/).filter(x=>!['to','a','an','the'].includes(x))[0]; if(!w) throw 0; setQ(w); go(w); }
+  const online=async(text)=>{
+    const src=typeof text==='string'?text:typed;
+    if(!isHebrew(src)){ go(src.toLowerCase().replace(/[^a-z'-]/g,'')); return; }
+    setBusy(true); try{ const t=(await fetchTranslation(src,'he|en')).toLowerCase().replace(/[^a-z' -]/g,'').trim(); const w=t.split(/\s+/).filter(x=>!['to','a','an','the'].includes(x))[0]; if(!w) throw 0; setQ(w); go(w); }
     catch(e){ setVmsg('לא הצלחתי לתרגם ברשת כרגע (אין חיבור, או שהדפדפן חוסם את השירות).'); } setBusy(false); };
   const pickRow=(i)=>{ if(i<results.length) go(results[i]); else if(offerOnline) online(); };
   const onKey=e=>{ if(e.key==='ArrowDown'){ e.preventDefault(); setOpen(true); setSel(s=>Math.min(rows-1,s+1)); }
     else if(e.key==='ArrowUp'){ e.preventDefault(); setSel(s=>Math.max(0,s-1)); }
     else if(e.key==='Enter'){ e.preventDefault(); if(rows) pickRow(sel); }
     else if(e.key==='Escape'){ setOpen(false); e.target.blur(); } };
-  const gotVoice=(text)=>{ const t=String(text||'').toLowerCase().replace(/[^a-z' -]/g,' ').trim(); const w=t.split(/\s+/)[0];
-    if(!w){ setVmsg('לא זיהיתי מילה באנגלית. נסו שוב, לאט וברור.'); return; } setQ(t); go(w); };
-  const VERR={not_granted:'אין הרשאה למיקרופון. אפשר לאשר אותה בהגדרות ההרשאות של העמוד.', unavailable:'חיפוש קולי לא זמין כאן. אפשר להקליד.', rate_limited:'יותר מדי ניסיונות. נסו שוב בעוד רגע.', upstream_error:'המיקרופון או שירות זיהוי הדיבור לא הגיבו. בדקו שמיקרופון מחובר ושהדפדפן מאשר אותו לאתר, ואז נסו שוב. אפשר גם להקליד את המילה.'};
+  const [micLang,setMicLangRaw]=useState(MIC_LANG);
+  const setMicLang=l=>{ MIC_LANG=l; setMicLangRaw(l); try{ localStorage.setItem('lumi-mic-lang',l); }catch(e){} };
+  const gotVoice=(text, lang)=>{
+    if(lang==='he'){ const t=String(text||'').replace(/[^א-ת ]/g,' ').replace(/\s+/g,' ').trim();
+      if(!t){ setVmsg('לא זיהיתי מילה בעברית. נסו שוב, לאט וברור.'); return; }
+      setQ(t); const r=searchDict(t); if(r.length){ go(r[0]); } else online(t); return; }
+    const t=String(text||'').toLowerCase().replace(/[^a-z' -]/g,' ').trim(); const w=t.split(/\s+/)[0];
+    if(!w){ setVmsg(isHebrew(String(text||''))?'שמעתי עברית. כדי לחפש בעברית, החליפו את שפת המיקרופון ל"עב".':'לא זיהיתי מילה באנגלית. נסו שוב, לאט וברור.'); return; } setQ(t); go(w); };
+  const stopRef=useRef(null);
   const voice=()=>{
     setVmsg('');
-    if(DICTATION){ const d=DICTATION;
-      if(listening){ d.stop().catch(()=>{}); return; }
-      if(!wired.current){ wired.current=true;
-        d.onPartial(({text})=>{ if(text&&text.trim()){ heard.current.partial=text; setQ(text.trim()); } });
-        d.onFinal(({text})=>{ if(heard.current.done||!String(text).trim()) return; heard.current.done=true; gotVoice(text); d.stop().catch(()=>{}); });
-        d.onState(({state:st, reason})=>{ setListening(st==='listening'||st==='starting');
-          if(st==='idle'&&!heard.current.done){ if(heard.current.partial){ heard.current.done=true; gotVoice(heard.current.partial); } else if(VERR[reason]) setVmsg(VERR[reason]); } }); }
-      heard.current={partial:'', done:false}; tries.current++;
-      d.start({language:tries.current%2?'en':'en-US'}).catch(e=>{ setListening(false); if(e&&VERR[e.code]&&!heard.current.done&&!heard.current.partial) setVmsg(VERR[e.code]); });
-      return; }
-    if(listening){ try{ rec.current&&rec.current.stop(); }catch(e){} return; }
-    if(!SR){ setVmsg('הדפדפן הזה לא תומך בחיפוש קולי. נסו ב־Chrome או ב־Edge, או הקלידו את המילה.'); return; }
-    try{ synth&&synth.cancel(); }catch(e){}
-    const r=new SR(); rec.current=r; r.lang='en-US'; r.interimResults=false; r.maxAlternatives=1;
-    r.onresult=e=>{ gotVoice(e.results[0][0].transcript); };
-    r.onerror=e=>{ setVmsg(e.error==='not-allowed'||e.error==='service-not-allowed'?'אין הרשאה למיקרופון. אשרו לדפדפן גישה למיקרופון ונסו שוב.':e.error==='no-speech'?'לא שמעתי כלום. נסו שוב.':e.error==='network'?'זיהוי הדיבור בדפדפן צריך חיבור לאינטרנט.':'החיפוש הקולי לא הצליח. נסו שוב או הקלידו.'); };
-    r.onend=()=>setListening(false);
-    try{ r.start(); setListening(true); }catch(e){ setVmsg('החיפוש הקולי לא הצליח להתחיל.'); }
+    if(listening){ stopRef.current&&stopRef.current(); return; }
+    const lang=MIC_LANG;
+    stopRef.current=listenOnce({lang, onPartial:t=>{ setQ(t); }, onText:t=>gotVoice(t, lang), onError:m=>setVmsg(m), onState:setListening});
   };
   voiceRef.current=voice;
   useEffect(()=>{ onListening(listening); },[listening]);
   return (<div className="sticky z-40 bg-surface border-b border-line" style={{top:'env(safe-area-inset-top,0px)'}}>
-    <div className="gutter"><div className="max-w-[860px] mx-auto h-16 flex items-center gap-2.5">
-      <button onClick={onHome} className="w-11 h-11 rounded-xl grid place-items-center book font-bold text-xl shrink-0" style={{background:'var(--ink)', color:'var(--bg)'}} aria-label="חזרה לספרייה" title="חזרה לספרייה">L</button>
+    <div className="gutter"><div className="max-w-[860px] mx-auto h-16 flex items-center gap-2">
+      <button onClick={onHome} className="w-11 h-11 rounded-xl shrink-0 hidden min-[400px]:block" aria-label="חזרה לספרייה" title="חזרה לספרייה"><LogoMark size={44}/></button>
       <div ref={boxRef} className="relative flex-1 min-w-0">
-        <div className="flex items-center gap-1 rounded-xl border-[1.5px] bg-bg ps-3 pe-1 h-12" style={{borderColor:open?'var(--primary)':'var(--line)'}}>
+        <div className="flex items-center gap-1 rounded-xl border-[1.5px] bg-bg ps-2.5 pe-1 h-12" style={{borderColor:open?'var(--primary)':'var(--line)'}}>
           <span className="text-muted shrink-0"><IconSearch size={18}/></span>
           <input id="dict-search" ref={inputRef} dir="auto" autoComplete="off" spellCheck={false} role="combobox" aria-expanded={open&&rows>0} aria-controls="dict-results" aria-label="חיפוש במילון"
-            className="flex-1 min-w-0 h-full bg-transparent outline-none px-2 text-base" placeholder={listening?'מקשיב… אמרו מילה':'חיפוש במילון'}
+            className="flex-1 min-w-0 h-full bg-transparent outline-none px-2 text-base" placeholder={listening?(micLang==='he'?'מקשיב… אמרו מילה בעברית':'Listening… say a word'):'חיפוש במילון'}
             value={q} onChange={e=>{ setQ(e.target.value); setOpen(true); setVmsg(''); }} onFocus={()=>setOpen(true)} onKeyDown={onKey}/>
           {q&&<button className="hit w-8 h-8 grid place-items-center text-muted rounded-lg" onClick={()=>{ setQ(''); inputRef.current&&inputRef.current.focus(); }} aria-label="ניקוי"><IconX size={16}/></button>}
-          <kbd className="hidden md:block text-[11px] text-muted border border-line rounded px-1.5 py-0.5 num" dir="ltr">/</kbd>
-          <button className={`hit w-10 h-10 grid place-items-center rounded-lg shrink-0 ${listening?'pop':''}`} style={listening?{background:'var(--bad)', color:'var(--surface)'}:{background:'var(--primary)', color:'var(--primary-ink)'}} onClick={voice} aria-label={listening?'עצירת ההקשבה':'חיפוש קולי: אמרו מילה באנגלית'} aria-pressed={listening} title="חיפוש קולי"><IconMic size={18}/></button>
+          <kbd className="hidden lg:block text-[11px] text-muted border border-line rounded px-1.5 py-0.5 num" dir="ltr">/</kbd>
+          <button className="hit h-8 px-1.5 rounded-md text-xs font-bold shrink-0 num" style={{background:'var(--sunk)', color:'var(--ink)', minWidth:'2rem'}} onClick={()=>setMicLang(micLang==='he'?'en':'he')} aria-label={`שפת המיקרופון: ${micLang==='he'?'עברית':'אנגלית'}. לחיצה מחליפה`} title="שפת המיקרופון">{micLang==='he'?'עב':'EN'}</button>
+          <button className={`hit w-10 h-10 grid place-items-center rounded-lg shrink-0 ${listening?'pop':''}`} style={listening?{background:'var(--bad)', color:'var(--surface)'}:{background:'var(--primary)', color:'var(--primary-ink)'}} onClick={voice} aria-label={listening?'עצירת ההקשבה':`חיפוש קולי: אמרו מילה ב${micLang==='he'?'עברית':'אנגלית'}`} aria-pressed={listening} title="חיפוש קולי"><IconMic size={18}/></button>
         </div>
-        {(typed||vmsg)&&<div id="dict-results" role="listbox" className={`dropdown absolute inset-x-0 top-full mt-1.5 card overflow-hidden ${(open&&(rows>0||typed))||vmsg?'show':''}`} style={{maxHeight:'70vh', overflowY:'auto'}}>
+        {(typed||vmsg)&&<div id="dict-results" role="listbox" className={`dropdown dict-drop absolute inset-x-0 top-full mt-1.5 card overflow-hidden ${(open&&(rows>0||typed))||vmsg?'show':''}`} style={{maxHeight:'70vh', overflowY:'auto'}}>
           {vmsg&&<div className="px-4 py-3 text-sm" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{vmsg}</Bi></div>}
           {open&&results.map((k,i)=>{ const info=wordInfo(k); const st=state.words[k];
-            return (<button key={k} role="option" aria-selected={sel===i} onMouseEnter={()=>setSel(i)} onClick={()=>go(k)} className="w-full flex items-center gap-3 px-4 py-2.5 text-start border-b border-line" style={{background:sel===i?'var(--sunk)':'transparent'}}>
+            return (<button key={k} role="option" aria-selected={sel===i} onMouseEnter={()=>setSel(i)} onClick={()=>go(k)} className="w-full flex items-center gap-3 px-4 py-2.5 min-h-[52px] text-start border-b border-line" style={{background:sel===i?'var(--sunk)':'transparent'}}>
               <span dir="ltr" className="book font-semibold text-lg shrink-0 text-left">{k}</span>
-              {info.pos&&<span className="tag hidden sm:inline-flex">{info.pos}</span>}
+              {info.pos&&<span className="hidden sm:inline"><span className="tag">{info.pos}</span></span>}
               <span className="flex-1 min-w-0 truncate text-muted"><Bi>{info.he}</Bi></span>
               {st&&<span className="w-2.5 h-2.5 rounded-full shrink-0" style={{background:st==='known'?'var(--good)':'var(--sun)'}} title={st==='known'?'מוכרת':'בלמידה'}></span>}
             </button>); })}
@@ -608,7 +658,7 @@ function DictBar({state, onOpen, onAdd, onHome, voiceRef, onListening}){
           {open&&typed&&!rows&&!vmsg&&<div className="px-4 py-3 text-sm text-muted">לא נמצאו מילים מתאימות.</div>}
         </div>}
       </div>
-      <button className="btn btn-primary h-11 px-3 sm:px-4 text-sm shrink-0" onClick={onAdd} aria-label="הוסף סיפור חדש"><IconPlus size={18}/><span className="hidden sm:inline">הוסף סיפור חדש</span></button>
+      <span className="hidden sm:block shrink-0"><button className="btn btn-primary h-11 px-4 text-sm" onClick={onAdd} aria-label="הוסף סיפור חדש"><IconPlus size={18}/>הוסף סיפור חדש</button></span>
     </div></div>
   </div>);
 }
@@ -1089,9 +1139,304 @@ function Practice({state, stories, known, actions, voice, celebrate, goRead, onW
   </div>);
 }
 
+/* ---------- sounds (phonics) ---------- */
+const PH_POOL = PHONICS.flatMap(c=>c.items.flatMap(it=>it.words.map(([w,he,pr])=>({w,he,pr,it}))));
+function PatternLabel({p}){ return <bdi dir="ltr" className="book">{p}</bdi>; }
+function SoundSheet({item, voice, onClose, onWord}){
+  const [closing, close]=useClosing(onClose);
+  useEffect(()=>{ const k=e=>{ if(e.key==='Escape') close(); }; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[]);
+  const playAll=()=>{ item.words.forEach(([w],i)=>setTimeout(()=>speakText(w,.8,voice), i*1300)); };
+  return (<div className={`overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center ${closing?'out':''}`} style={{background:'color-mix(in srgb,var(--ink) 40%,transparent)'}} onClick={close}>
+    <div role="dialog" aria-modal="true" aria-label={`הצליל ${item.p}`} className={`sheet card w-full sm:max-w-lg rounded-b-none sm:rounded-[20px] p-5 flex flex-col gap-4 ${closing?'out':''}`} style={{maxHeight:'92vh', overflowY:'auto', paddingBottom:'max(20px, env(safe-area-inset-bottom,0px))'}} onClick={e=>e.stopPropagation()}>
+      <div className="flex items-start gap-3">
+        <div className="flex-1 flex items-center gap-4 flex-wrap">
+          <span dir="ltr" className="book text-5xl font-bold">{item.p}</span>
+          <span className="text-3xl text-muted" aria-hidden="true">=</span>
+          <span className="text-4xl font-bold" style={{color:'var(--primary)'}}>{item.he}</span>
+        </div>
+        <button className="btn btn-ghost w-11 h-11 shrink-0" onClick={close} aria-label="סגירה"><IconX size={18}/></button>
+      </div>
+      <p className="text-lg leading-relaxed"><Bi>{item.tip}</Bi></p>
+      {item.ex&&<p className="rounded-xl p-3 text-sm leading-relaxed" style={{background:'var(--sun-soft)'}}><b>יוצא מהכלל: </b><Bi>{item.ex.replace(/^יוצא(ים)? מהכלל:\s*/,'')}</Bi></p>}
+      <div className="flex items-center gap-2"><h3 className="font-bold me-auto">מילים לדוגמה</h3><button className="btn btn-ghost px-3 text-sm" onClick={playAll}><IconPlay size={16}/>השמע את כולן</button></div>
+      <ul className="flex flex-col gap-2">{item.words.map(([w,he,pr])=>(<li key={w} className="flex items-center gap-3 rounded-xl bg-sunk p-2.5">
+        <button className="btn btn-primary w-11 h-11 shrink-0" style={{borderRadius:'50%'}} onClick={()=>speakText(w,.85,voice)} aria-label={`השמעת ${w}`}><IconSpeaker size={18}/></button>
+        <button className="btn btn-line w-11 h-11 shrink-0 text-lg" style={{borderRadius:'50%'}} onClick={()=>speakText(w,.45,voice)} aria-label={`השמעה איטית של ${w}`}><span aria-hidden="true">🐢</span></button>
+        <button className="flex-1 min-w-0 text-start" onClick={()=>onWord(w,w)} title="פתיחה במילון">
+          <div dir="ltr" className="book text-xl font-semibold text-left">{w}</div>
+          <div className="text-sm text-muted"><span className="font-semibold text-ink">{pr}</span> · {he}</div>
+        </button>
+      </li>))}</ul>
+    </div>
+  </div>);
+}
+function makeSoundQ(last){
+  const pool=PH_POOL.filter(x=>x.w!==last);
+  const c=pick(pool); const type=Math.random()<.5?'read':'listen';
+  const others=shuffle(PH_POOL.filter(x=>x.it.key!==c.it.key && x.pr!==c.pr && x.w!==c.w));
+  const ds=[]; for(const x of others){ if(type==='read'?!ds.some(d=>d.pr===x.pr):!ds.some(d=>d.w===x.w)) ds.push(x); if(ds.length===3) break; }
+  return {c, type, opts:shuffle([c,...ds]), id:Math.random()};
+}
+const SOUND_QUIZ_LEN=10;
+function Sounds({state, actions, voice, celebrate, onWord}){
+  const [item,setItem]=useState(null); const [table,setTable]=useState(false);
+  const [quiz,setQuiz]=useState(null); // {n, right, q, picked}
+  const phon=state.phon||{};
+  const learned=k=>((phon[k]||{}).c||0)>=2;
+  const total=PHONICS.reduce((a,c)=>a+c.items.length,0); const done=PHONICS.reduce((a,c)=>a+c.items.filter(i=>learned(i.key)).length,0);
+  useEffect(()=>{ if(quiz&&quiz.q&&quiz.q.type==='listen'&&quiz.picked==null) speakText(quiz.q.c.w,.8,voice); },[quiz&&quiz.q&&quiz.q.id]);
+  const answer=o=>{ if(quiz.picked!=null) return; const ok=o.w===quiz.q.c.w; actions.recordSound(quiz.q.c.it.key, ok);
+    if(ok&&quiz.right+1>=3&&(quiz.right+1)%3===0) celebrate(false);
+    if(quiz.q.type==='read') speakText(quiz.q.c.w,.85,voice);
+    setQuiz(z=>({...z, picked:o.w, right:z.right+(ok?1:0)})); };
+  const next=()=>setQuiz(z=> z.n+1>=SOUND_QUIZ_LEN ? {...z, done:true} : {...z, n:z.n+1, q:makeSoundQ(z.q.c.w), picked:null});
+
+  if(quiz&&!quiz.done){ const {q}=quiz; const ok=quiz.picked===q.c.w;
+    return (<div className="flex flex-col gap-4 pb-24 sm:pb-0">
+      <div className="flex items-center gap-3">
+        <button className="btn btn-ghost px-3 text-sm" onClick={()=>setQuiz(null)}><IconX size={16}/>יציאה</button>
+        <div className="flex-1 h-2.5 rounded-full bg-sunk overflow-hidden" dir="ltr"><div className="h-full bar" style={{width:((quiz.n+(quiz.picked!=null?1:0))/SOUND_QUIZ_LEN*100)+'%', background:'var(--primary)'}}></div></div>
+        <span className="num text-sm text-muted">{quiz.n+1}/{SOUND_QUIZ_LEN}</span>
+      </div>
+      <section className={`card p-5 sm:p-8 flex flex-col gap-5 ${quiz.picked!=null&&!ok?'shake':''}`} key={q.id}>
+        <div className="text-sm font-semibold text-muted">{q.type==='read'?'איך קוראים את המילה הזו?':'איזו מילה שמעת?'}</div>
+        {q.type==='read' ? <div dir="ltr" className="book text-5xl font-bold text-left">{q.c.w}</div>
+          : <div className="flex gap-3 items-center"><button className="btn btn-primary w-20 h-20" style={{borderRadius:'50%'}} onClick={()=>speakText(q.c.w,.8,voice)} aria-label="השמע שוב"><IconSpeaker size={34}/></button>
+              <button className="btn btn-ghost h-12 px-4" onClick={()=>speakText(q.c.w,.45,voice)}><span aria-hidden="true">🐢</span>לאט</button></div>}
+        <div className="grid sm:grid-cols-2 gap-3" dir={q.type==='listen'?'ltr':'rtl'}>
+          {q.opts.map((o,i)=>{ const cls=quiz.picked==null?'':o.w===q.c.w?'correct':o.w===quiz.picked?'wrong':'';
+            return <button key={o.w} disabled={quiz.picked!=null} className={`opt flex items-center gap-3 ${cls} ${q.type==='listen'?'book text-xl text-left':'text-2xl font-semibold'}`} onClick={()=>answer(o)}>
+              <span className="num text-xs font-bold w-6 h-6 rounded-md grid place-items-center bg-sunk text-muted shrink-0">{i+1}</span><span>{q.type==='read'?o.pr:o.w}</span></button>; })}
+        </div>
+        {quiz.picked!=null&&<div className="rise rounded-xl p-4 flex flex-col gap-2 pb-24 sm:pb-4" style={{background:ok?'var(--good-soft)':'var(--bad-soft)'}}>
+          <div className="text-xl font-bold" style={{color:ok?'var(--good)':'var(--bad)'}}>{ok?pick(CHEERS)+' +2':'כמעט! ככה זה נשמע:'}</div>
+          <div className="text-lg"><bdi dir="ltr" className="book font-semibold">{q.c.w}</bdi> = <b>{q.c.pr}</b> · {q.c.he}</div>
+          <div className="text-sm leading-relaxed">הצליל: <PatternLabel p={q.c.it.p}/> = <b>{q.c.it.he}</b>. <Bi>{q.c.it.tip}</Bi></div>
+          <button className="btn btn-primary py-3 px-6 self-start dock-mobile" onClick={next} autoFocus>{quiz.n+1>=SOUND_QUIZ_LEN?'לסיכום':'המשך'}</button>
+        </div>}
+      </section>
+    </div>); }
+
+  return (<div className="flex flex-col gap-6">
+    {quiz&&quiz.done&&<section className="card p-5 flex items-center gap-4 flex-wrap rise" role="status">
+      <div className="text-2xl font-bold me-auto">{quiz.right>=8?'מצוין!':quiz.right>=5?'יפה מאוד!':'ממשיכים לתרגל'} <span className="num text-muted text-lg">{quiz.right}/{SOUND_QUIZ_LEN}</span></div>
+      <button className="btn btn-primary px-5" onClick={()=>setQuiz({n:0,right:0,q:makeSoundQ(),picked:null})}>בוחן נוסף</button>
+      <button className="btn btn-ghost px-4" onClick={()=>setQuiz(null)}>סגירה</button>
+    </section>}
+    <section className="card p-5 sm:p-6 flex flex-col gap-4">
+      <div className="flex items-start gap-4 flex-wrap">
+        <div className="flex-1 min-w-[220px]"><h1 className="text-2xl sm:text-3xl font-bold">צלילים ואותיות</h1>
+          <p className="text-muted mt-1 leading-relaxed">באנגלית אותן אותיות לא תמיד נשמעות אותו דבר. כאן לומדים את הצירופים החשובים, עם הצליל המקביל בעברית ומילים לדוגמה.</p></div>
+        <div className="text-center"><div className="num text-3xl font-bold" style={{color:'var(--good)'}}>{done}<span className="text-muted text-lg">/{total}</span></div><div className="text-xs text-muted">צלילים שלמדת</div></div>
+      </div>
+      <div className="flex gap-2 flex-wrap">
+        <button className="btn btn-primary px-5" onClick={()=>setQuiz({n:0,right:0,q:makeSoundQ(),picked:null})}><IconPlay size={18}/>בוחן צלילים (10 שאלות)</button>
+        <button className="btn btn-ghost px-4" onClick={()=>setTable(t=>!t)} aria-expanded={table}>{table?'הסתרת':'הצגת'} הטבלה: איך כותבים צליל עברי באנגלית</button>
+      </div>
+      {table&&<div className="rise overflow-x-auto"><table className="w-full text-sm border-collapse">
+        <thead><tr className="text-muted text-xs"><th className="text-start py-1.5 px-2">צליל בעברית</th><th className="text-start py-1.5 px-2">כותבים באנגלית</th></tr></thead>
+        <tbody>{HE2EN.map(([h,e])=><tr key={h} className="border-t border-line"><td className="py-1.5 px-2 font-bold text-lg">{h}</td><td className="py-1.5 px-2"><Bi>{e}</Bi></td></tr>)}</tbody>
+      </table><p className="text-xs text-muted mt-2">שימו לב: באנגלית אין צליל ח ואין ע. ch באנגלית נשמע כמעט תמיד צ׳ (chair), וח כותבים כ־ch או kh רק בשמות עבריים (Chanukah).</p></div>}
+    </section>
+    {PHONICS.map(cat=>(<section key={cat.id} className="flex flex-col gap-3">
+      <div><h2 className="text-lg font-bold">{cat.title}</h2><p className="text-sm text-muted"><Bi>{cat.desc}</Bi></p></div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">{cat.items.map(it=>(<button key={it.key} onClick={()=>setItem(it)} className="card card-btn card-lift p-4 text-start flex flex-col gap-1.5 relative">
+        {learned(it.key)&&<span className="absolute top-2 end-2 w-6 h-6 rounded-full grid place-items-center" style={{background:'var(--good)', color:'var(--surface)'}} title="נלמד"><IconCheck size={14}/></span>}
+        <span dir="ltr" className="book text-3xl font-bold text-left">{it.p}</span>
+        <span className="text-xl font-bold" style={{color:'var(--primary)'}}>{it.he}</span>
+        <span className="text-sm text-muted"><bdi dir="ltr" className="book">{it.words[0][0]}</bdi> · {it.words[0][2]}</span>
+      </button>))}</div>
+    </section>))}
+    {item&&<SoundSheet item={item} voice={voice} onClose={()=>setItem(null)} onWord={onWord}/>}
+  </div>);
+}
+
+/* ---------- talk: spoken conversations ---------- */
+const NUM_WORDS=/\b(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)\b/;
+function talkFits(step, text){
+  const t=' '+text.toLowerCase().replace(/[’`]/g,"'").replace(/[^a-z0-9' ]+/g,' ').replace(/\s+/g,' ').trim()+' ';
+  if(!/[a-z0-9]/.test(t)) return false;
+  if(step.free) return true;
+  return step.ok.some(o=> o==='#' ? (/\d/.test(t)||NUM_WORDS.test(t)) : t.includes(' '+o+' ') || (o.length>3 && t.includes(' '+o)));
+}
+function takeName(text){
+  const m=text.match(/(?:name is|name's|i am|i'm|im|call me|it's)\s+([A-Za-zא-ת][A-Za-zא-ת'-]*)/i);
+  let n=m?m[1]:text.trim().split(/\s+/).filter(w=>!/^(hi|hello|hey|my|name|is|i|am|i'm)$/i.test(w)).pop()||'';
+  n=n.replace(/[^A-Za-zא-ת'-]/g,''); return n?n[0].toUpperCase()+n.slice(1):'';
+}
+function TalkChat({talk, voice, actions, onBack, onNext, settings, defaultName}){
+  const [msgs,setMsgs]=useState([]); const [si,setSi]=useState(0); const [text,setText]=useState(''); const [listening,setListening]=useState(false);
+  const [hints,setHints]=useState(false); const [vars,setVars]=useState({name:defaultName||'friend'}); const [finished,setFinished]=useState(false); const [err,setErr]=useState('');
+  const endRef=useRef(null), stopRef=useRef(null), timer=useRef(null);
+  const fill=(s,v)=>s.replace(/\{name\}/g,(v||vars).name);
+  const showHe=settings.talkHe!==false;
+  const botSay=(i,v)=>{ const st=talk.steps[i]; const en=fill(st.bot,v), he=fill(st.he,v); setMsgs(m=>[...m,{from:'bot', en, he}]); speakText(en,.9,voice); setHints(false); };
+  useEffect(()=>{ timer.current=setTimeout(()=>botSay(0),350); return ()=>{ clearTimeout(timer.current); stopRef.current&&stopRef.current(); }; },[]);
+  useEffect(()=>{ endRef.current&&endRef.current.scrollIntoView&&endRef.current.scrollIntoView({block:'end', behavior:'smooth'}); },[msgs.length, hints, finished]);
+  const step=talk.steps[si];
+  const advance=(v)=>{ const nx=si+1;
+    if(nx>=talk.steps.length){ setFinished(true); actions.finishTalk(talk.id); return; }
+    setSi(nx); timer.current=setTimeout(()=>botSay(nx,v),700); };
+  const submit=(raw, spoken)=>{
+    const t=String(raw||'').trim(); if(!t||finished) return; setText(''); setErr('');
+    if(isHebrew(t)&&!/[A-Za-z]/.test(t)){ setMsgs(m=>[...m,{from:'me', text:t, ok:false, spoken},{from:'sys', text:'נסו לענות באנגלית. הנה כמה דוגמאות:'}]); setHints(true); return; }
+    const ok=talkFits(step,t);
+    setMsgs(m=>[...m,{from:'me', text:t, ok, spoken}]);
+    if(ok){ let v=vars; if(step.save==='name'){ const n=takeName(t); if(n){ v={...vars, name:n}; setVars(v); } } actions.addXP(2); advance(v); }
+    else { setMsgs(m=>[...m,{from:'sys', text:'לא בטוח שהבנתי. נסו לענות על השאלה, למשל:'}]); setHints(true); }
+  };
+  const mic=()=>{ setErr('');
+    if(listening){ stopRef.current&&stopRef.current(); return; }
+    stopRef.current=listenOnce({lang:'en', onPartial:t=>setText(t), onText:t=>submit(t,true), onError:m=>setErr(m), onState:setListening}); };
+  return (<div className="flex flex-col gap-3">
+    <div className="flex items-center gap-2 flex-wrap">
+      <button className="btn btn-ghost px-3 text-sm" onClick={()=>{ stopRef.current&&stopRef.current(); onBack(); }}><IconChevR size={18}/>כל השיחות</button>
+      <span className="text-2xl" aria-hidden="true">{talk.cover}</span>
+      <div className="leading-tight me-auto"><div dir="ltr" className="book font-bold text-left">{talk.title}</div><div className="text-xs text-muted">{talk.he}</div></div>
+      <Toggle id="tg-talkhe" checked={showHe} onChange={v=>actions.setSetting('talkHe',v)} label="תרגום"/>
+    </div>
+    <div className="h-1.5 rounded-full bg-sunk overflow-hidden" dir="ltr"><div className="h-full bar" style={{width:((finished?talk.steps.length:si)/talk.steps.length*100)+'%', background:'var(--good)'}}></div></div>
+    <section className="card p-3 sm:p-5 flex flex-col gap-3" style={{minHeight:'50vh'}} aria-live="polite">
+      {msgs.map((m,i)=> m.from==='bot' ? (<div key={i} className="flex gap-2 items-start rise" dir="ltr">
+          <div className="shrink-0 mt-1"><LogoMark size={34} radius={10}/></div>
+          <div className="rounded-2xl rounded-tl-md px-4 py-3 max-w-[85%]" style={{background:'var(--sunk)'}}>
+            <div className="book text-lg leading-relaxed text-left">{m.en}</div>
+            {showHe&&<div dir="rtl" className="text-sm text-muted mt-1 text-right">{m.he}</div>}
+          </div>
+          <button className="hit w-9 h-9 rounded-full grid place-items-center shrink-0 mt-1" style={{background:'var(--sunk)', color:'var(--muted)'}} onClick={()=>speakText(m.en,.9,voice)} aria-label="השמע שוב"><IconSpeaker size={15}/></button>
+          <button className="hit w-9 h-9 rounded-full grid place-items-center shrink-0 mt-1 text-sm" style={{background:'var(--sunk)'}} onClick={()=>speakText(m.en,.55,voice)} aria-label="השמעה איטית"><span aria-hidden="true">🐢</span></button>
+        </div>)
+      : m.from==='me' ? (<div key={i} className="flex justify-end rise" dir="ltr">
+          <div className="rounded-2xl rounded-tr-md px-4 py-3 max-w-[85%]" style={{background:m.ok?'var(--primary)':'var(--bad-soft)', color:m.ok?'var(--primary-ink)':'var(--ink)'}}>
+            {m.spoken&&<div dir="rtl" className="text-xs opacity-80 mb-0.5 text-right flex items-center gap-1"><IconMic size={12}/>שמעתי:</div>}
+            <div dir="auto" className="book text-lg leading-relaxed">{m.text}</div>
+          </div>
+        </div>)
+      : (<div key={i} className="text-sm text-center text-muted rise"><Bi>{m.text}</Bi></div>))}
+      {finished&&<div className="rounded-2xl p-5 text-center flex flex-col gap-3 items-center rise" style={{background:'var(--good-soft)'}} role="status">
+        <div className="text-2xl font-bold" style={{color:'var(--good)'}}>כל הכבוד! סיימת את השיחה +10</div>
+        <p className="text-sm">שיחה היא הדרך הכי טובה להתרגל לדבר. נסו שוב בלי להסתכל על הדוגמאות.</p>
+        <div className="flex gap-2 flex-wrap justify-center"><button className="btn btn-primary px-5" onClick={onNext}>לשיחה הבאה</button><button className="btn btn-ghost px-4" style={{background:'var(--surface)'}} onClick={onBack}>כל השיחות</button></div>
+      </div>}
+      {!finished&&step&&(hints ? <div className="rounded-xl border border-line p-3 flex flex-col gap-2 rise">
+          <div className="text-xs font-semibold text-muted">אפשר לענות למשל (לחיצה ממלאת את התשובה):</div>
+          {step.say.map(([en,he])=>(<div key={en} className="flex items-center gap-2" dir="ltr">
+            <button className="hit w-9 h-9 rounded-full grid place-items-center shrink-0" style={{background:'var(--sunk)'}} onClick={()=>speakText(fill(en),.85,voice)} aria-label={`השמע: ${fill(en)}`}><IconSpeaker size={15}/></button>
+            <button className="flex-1 min-w-0 text-left rounded-xl px-3 py-2 hover:bg-sunk" onClick={()=>setText(fill(en))}><span className="book text-lg">{fill(en)}</span><span dir="rtl" className="block text-sm text-muted text-right">{he}</span></button>
+          </div>))}
+          <button className="btn btn-ghost px-3 text-sm self-start" onClick={()=>{ setMsgs(m=>[...m,{from:'sys', text:'דילגת. ממשיכים.'}]); advance(vars); }}>דלג על השאלה</button>
+        </div>
+        : <button className="text-sm text-primary font-semibold self-start hit" onClick={()=>setHints(true)}>לא יודע מה לענות? הצג דוגמאות</button>)}
+      <div ref={endRef}></div>
+    </section>
+    {!finished&&<div className="talk-composer card p-2 flex items-center gap-2" dir="ltr">
+      <button className={`btn w-14 h-14 shrink-0 ${listening?'pop':''}`} style={{borderRadius:'50%', background:listening?'var(--bad)':'var(--primary)', color:'var(--primary-ink)'}} onClick={mic} aria-label={listening?'עצירת ההקשבה':'דברו באנגלית'} aria-pressed={listening}><IconMic size={24}/></button>
+      <form className="flex-1 min-w-0 flex items-center gap-2" onSubmit={e=>{ e.preventDefault(); submit(text,false); }}>
+        <input id="talk-input" dir="ltr" className="field book text-lg flex-1 min-w-0" style={{minHeight:'48px'}} autoComplete="off" placeholder={listening?'Listening…':'Speak or type your answer'} value={text} onChange={e=>setText(e.target.value)}/>
+        <button className="btn btn-primary h-12 px-4 shrink-0" disabled={!text.trim()} aria-label="שליחה"><span dir="rtl">שלח</span></button>
+      </form>
+    </div>}
+    {err&&<div className="rounded-xl p-3 text-sm" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{err}</Bi></div>}
+  </div>);
+}
+function Talk({state, actions, voice, profileName}){
+  const [id,setId]=useState(null); const [run,setRun]=useState(0);
+  const t=TALKS.find(x=>x.id===id); const done=state.talkDone||{};
+  if(t) return <TalkChat key={t.id+':'+run} talk={t} voice={voice} actions={actions} settings={state.settings} defaultName={profileName}
+    onBack={()=>setId(null)} onNext={()=>{ const i=TALKS.indexOf(t); setId(TALKS[(i+1)%TALKS.length].id); setRun(r=>r+1); window.scrollTo({top:0}); }}/>;
+  return (<div className="flex flex-col gap-5">
+    <section className="card p-5 sm:p-6 flex flex-col gap-3">
+      <h1 className="text-2xl sm:text-3xl font-bold">מדברים אנגלית</h1>
+      <p className="text-muted leading-relaxed">שיחות קצרות מהחיים. לומי אומרת משפט, ואתם עונים בקול (כפתור המיקרופון) או בהקלדה. אם תשובה לא מתאימה, תקבלו דוגמאות לתשובות טובות.</p>
+      <p className="text-xs text-muted">המיקרופון עובד ב־Chrome וב־Edge. בפעם הראשונה הדפדפן יבקש הרשאה.</p>
+    </section>
+    <div className="grid gap-3 sm:grid-cols-2">{TALKS.map(x=>(<button key={x.id} onClick={()=>{ setId(x.id); window.scrollTo({top:0}); }} className="card card-btn card-lift p-4 flex items-center gap-4 text-start">
+      <span className="w-14 h-14 rounded-xl grid place-items-center text-3xl bg-sunk shrink-0" aria-hidden="true">{x.cover}</span>
+      <span className="flex-1 min-w-0"><span dir="ltr" className="book font-bold text-lg block text-left">{x.title}</span><span className="text-sm text-muted block">{x.he} · <span className="num">{x.steps.length}</span> שאלות · שלב <span className="num">{x.level}</span></span></span>
+      {done[x.id]?<span className="tag" style={{background:'var(--good-soft)', color:'var(--good)'}}><IconCheck size={12}/>בוצע</span>:<IconChevL size={18}/>}
+    </button>))}</div>
+  </div>);
+}
+
+/* ---------- study groups: weekly leaderboard shared through the site's small API ---------- */
+const SITE_URL='https://lumi-english.netlify.app';
+const ON_SITE=typeof location!=='undefined' && /(^|\.)netlify\.app$|^localhost$/.test(location.hostname);
+const GROUP_API=ON_SITE?'/api/groups':SITE_URL+'/api/groups';
+let JOIN_CODE=''; try{ const m=(location.search+location.hash).match(/join[=-]([A-Za-z2-9]{6})/); if(m) JOIN_CODE=m[1].toUpperCase(); }catch(e){}
+const GERR={not_found:'לא מצאתי קבוצה עם הקוד הזה. בדקו שהקוד נכון.', bad_code:'קוד קבוצה הוא 6 אותיות ומספרים באנגלית.', full:'הקבוצה מלאה (עד 40 חברים).', not_member:'החיבור שלך לקבוצה כבר לא בתוקף. הצטרפו שוב עם הקוד.', bad_name:'צריך שם.', bad_group_name:'צריך לתת שם לקבוצה.', net:ON_SITE?'אין חיבור לשרת כרגע. בדקו את האינטרנט ונסו שוב.':'קבוצות עובדות רק באתר lumi-english.netlify.app. פתחו את האפליקציה שם.'};
+async function groupCall(body){
+  let r; try{ r=await fetch(GROUP_API, body?{method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)}:undefined); }catch(e){ throw new Error('net'); }
+  let j=null; try{ j=await r.json(); }catch(e){} if(!r.ok) throw new Error((j&&j.error)||'net'); return j;
+}
+const weekStartKey=()=>{ const d=new Date(); return dayKey(addDays(d,-d.getDay())); };
+function weekTotals(history){ const s=new Date(weekStartKey()+'T12:00:00'); let xp=0, words=0; for(let i=0;i<7;i++){ const h=history[dayKey(addDays(s,i))]; if(h){ xp+=h.xp||0; words+=h.words||0; } } return {xp, words}; }
+function groupStats(state, profile, known, streak){ const w=weekTotals(state.history); return {name:profile.name, avatar:profile.avatar, known, streak, week:weekStartKey(), weekXp:w.xp, weekWords:w.words}; }
+const MEDALS=['🥇','🥈','🥉'];
+function GroupCard({state, actions, profile, known, streak, toast}){
+  const g=state.group; const [data,setData]=useState(null); const [err,setErr]=useState(''); const [busy,setBusy]=useState(false);
+  const [mode,setMode]=useState(JOIN_CODE?'join':''); const [gname,setGname]=useState(''); const [code,setCode]=useState(JOIN_CODE); const [confirm,setConfirm]=useState(false);
+  const refresh=useCallback(async()=>{ if(!g) return; try{ const d=await groupCall({action:'report', code:g.code, memberId:g.memberId, token:g.token, stats:groupStats(state,profile,known,streak)}); setData(d); setErr(''); }
+    catch(e){ if(e.message==='not_member'||e.message==='not_found'){ actions.setGroup(null); toast(GERR[e.message]); } else setErr(GERR[e.message]||GERR.net); } },[g&&g.code, known, streak, state.history]);
+  useEffect(()=>{ refresh(); if(!g) return; const t=setInterval(()=>{ if(!document.hidden) refresh(); },60000); return ()=>clearInterval(t); },[g&&g.code]);
+  const create=async e=>{ e.preventDefault(); setBusy(true); setErr('');
+    try{ const r=await groupCall({action:'create', name:gname, member:{name:profile.name, avatar:profile.avatar}}); actions.setGroup({code:r.code, memberId:r.memberId, token:r.token, name:r.group.name}); setData(r.group); toast('הקבוצה נוצרה! שלחו את הקוד לחברים'); }
+    catch(e){ setErr(GERR[e.message]||GERR.net); } setBusy(false); };
+  const join=async e=>{ e.preventDefault(); setBusy(true); setErr('');
+    try{ const r=await groupCall({action:'join', code, member:{name:profile.name, avatar:profile.avatar}}); actions.setGroup({code:r.code, memberId:r.memberId, token:r.token, name:r.group.name}); setData(r.group); JOIN_CODE=''; toast(`הצטרפת לקבוצה ${r.group.name}`); }
+    catch(e){ setErr(GERR[e.message]||GERR.net); } setBusy(false); };
+  const leave=async()=>{ setBusy(true); try{ await groupCall({action:'leave', code:g.code, memberId:g.memberId, token:g.token}); }catch(e){} actions.setGroup(null); setData(null); setConfirm(false); setBusy(false); setMode(''); setCode(''); toast('עזבת את הקבוצה'); };
+  const link=g?`${SITE_URL}/?join=${g.code}`:'';
+  const invite=g?`בואו ללמוד איתי אנגלית ב־Lumi English ולהתחרות מי לומד יותר השבוע!\nקוד הקבוצה: ${g.code}\n${link}`:'';
+  const copy=async()=>{ if(await copyText(invite)) toast('ההזמנה הועתקה'); else toast(`קוד הקבוצה: ${g.code}`); };
+
+  if(!g) return (<section className="card p-5 sm:p-6 flex flex-col gap-4">
+    <div className="flex items-center gap-3"><span className="w-11 h-11 rounded-xl grid place-items-center shrink-0" style={{background:'var(--sun-soft)'}}><IconTrophy size={22}/></span>
+      <div><h2 className="text-lg font-bold">קבוצת לימוד</h2><p className="text-sm text-muted">"קנאת סופרים תרבה חכמה": לומדים יחד עם חברים או משפחה, ורואים מי צבר הכי הרבה נקודות השבוע.</p></div></div>
+    {!mode&&<div className="flex gap-2 flex-wrap"><button className="btn btn-primary px-5" onClick={()=>setMode('create')}><IconPlus size={18}/>יצירת קבוצה</button><button className="btn btn-ghost px-5" onClick={()=>setMode('join')}><IconUsers size={18}/>הצטרפות עם קוד</button></div>}
+    {mode==='create'&&<form className="flex flex-col gap-2" onSubmit={create}><label htmlFor="g-name" className="font-semibold">שם הקבוצה</label>
+      <input id="g-name" className="field" maxLength={40} placeholder="למשל: משפחת כהן" value={gname} onChange={e=>setGname(e.target.value)} autoFocus/>
+      <div className="flex gap-2"><button className="btn btn-primary px-5" disabled={!gname.trim()||busy}>{busy?'יוצר…':'יצירה'}</button><button type="button" className="btn btn-ghost px-4" onClick={()=>setMode('')}>ביטול</button></div></form>}
+    {mode==='join'&&<form className="flex flex-col gap-2" onSubmit={join}><label htmlFor="g-code" className="font-semibold">קוד הקבוצה</label>
+      <input id="g-code" dir="ltr" className="field text-left num text-xl tracking-widest uppercase" maxLength={6} placeholder="ABC123" value={code} onChange={e=>setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,''))} autoFocus/>
+      <div className="flex gap-2"><button className="btn btn-primary px-5" disabled={code.length!==6||busy}>{busy?'מצטרף…':'הצטרפות'}</button><button type="button" className="btn btn-ghost px-4" onClick={()=>setMode('')}>ביטול</button></div></form>}
+    {err&&<div className="rounded-xl p-3 text-sm" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{err}</Bi></div>}
+    <p className="text-xs text-muted">בקבוצה רואים רק שם, דמות ונקודות. הסיפורים, הכתיבה והסיסמה שלכם לא נשלחים לשום מקום.</p>
+  </section>);
+
+  const week=weekStartKey();
+  const rows=(data?data.members:[]).map(m=>({...m, wx:m.week===week?m.weekXp:0})).sort((a,b)=>b.wx-a.wx||b.known-a.known);
+  const max=Math.max(1,...rows.map(r=>r.wx));
+  return (<section className="card p-5 sm:p-6 flex flex-col gap-4">
+    <div className="flex items-center gap-3 flex-wrap">
+      <span className="w-11 h-11 rounded-xl grid place-items-center shrink-0" style={{background:'var(--sun-soft)'}}><IconTrophy size={22}/></span>
+      <div className="me-auto min-w-0"><h2 className="text-lg font-bold truncate">{g.name}</h2><div className="text-sm text-muted">טבלת השבוע · קוד <bdi dir="ltr" className="num font-bold text-ink tracking-wider">{g.code}</bdi></div></div>
+      <a className="btn btn-primary px-4 text-sm" href={'https://wa.me/?text='+encodeURIComponent(invite)} target="_blank" rel="noopener noreferrer">הזמנה בוואטסאפ</a>
+      <button className="btn btn-ghost px-3 text-sm" onClick={copy}><IconCopy size={16}/>העתקת הזמנה</button>
+    </div>
+    {err&&<div className="rounded-xl p-3 text-sm" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{err}</Bi></div>}
+    {!data&&!err&&<div className="text-sm text-muted">טוען את הטבלה…</div>}
+    {data&&<ol className="flex flex-col gap-2">{rows.map((m,i)=>{ const me=m.id===g.memberId; return (<li key={m.id} className="rounded-xl p-3 flex items-center gap-3" style={{background:me?'var(--primary-soft)':'var(--sunk)'}}>
+      <span className="w-8 text-center text-xl shrink-0 num font-bold">{m.wx>0&&i<3?MEDALS[i]:i+1}</span>
+      <span className="w-10 h-10 rounded-lg grid place-items-center text-2xl bg-surface shrink-0" aria-hidden="true">{m.avatar}</span>
+      <div className="flex-1 min-w-0">
+        <div className="font-bold truncate"><bdi>{m.name}</bdi>{me&&<span className="tag ms-2">את/ה</span>}</div>
+        <div className="h-1.5 rounded-full bg-surface overflow-hidden mt-1" dir="ltr"><div className="h-full bar" style={{width:(m.wx/max*100)+'%', background:i===0&&m.wx>0?'var(--sun)':'var(--primary)'}}></div></div>
+        <div className="text-xs text-muted mt-1 num">{m.known} מילים מוכרות · <span style={{color:'var(--coral)'}}>🔥 {m.streak}</span></div>
+      </div>
+      <div className="text-center shrink-0"><div className="num text-2xl font-bold">{m.wx}</div><div className="text-[11px] text-muted">נק׳ השבוע</div></div>
+    </li>); })}</ol>}
+    {data&&rows.length===1&&<p className="text-sm text-muted">אתם הראשונים בקבוצה. שלחו את ההזמנה לחברים כדי שיצטרפו.</p>}
+    <div className="flex items-center gap-3 flex-wrap text-sm">
+      <button className="hit text-primary font-semibold" onClick={refresh}>רענון</button>
+      {!confirm?<button className="hit text-muted underline" onClick={()=>setConfirm(true)}>עזיבת הקבוצה</button>
+        :<><span>לעזוב את <bdi>{g.name}</bdi>?</span><button className="btn py-2 px-3" style={{background:'var(--bad)', color:'var(--surface)'}} onClick={leave} disabled={busy}>כן, לעזוב</button><button className="btn btn-ghost py-2 px-3" onClick={()=>setConfirm(false)}>ביטול</button></>}
+    </div>
+  </section>);
+}
+
 /* ---------- progress ---------- */
 const HE_DAYS=['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
-function Progress({state, stories, actions, streak, known}){
+function Progress({state, stories, actions, streak, known, profile, toast}){
   const [off,setOff]=useState(0);
   const [confirmReset,setConfirmReset]=useState(false);
   const today=new Date(); const tk=todayKey();
@@ -1109,6 +1454,7 @@ function Progress({state, stories, actions, streak, known}){
   const doneCount=stories.filter(s=>state.storiesDone[s.id]).length;
 
   return (<div className="flex flex-col gap-4">
+    <GroupCard state={state} actions={actions} profile={profile} known={known} streak={streak} toast={toast}/>
     <div className="grid gap-4 md:grid-cols-[1.3fr_1fr]">
       <section className="card p-5 sm:p-6 flex items-center gap-5 flex-wrap">
         <Ring value={todayH.xp} max={state.goal} size={124} stroke={13}>
@@ -1185,7 +1531,7 @@ function ProfileForm({first, onCreate, onCancel}){
   return (<div dir="rtl" className="min-h-full font-he grid place-items-center gutter" style={{paddingBlock:'32px'}}>
     <form className="card w-full p-6 sm:p-8 flex flex-col gap-5 rise" style={{maxWidth:'30rem'}} onSubmit={e=>{ e.preventDefault(); if(ok) onCreate({name:name.trim().slice(0,24), avatar, goal, pin}); }}>
       <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-xl grid place-items-center book font-bold text-2xl shrink-0" style={{background:'var(--ink)', color:'var(--bg)'}} aria-hidden="true">L</div>
+        <div className="shrink-0"><LogoMark size={52} radius={14}/></div>
         <div><h1 className="text-2xl font-bold">{first?<>ברוכים הבאים ל־<bdi dir="ltr">Lumi English</bdi></>:'משתמש חדש'}</h1>
           <p className="text-muted text-sm">{first?'כמה פרטים קצרים, ומתחילים לקרוא.':'לכל משתמש יש התקדמות, מילים וכתיבה משלו.'}</p></div>
       </div>
@@ -1327,7 +1673,7 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
   const toast=useCallback((m)=>{ const id=Math.random(); setToastMsg({m,id});
     setTimeout(()=>setToastMsg(t=>t&&t.id===id?{...t,out:true}:t),3600); setTimeout(()=>setToastMsg(t=>t&&t.id===id?null:t),3850); },[]);
   NOTIFY=toast;
-  useEffect(()=>{ const t=setTimeout(()=>toast(`שלום ${profile.name}, טוב לראות אותך!`),500); return ()=>clearTimeout(t); },[]);
+  useEffect(()=>{ const t=setTimeout(()=>toast(JOIN_CODE&&!state.group?`הוזמנת לקבוצת לימוד! הקוד ${JOIN_CODE} כבר ממולא`:`שלום ${profile.name}, טוב לראות אותך!`),500); if(JOIN_CODE&&!state.group) setTab('progress'); return ()=>clearTimeout(t); },[]);
   const reading=useRef(false);
   const celebrate=useCallback((big)=>{ if(!reading.current) setBurst({id:Math.random(), big}); },[]);
   useEffect(()=>{ if(!burst) return; const t=setTimeout(()=>setBurst(null), burst.big?3200:2000); return ()=>clearTimeout(t); },[burst]);
@@ -1357,9 +1703,13 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
       return withXP(n, (already?0:10)+Math.min(bonus,15)); }),
     recordAnswer:(k, ok)=>setState(s=>{ const q=s.quiz[k]||{c:0,w:0};
       return withXP({...s, quiz:{...s.quiz,[k]:{c:q.c+(ok?1:0), w:q.w+(ok?0:1)}}, totals:{answered:s.totals.answered+1, correct:s.totals.correct+(ok?1:0)}}, ok?3:1); }),
+    recordSound:(k, ok)=>setState(s=>{ const ph=s.phon||{}; const q=ph[k]||{c:0,w:0}; return withXP({...s, phon:{...ph,[k]:{c:q.c+(ok?1:0), w:q.w+(ok?0:1)}}}, ok?2:0); }),
+    finishTalk:(id)=>setState(s=>{ const td=s.talkDone||{}; const first=!td[id]||td[id]!==todayKey(); return withXP({...s, talkDone:{...td,[id]:todayKey()}}, first?10:0); }),
     noteCombo:(n)=>setState(s=>n>s.bestCombo?{...s, bestCombo:n}:s),
     setNote:(id,t)=>setState(s=>({...s, notes:{...(s.notes||{}),[id]:t}})),
+    setGroup:(g)=>setState(s=>({...s, group:g})),
     unlock:(n)=>setState(s=>({...s, unlocked:{...s.unlocked,[n]:true}})),
+    lock:(n)=>setState(s=>{ const u={...s.unlocked}; for(const k in u) if(+k>=n) delete u[k]; return {...s, unlocked:u}; }),
     addStory:(story)=>setState(s=>({...s, userStories:[story, ...s.userStories]})),
     deleteStory:(id)=>setState(s=>{ const sd={...s.storiesDone}; delete sd[id]; return {...s, userStories:s.userStories.filter(x=>x.id!==id), storiesDone:sd}; }),
     setParaHe:(id,p,he)=>setState(s=>({...s, userStories:s.userStories.map(x=>x.id!==id?x:{...x, paras:x.paras.map((q,i)=>i===p?{...q, he}:q)})})),
@@ -1382,17 +1732,19 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
         {tab==='read' && (story
           ? <Reader key={story.id} story={story} stories={stories} state={state} actions={actions} voice={voice} voices={voices} back={()=>{ setStoryId(null); window.scrollTo({top:0}); }} toast={toast} onWord={openCard}/>
           : <Library state={state} known={known} actions={actions} openStory={openStory} onAdd={()=>setAdding(true)} toast={toast}/>)}
+        {tab==='sounds' && <Sounds state={state} actions={actions} voice={voice} celebrate={celebrate} onWord={openCard}/>}
+        {tab==='talk' && <Talk state={state} actions={actions} voice={voice} profileName={profile.name}/>}
         {tab==='practice' && <Practice state={state} stories={stories} known={known} actions={actions} voice={voice} celebrate={celebrate} goRead={()=>changeTab('read')} onWord={openCard}/>}
-        {tab==='progress' && <Progress state={state} stories={stories} actions={actions} streak={streak} known={known}/>}
+        {tab==='progress' && <Progress state={state} stories={stories} actions={actions} streak={streak} known={known} profile={profile} toast={toast}/>}
       </div>
     </main>
     {adding&&<AddStory state={state} onClose={()=>setAdding(false)} onSave={(st, stats)=>{ actions.addStory(st); setAdding(false); try{ synth&&synth.cancel(); }catch(e){} openStory(st.id);
       toast(`הסיפור נשמר: ${stats.words} מילים, ${stats.known} מהן כבר מוכרות לך`); }}/>}
-    {tab!=='practice'&&!card&&!adding&&!profileOpen&&<button className="fab sm:hidden" style={{bottom:`calc(${reading.current?104:20}px + env(safe-area-inset-bottom,0px))`, background:listening?'var(--bad)':'var(--primary)', color:listening?'var(--surface)':'var(--primary-ink)'}} onClick={()=>voiceRef.current()} aria-label={listening?'עצירת ההקשבה':'חיפוש קולי במילון: אמרו מילה באנגלית'} aria-pressed={listening}><IconMic size={24}/></button>}
+    {tab!=='practice'&&tab!=='talk'&&!card&&!adding&&!profileOpen&&<button className="fab sm:hidden" style={{bottom:`calc(${reading.current?104:20}px + env(safe-area-inset-bottom,0px))`, background:listening?'var(--bad)':'var(--primary)', color:listening?'var(--surface)':'var(--primary-ink)'}} onClick={()=>voiceRef.current()} aria-label={listening?'עצירת ההקשבה':'חיפוש קולי במילון: אמרו מילה באנגלית'} aria-pressed={listening}><IconMic size={24}/></button>}
     {card&&<DictCard wordKey={card.key} display={card.display} state={state} stories={stories} voice={voice} actions={actions} onClose={()=>setCard(null)} onOpenWord={openCard}/>}
     {profileOpen&&<ProfileSheet profile={profile} count={count} onClose={()=>setProfileOpen(false)} onRename={onRename} onSwitch={onSwitch} onAdd={onAddProfile} onDelete={onDelete} onSetPin={onSetPin} toast={toast}/>}
     {burst&&<Confetti key={burst.id} big={burst.big}/>}
-    {toastMsg&&<div role="status" className={`toast fixed z-[70] rounded-xl px-5 py-3 ${toastMsg.out?'out':''}`+" font-semibold flex items-center gap-2 text-sm"} style={{top:'calc(124px + env(safe-area-inset-top,0px))', background:'var(--ink)', color:'var(--bg)', width:'max-content', maxWidth:'calc(100vw - 32px)'}}><IconCheck size={18} className="shrink-0"/><span><Bi>{toastMsg.m}</Bi></span></div>}
+    {toastMsg&&<div role="status" className={`toast fixed z-[70] rounded-xl px-5 py-3 ${toastMsg.out?'out':''}`+" font-semibold flex items-center gap-2 text-sm"} style={{background:'var(--ink)', color:'var(--bg)', width:'max-content', maxWidth:'calc(100vw - 32px)'}}><IconCheck size={18} className="shrink-0"/><span><Bi>{toastMsg.m}</Bi></span></div>}
   </div>);
 }
 
