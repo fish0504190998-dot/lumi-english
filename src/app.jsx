@@ -305,6 +305,7 @@ function listenOnce({lang, onPartial, onText, onError, onState}){
   ACTIVE_LISTEN=()=>{ try{ r.stop(); }catch(e){} };
   return ACTIVE_LISTEN;
 }
+let DOWNLOADS=null; try{ if(window.claude&&window.claude.use) window.claude.use('downloads').then(d=>{ DOWNLOADS=d; }).catch(()=>{}); }catch(e){}
 let MIC_LANG='en'; try{ MIC_LANG=localStorage.getItem('lumi-mic-lang')==='he'?'he':'en'; }catch(e){}
 
 /* ---------- speech ---------- */
@@ -1782,8 +1783,9 @@ function Achievements({state}){
 function BackupCard({state, actions, profile, toast}){
   const [pending,setPending]=useState(null); const [err,setErr]=useState(''); const fileRef=useRef(null);
   const size=useMemo(()=>{ try{ return JSON.stringify(state).length; }catch(e){ return 0; } },[state]);
-  const exportJson=()=>{ const data={app:'lumi-english', version:3, exported:new Date().toISOString(), profile:{name:profile.name, avatar:profile.avatar}, state};
+  const exportJson=async()=>{ const data={app:'lumi-english', version:3, exported:new Date().toISOString(), profile:{name:profile.name, avatar:profile.avatar}, state};
     const text=JSON.stringify(data); const name=`lumi-english-${profile.name.replace(/[^\wא-ת-]+/g,'')||'backup'}-${todayKey()}.json`;
+    if(DOWNLOADS){ try{ await DOWNLOADS.save({filename:name, data:text}); toast('קובץ הגיבוי נשמר'); }catch(e){ toast('השמירה בוטלה'); } return; }
     try{ const url=URL.createObjectURL(new Blob([text],{type:'application/json'})); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000); toast('קובץ הגיבוי ירד למחשב'); }
     catch(e){ copyText(text).then(ok=>toast(ok?'ההורדה חסומה כאן, אז הגיבוי הועתק ללוח':'ההורדה חסומה כאן. פתחו את האתר lumi-english.netlify.app')); } };
   const onFile=e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return; setErr('');

@@ -4165,6 +4165,12 @@ function listenOnce({
   };
   return ACTIVE_LISTEN;
 }
+let DOWNLOADS = null;
+try {
+  if (window.claude && window.claude.use) window.claude.use('downloads').then(d => {
+    DOWNLOADS = d;
+  }).catch(() => {});
+} catch (e) {}
 let MIC_LANG = 'en';
 try {
   MIC_LANG = localStorage.getItem('lumi-mic-lang') === 'he' ? 'he' : 'en';
@@ -9436,7 +9442,7 @@ function BackupCard({
       return 0;
     }
   }, [state]);
-  const exportJson = () => {
+  const exportJson = async () => {
     const data = {
       app: 'lumi-english',
       version: 3,
@@ -9449,6 +9455,18 @@ function BackupCard({
     };
     const text = JSON.stringify(data);
     const name = `lumi-english-${profile.name.replace(/[^\wא-ת-]+/g, '') || 'backup'}-${todayKey()}.json`;
+    if (DOWNLOADS) {
+      try {
+        await DOWNLOADS.save({
+          filename: name,
+          data: text
+        });
+        toast('קובץ הגיבוי נשמר');
+      } catch (e) {
+        toast('השמירה בוטלה');
+      }
+      return;
+    }
     try {
       const url = URL.createObjectURL(new Blob([text], {
         type: 'application/json'
