@@ -50,7 +50,7 @@ const LEVELS=[
   {n:4, name:'קריאה שוטפת', min:251, next:null, desc:'סיפורים אמיתיים וארוכים ברמה טבעית'}
 ];
 const levelFor=known=>known>=251?4:known>=121?3:known>=41?2:1;
-const suggestLevel=words=>words<=80?1:words<=170?2:words<=340?3:4;
+const suggestLevel=words=>words<=60?1:words<=120?2:words<=250?3:4;
 
 /* ---------- storage ---------- */
 let LS_KEY='lumi-english-v1';        // storage key of the active learner; set before the app mounts
@@ -98,6 +98,98 @@ function bestStreak(history){
   const days=Object.keys(history).filter(k=>history[k].met).sort(); let best=0, cur=0, prev=null;
   for(const k of days){ const d=new Date(k+'T12:00:00'); cur = prev && dayKey(addDays(prev,1))===k ? cur+1 : 1; best=Math.max(best,cur); prev=d; }
   return best;
+}
+
+/* ---------- spaced repetition (SM-2 style) ---------- */
+const DAY_MS=864e5, MIN_MS=6e4;
+const GRADUATE_DAYS=21;            // a learning word whose interval reaches this many days becomes "known"
+function srsCard(s,k){ return (s.srs&&s.srs[k])||{due:0, iv:0, ease:2.3, reps:0, last:0}; }
+function srsNext(c, grade){        // grade: 0 again, 1 hard, 2 good, 3 easy
+  const now=Date.now(); let {iv,ease,reps}=c;
+  if(grade===0){ return {due:now+10*MIN_MS, iv:0, ease:Math.max(1.3,ease-.2), reps:0, last:now}; }
+  if(reps===0) iv = grade===1?1 : grade===2?1 : 3;
+  else if(reps===1) iv = grade===1?2 : grade===2?3 : 6;
+  else iv = Math.max(iv+1, Math.round(iv*(grade===1?1.2 : grade===2?ease : ease*1.3)));
+  ease = Math.min(3, Math.max(1.3, ease+(grade===1?-.15:grade===3?.15:0)));
+  return {due:now+iv*DAY_MS, iv, ease, reps:reps+1, last:now};
+}
+const gradeLabel=(c,g)=>{ const n=srsNext(c,g); return g===0?'10 דק׳':n.iv>=30?Math.round(n.iv/30)+' חו׳':n.iv+(n.iv===1?' יום':' ימים'); };
+function dueWords(s){ const now=Date.now(); return Object.keys(s.words).filter(k=>s.words[k]==='learning').filter(k=>srsCard(s,k).due<=now)
+  .sort((a,b)=>srsCard(s,a).due-srsCard(s,b).due); }
+function nextDueAt(s){ let m=Infinity; for(const k in s.words) if(s.words[k]==='learning'){ const d=srsCard(s,k).due; if(d>Date.now()&&d<m) m=d; } return m===Infinity?null:m; }
+function withLearned(s, n){ if(!n) return s; const d=todayKey(); const h=s.history[d]||{xp:0,met:false}; return {...s, history:{...s.history,[d]:{...h, learned:(h.learned||0)+n}}}; }
+function withStatus(s, k, st){        // central place for status changes: keeps SRS, "learned today" and XP in step
+  const prev=s.words[k]; if(prev===st) return s;
+  const words={...s.words}; if(st) words[k]=st; else delete words[k];
+  let n={...s, words};
+  if(st==='learning' && !(s.srs&&s.srs[k])) n={...n, srs:{...(s.srs||{}),[k]:{due:Date.now(), iv:0, ease:2.3, reps:0, last:0}}};
+  if(st==='known' && prev!=='known' && !NAMES.has(k)) n=withLearned(n,1);
+  return n;
+}
+function relTime(t){ const d=t-Date.now(); if(d<=0) return 'עכשיו'; const m=Math.round(d/MIN_MS); if(m<60) return `בעוד ${m} דק׳`; const h=Math.round(m/60); if(h<24) return `בעוד ${h} שע׳`; const dd=Math.round(h/24); return dd===1?'מחר':`בעוד ${dd} ימים`; }
+
+/* ---------- achievements ---------- */
+const BADGES=[
+  {id:'story1', icon:'📖', name:'סיפור ראשון', desc:'סיימת לקרוא סיפור', need:1, of:'stories'},
+  {id:'story5', icon:'📚', name:'5 סיפורים', desc:'סיימת 5 סיפורים', need:5, of:'stories'},
+  {id:'story10', icon:'🏅', name:'10 סיפורים נקראו', desc:'סיימת 10 סיפורים', need:10, of:'stories'},
+  {id:'known50', icon:'🌱', name:'50 מילים מוכרות', desc:'50 מילים בסטטוס מוכרת', need:50, of:'known'},
+  {id:'known100', icon:'🌿', name:'100 מילים מוכרות', desc:'100 מילים בסטטוס מוכרת', need:100, of:'known'},
+  {id:'known250', icon:'🌳', name:'250 מילים מוכרות', desc:'פתחת את שלב הקריאה השוטפת', need:250, of:'known'},
+  {id:'known500', icon:'🌲', name:'500 מילים מוכרות', desc:'אוצר מילים של ממש', need:500, of:'known'},
+  {id:'streak3', icon:'🔥', name:'רצף של 3 ימים', desc:'השלמת את היעד 3 ימים ברצף', need:3, of:'streak'},
+  {id:'streak7', icon:'⚡', name:'רצף של 7 ימים', desc:'שבוע שלם ברצף', need:7, of:'streak'},
+  {id:'streak30', icon:'👑', name:'רצף של 30 ימים', desc:'חודש שלם ברצף', need:30, of:'streak'},
+  {id:'review50', icon:'🧠', name:'50 חזרות', desc:'50 כרטיסי חזרה מרווחת', need:50, of:'reviews'},
+  {id:'talk1', icon:'💬', name:'שיחה ראשונה', desc:'סיימת שיחה בקול', need:1, of:'talks'},
+  {id:'talkAll', icon:'🎤', name:'כל השיחות', desc:`סיימת את כל ${typeof TALKS!=='undefined'?TALKS.length:6} השיחות`, need:typeof TALKS!=='undefined'?TALKS.length:6, of:'talks'},
+  {id:'sounds10', icon:'🔤', name:'10 צלילים', desc:'למדת 10 צירופי אותיות', need:10, of:'sounds'},
+  {id:'mystory', icon:'✍️', name:'הסיפור שלי', desc:'הוספת סיפור משלך', need:1, of:'mine'},
+  {id:'team', icon:'🤝', name:'לומדים ביחד', desc:'הצטרפת לקבוצת לימוד', need:1, of:'group'}
+];
+function badgeStats(s){ const st=computeStreak(s.history), best=Math.max(st, bestStreak(s.history));
+  return { stories:Object.keys(s.storiesDone||{}).length, known:Object.keys(s.words).filter(k=>s.words[k]==='known'&&!NAMES.has(k)).length, streak:best,
+    reviews:(s.totals&&s.totals.reviews)||0, talks:Object.keys(s.talkDone||{}).length, sounds:Object.values(s.phon||{}).filter(x=>x.c>=2).length,
+    mine:(s.userStories||[]).length, group:s.group?1:0 }; }
+
+/* ---------- story helpers ---------- */
+const TOPICS=['יומיום','סיפור אמיתי','נסיעות','עבודה','חיות'];
+const TOPIC_WORDS={
+  'נסיעות':/\b(travel|trip|train|plane|airport|hotel|bus|taxi|ticket|passport|flight|station|beach|city|country|tourist|map|road|holiday|vacation)\b/i,
+  'עבודה':/\b(work|works|worked|job|office|boss|meeting|company|money|team|manager|business|salary|computer|email|doctor|hospital|teacher|engineer)\b/i,
+  'חיות':/\b(dog|dogs|cat|cats|animal|animals|bird|birds|fish|horse|cow|lion|bear|bee|bees|penguin|dragon|monkey|rabbit|pet|zoo)\b/i,
+  'סיפור אמיתי':/\b(1[0-9]{3}|20[0-9]{2}|true story|history|famous|years ago|scientist|discovered|invented|born in)\b/i
+};
+function detectTopics(text){ const t=[]; for(const k in TOPIC_WORDS) if(TOPIC_WORDS[k].test(text)) t.push(k); if(!t.length) t.push('יומיום'); return t; }
+function storyStats(story, s){ const d=storyData(story); const nw=d.keys.filter(k=>!s.words[k]&&!NAMES.has(k)).length, lw=d.keys.filter(k=>s.words[k]==='learning').length, kw=d.keys.filter(k=>s.words[k]==='known').length;
+  return {d, newW:nw, learnW:lw, knownW:kw, pct:Math.round(kw/Math.max(1,d.keys.length)*100), done:!!(s.storiesDone||{})[story.id]}; }
+function isOpenLevel(level, known, unlocked){ return level<=levelFor(known) || !!unlocked[level]; }
+function recommendStories(stories, s, known){
+  const lv=levelFor(known);
+  return stories.filter(x=>!(s.storiesDone||{})[x.id] && isOpenLevel(x.level, known, s.unlocked))
+    .map(x=>{ const st=storyStats(x,s); const ratio=st.newW/Math.max(1,st.d.keys.length); return {x, sc:Math.abs(x.level-lv)*2 + Math.abs(ratio-.12)*6 + (x.user?-.5:0)}; })
+    .sort((a,b)=>a.sc-b.sc).map(r=>r.x);
+}
+
+/* ---------- covers: emoji or a compressed uploaded image ---------- */
+function compressImage(file, max=300, quality=.75){
+  return new Promise((resolve,reject)=>{
+    if(!/^image\/(jpeg|png|webp)$/.test(file.type)) return reject(new Error('type'));
+    if(file.size>15e6) return reject(new Error('big'));
+    const url=URL.createObjectURL(file); const img=new Image();
+    img.onload=()=>{ try{ const k=Math.min(1, max/Math.max(img.width,img.height)); const w=Math.max(1,Math.round(img.width*k)), h=Math.max(1,Math.round(img.height*k));
+        const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.fillStyle='#FFFFFF'; g.fillRect(0,0,w,h); g.drawImage(img,0,0,w,h);
+        URL.revokeObjectURL(url); resolve(c.toDataURL('image/jpeg', quality)); }catch(e){ URL.revokeObjectURL(url); reject(e); } };
+    img.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error('decode')); };
+    img.src=url; });
+}
+function StoryCover({story, size=56, radius=14, className=''}){
+  if(story.image) return <img src={story.image} alt="" className={`object-cover shrink-0 ${className}`} style={{width:size, height:size, borderRadius:radius}}/>;
+  return <span className={`grid place-items-center shrink-0 ${className}`} style={{width:size, height:size, borderRadius:radius, fontSize:size*.55, background:'var(--sunk)'}} aria-hidden="true">{story.cover||'📖'}</span>;
+}
+function StatusPill({kind, n, label}){
+  const L={new:'חדשות', learning:'בלמידה', known:'מוכרות'};
+  return <span className={`pill pill-${kind}`}><span className="pill-dot" aria-hidden="true"></span>{n!=null&&<b className="num">{n}</b>}{label||L[kind]}</span>;
 }
 
 /* ---------- optional online translation (only when the reader presses the button) ---------- */
@@ -218,6 +310,7 @@ let MIC_LANG='en'; try{ MIC_LANG=localStorage.getItem('lumi-mic-lang')==='he'?'h
 /* ---------- speech ---------- */
 const synth = typeof window!=='undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null;
 const KEEP=[]; const BOUNDARY_OK=new Set();
+try{ synth&&synth.getVoices(); }catch(e){}   // warm up the voice list so the first click speaks without delay
 const UNIT_MS=175;   // rough length of one spoken "beat" at normal speed, refined per voice
 let CAL={}; try{ CAL=JSON.parse(localStorage.getItem('lumi-voice-cal')||'{}')||{}; }catch(e){ CAL={}; }
 const wordWeight=w=>0.5+((w.toLowerCase().match(/[aeiouy]+/g)||[]).length||1)+w.length*0.06;
@@ -245,9 +338,11 @@ const NO_SPEECH='הדפדפן הזה לא תומך בהשמעה קולית. נס
 const SPEECH_FAIL='ההשמעה נכשלה. בדקו שהשמע במכשיר פועל ונסו שוב.';
 function speakText(text, rate, voice){
   if(!synth){ notify(NO_SPEECH); return; }
-  try{ synth.cancel(); const u=new SpeechSynthesisUtterance(text); u.lang=(voice&&voice.lang)||'en-US'; u.rate=rate; if(voice) u.voice=voice;
+  try{ const busy=synth.speaking||synth.pending; if(busy) synth.cancel();
+    const u=new SpeechSynthesisUtterance(text); u.lang=(voice&&voice.lang)||'en-US'; u.rate=rate; if(voice) u.voice=voice;
     u.onerror=e=>{ if(e.error!=='interrupted'&&e.error!=='canceled') notify(SPEECH_FAIL); };
-    KEEP.push(u); if(KEEP.length>30) KEEP.shift(); setTimeout(()=>synth.speak(u), 60); }catch(e){ notify(SPEECH_FAIL); }
+    KEEP.push(u); if(KEEP.length>30) KEEP.shift();
+    if(busy) setTimeout(()=>synth.speak(u), 40); else synth.speak(u); }catch(e){ notify(SPEECH_FAIL); }
 }
 /* Hebrew sentence with English words inside: each Latin run is isolated so punctuation never jumps */
 function Bi({children}){
@@ -430,15 +525,18 @@ function Header({known, streak, todayXP, goal, unlocked, onNav, profile, onProfi
           <span className="w-9 h-9 rounded-lg grid place-items-center text-xl bg-surface" aria-hidden="true">{profile.avatar}</span>
           <span className="leading-tight"><span className="font-bold block">שלום, <bdi>{profile.name}</bdi></span><span className="text-xs text-muted block"><bdi dir="ltr">Lumi English</bdi> · החלפת משתמש</span></span>
         </button>
-        <button onClick={()=>onNav('progress')} className={`flex items-center gap-2 rounded-xl px-3 min-h-[44px] ${bump?'pop':''}`} style={{background:'var(--good-soft)', color:'var(--good)'}} title="מילים שסימנת כמוכרות. לחיצה פותחת את ההתקדמות">
-          <IconCheck size={17}/><span className="font-semibold text-sm">למדת כבר <span className="num text-base font-bold"><Count value={known}/></span> מילים!</span>
+        <button onClick={()=>onNav('progress')} className={`stat-chip chip-known ${bump?'pop':''}`} title="מילים שסימנת כמוכרות">
+          <IconCheck size={18}/><span className="leading-tight text-start"><b className="num text-lg block"><Count value={known}/></b><span className="text-[11px] font-semibold">מילים מוכרות</span></span>
         </button>
-        <button onClick={()=>onNav('progress')} className="flex items-center gap-1.5 rounded-xl px-3 min-h-[44px]" style={{background:'color-mix(in srgb,var(--coral) 14%,var(--surface))', color:'var(--coral)'}} title="רצף ימים. לחיצה פותחת את ההתקדמות">
-          <IconFlame size={17}/><span className="num font-bold"><Count value={streak}/></span><span className="text-sm font-semibold">ימים</span>
+        <button onClick={()=>onNav('progress')} className={`stat-chip chip-streak ${streak>0?'is-on':''}`} title="רצף ימים שבהם הושלם היעד">
+          <span className="flame" aria-hidden="true"><IconFlame size={22}/></span><span className="leading-tight text-start"><b className="num text-lg block"><Count value={streak}/></b><span className="text-[11px] font-semibold">{streak===1?'יום ברצף':'ימים ברצף'}</span></span>
         </button>
-        <button onClick={()=>onNav('progress')} className="hit rounded-full" aria-label={`היעד היומי: ${Math.min(100,Math.round(todayXP/goal*100))} אחוז. לחיצה פותחת את ההתקדמות`}><Ring value={todayXP} max={goal} size={40} stroke={5}><span className="num text-[10px] font-bold">{Math.min(100,Math.round(todayXP/goal*100))}%</span></Ring></button>
+        <button onClick={()=>onNav('progress')} className={`goal-chip ${todayXP>=goal?'is-done':''}`} aria-label={`יעד יומי: ${Math.min(todayXP,goal)} מתוך ${goal} נקודות`}>
+          <span className="flex items-baseline gap-1.5 w-full"><span className="text-[11px] font-bold">יעד יומי</span><b className="num ms-auto text-sm">{Math.min(todayXP,goal)}/{goal}</b></span>
+          <span className="goal-track" dir="ltr"><span className="goal-fill bar" style={{width:Math.min(100,todayXP/goal*100)+'%'}}></span></span>
+          <span className="text-[11px] text-muted w-full text-start">{todayXP>=goal?'הושלם היום ✓':todayXP>0?`עוד ${goal-todayXP} נק׳ להיום`:'סיפור קצר אחד ואתם בדרך'}</span>
+        </button>
       </div>
-      <LevelMeter known={known} unlocked={unlocked}/>
     </div></div>
   </header>);
 }
@@ -454,66 +552,147 @@ function Tabs({tab, setTab, learning}){
 
 /* ---------- library ---------- */
 function StoryCard({story, state, locked, onOpen, onLocked}){
-  const d=storyData(story); const known=d.keys.filter(k=>state.words[k]==='known').length; const learn=d.keys.filter(k=>state.words[k]==='learning').length;
-  const pct=Math.round(known/Math.max(1,d.keys.length)*100); const done=state.storiesDone[story.id];
-  return (<button onClick={locked?onLocked:onOpen} aria-disabled={locked||undefined} className={`card card-btn p-4 text-start flex gap-4 items-start ${locked?'opacity-60':'card-lift'}`}>
-    <div className="w-14 h-14 rounded-xl bg-sunk grid place-items-center text-3xl shrink-0 relative" aria-hidden="true">{story.cover}
-      {locked&&<span className="absolute -bottom-1.5 -end-1.5 w-6 h-6 rounded-full bg-surface border border-line grid place-items-center text-muted"><IconLock size={12}/></span>}</div>
-    <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-      <div className="flex flex-wrap gap-1.5 items-center">
-        <span className="tag tag-level">שלב <span className="num">{story.level}</span></span>
-        {story.real&&<span className="tag tag-real">סיפור אמיתי</span>}
-        {story.user&&<span className="tag">שלי</span>}
-        <span className="tag"><IconClock size={11}/>כ־<span className="num">{readMinutes(d.words)}</span> דק׳</span>
-        <span className="text-[11px] text-muted num">{d.words} מילים</span>
-        {done&&<span className="tag ms-auto" style={{background:'var(--good-soft)', color:'var(--good)'}}><IconCheck size={11}/>נקרא</span>}
-      </div>
-      <div dir="ltr" className="book font-semibold text-[1.12rem] leading-snug text-left">{story.title}</div>
-      {(story.he||story.blurb)&&<div className="text-sm text-muted leading-snug">{story.he}{story.he&&story.blurb?' · ':''}{story.blurb}</div>}
-      <div className="flex items-center gap-2 mt-1">
-        <div className="h-1.5 flex-1 rounded-full bg-sunk overflow-hidden flex" dir="ltr">
-          <div className="bar" style={{width:pct+'%', background:'var(--good)'}}></div><div className="bar" style={{width:Math.round(learn/Math.max(1,d.keys.length)*100)+'%', background:'var(--sun)'}}></div>
+  const st=storyStats(story, state); const mins=readMinutes(st.d.words);
+  return (<button onClick={locked?onLocked:onOpen} aria-disabled={locked||undefined}
+    className={`story-card card card-btn text-start flex flex-col ${locked?'is-locked':''} ${st.done?'is-read':''}`}>
+    <div className="flex gap-4 items-start p-4 pb-3">
+      <div className="relative shrink-0"><StoryCover story={story} size={64} radius={16}/>
+        {locked&&<span className="absolute -bottom-1.5 -end-1.5 w-6 h-6 rounded-full bg-surface border border-line grid place-items-center text-muted"><IconLock size={12}/></span>}</div>
+      <div className="flex-1 min-w-0 flex flex-col gap-1">
+        <div className="flex items-start gap-2">
+          <div dir="ltr" className="story-title book text-left flex-1 min-w-0">{story.title}</div>
+          {st.done&&<span className="read-badge shrink-0"><IconCheck size={12}/>נקרא</span>}
         </div>
-        <span className="text-[11px] text-muted num whitespace-nowrap">{pct}% מוכר</span>
+        {(story.he||story.blurb)&&<div className="text-sm text-muted leading-snug line-clamp-2">{story.he}{story.he&&story.blurb?' · ':''}{story.blurb}</div>}
+        <div className="meta">שלב <span className="num">{story.level}</span> · <span className="num">{mins}</span> דק׳ קריאה · <span className="num">{st.d.words}</span> מילים{(story.tags||[]).length?' · '+story.tags.join(' · '):''}</div>
+      </div>
+    </div>
+    <div className="px-4 pb-4 mt-auto flex flex-col gap-2">
+      <div className="flex flex-wrap gap-1.5">
+        {st.newW>0?<StatusPill kind="new" n={st.newW} label={st.newW===1?'מילה חדשה':'מילים חדשות'}/>:<StatusPill kind="known" label="אין מילים חדשות"/>}
+        {st.learnW>0&&<StatusPill kind="learning" n={st.learnW}/>}
+        {story.real&&<span className="tag tag-real">סיפור אמיתי</span>}{story.user&&<span className="tag">שלי</span>}
+      </div>
+      <div className="h-1.5 rounded-full bg-sunk overflow-hidden flex" dir="ltr" aria-label={`${st.pct}% מהמילים מוכרות`}>
+        <div className="bar" style={{width:st.pct+'%', background:'var(--known)'}}></div><div className="bar" style={{width:Math.round(st.learnW/Math.max(1,st.d.keys.length)*100)+'%', background:'var(--learn)'}}></div>
       </div>
     </div>
   </button>);
 }
-function Library({state, known, actions, openStory, onAdd, toast}){
-  const lv=levelFor(known);
-  return (<div className="flex flex-col gap-7">
-    <section className="flex flex-col sm:flex-row gap-4 sm:items-end">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-3"><h1 className="text-2xl sm:text-3xl font-bold me-auto">הספרייה שלך</h1>
-          <span className="sm:hidden"><button className="btn btn-primary px-4 text-sm" onClick={onAdd}><IconPlus size={18}/>הוסף סיפור</button></span></div>
-        <p className="text-muted mt-1 leading-relaxed">לחצו על כל מילה בסיפור כדי לראות תרגום והגייה. ככל שתסמנו יותר מילים כמוכרות, ייפתחו סיפורים ארוכים ואמיתיים יותר.</p>
+function HeroCard({state, stories, known, openStory}){
+  const last=state.lastStory&&stories.find(s=>s.id===state.lastStory.id);
+  const recs=useMemo(()=>recommendStories(stories, state, known),[stories, state.words, state.storiesDone, known, state.unlocked]);
+  const [i,setI]=useState(0);
+  const story=last||recs[i%Math.max(1,recs.length)];
+  if(!story) return (<section className="hero card p-5 sm:p-6"><div className="text-xl font-extrabold">סיימת את כל הסיפורים הפתוחים! 🎉</div><p className="text-muted mt-1">פתחו שלב חדש, או הוסיפו סיפור משלכם.</p></section>);
+  const st=storyStats(story, state);
+  return (<section className="hero card p-5 sm:p-6 flex flex-col sm:flex-row gap-5 sm:items-center">
+    <StoryCover story={story} size={96} radius={22}/>
+    <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+      <div className="eyebrow">{last?'המשך מאיפה שעצרת':'הסיפור המומלץ הבא בשבילך'}</div>
+      <div dir="ltr" className="book text-2xl sm:text-3xl font-bold text-left leading-tight">{story.title}</div>
+      {story.he&&<div className="text-muted">{story.he}</div>}
+      <div className="flex flex-wrap gap-1.5 items-center mt-1">
+        <span className="meta">שלב {story.level} · {readMinutes(st.d.words)} דק׳ · {st.d.words} מילים</span>
+        {st.newW>0&&<StatusPill kind="new" n={st.newW} label="מילים חדשות"/>}
       </div>
-      <div className="flex gap-3 text-sm shrink-0 flex-wrap">
-        <span className="flex items-center gap-1.5"><span dir="ltr" className="swatch w-new book">new</span>חדשה</span>
-        <span className="flex items-center gap-1.5"><span dir="ltr" className="swatch w-learn book">learning</span>בלמידה</span>
-        <span className="flex items-center gap-1.5"><span dir="ltr" className="swatch book" style={{boxShadow:'0 0 0 1px var(--line) inset'}}>known</span>מוכרת</span>
+    </div>
+    <div className="flex sm:flex-col gap-2 shrink-0">
+      <button className="btn btn-go px-6 text-lg" style={{minHeight:'52px'}} onClick={()=>openStory(story.id)}><IconPlay size={18}/>{last?'המשך לקרוא':'בואו נקרא'}</button>
+      {!last&&recs.length>1&&<button className="btn btn-ghost px-4 text-sm" onClick={()=>setI(x=>x+1)}>הצע סיפור אחר</button>}
+    </div>
+  </section>);
+}
+function LevelTracker({state, stories, known}){
+  const lv=levelFor(known); const L=LEVELS[lv-1];
+  const inLv=stories.filter(s=>s.level===lv&&!s.user); const readLv=inLv.filter(s=>(state.storiesDone||{})[s.id]).length;
+  const pct=L.next?Math.min(100,Math.round((known-L.min+(lv===1?0:1))/(L.next-L.min)*100)):100; const left=L.next?L.next-known:0;
+  return (<section className="card p-5 flex flex-col gap-3">
+    <div className="flex items-end gap-3 flex-wrap">
+      <div className="me-auto"><div className="eyebrow">ההתקדמות לשלב הבא</div>
+        <div className="text-xl font-extrabold">{L.next?<>שלב {lv} ← שלב {lv+1}: {LEVELS[lv].name}</>:'הגעת לשלב הגבוה ביותר'}</div></div>
+      <div className="num text-4xl font-extrabold" style={{color:'var(--primary)'}}>{pct}%</div>
+    </div>
+    <div className="h-3.5 rounded-full bg-sunk overflow-hidden" dir="ltr"><div className="h-full rounded-full bar level-fill" style={{width:Math.max(3,pct)+'%'}}></div></div>
+    <div className="grid sm:grid-cols-2 gap-2 text-sm">
+      <div className="rounded-xl bg-sunk p-3 flex items-center gap-3"><StatusPill kind="known" n={known} label="מילים מוכרות"/>
+        <span className="text-muted">{L.next?<>עוד <b className="num text-ink">{left}</b> לפתיחת שלב {lv+1}</>:'כל השלבים פתוחים'}</span></div>
+      <div className="rounded-xl bg-sunk p-3 flex items-center gap-3"><span className="pill pill-read"><IconBook size={13}/><b className="num">{readLv}/{inLv.length}</b>סיפורים</span>
+        <span className="text-muted">נקראו בשלב {lv}</span></div>
+    </div>
+  </section>);
+}
+const FILTERS=[['all','הכל'],['unread','לא נקראו'],['read','נקראו'],['rec','מומלצים']];
+const SORTS=[['level','לפי שלב'],['short','קצרים קודם'],['long','ארוכים קודם'],['mostnew','הכי הרבה מילים חדשות'],['leastnew','הכי מעט מילים חדשות']];
+function AddStoryTile({onAdd}){
+  return (<button onClick={onAdd} className="add-tile text-center flex flex-col items-center justify-center gap-2 p-6">
+    <span className="w-12 h-12 rounded-full grid place-items-center" style={{background:'var(--primary-soft)', color:'var(--primary)'}}><IconPlus size={24}/></span>
+    <span className="font-bold text-lg">הוסף סיפור חדש</span><span className="text-sm text-muted">הדביקו טקסט, העלו קובץ או תמונת שער</span>
+  </button>);
+}
+function Library({state, known, actions, openStory, onAdd, toast, stories}){
+  const lv=levelFor(known);
+  const [q,setQ]=useState(''); const [filter,setFilter]=useState('all'); const [sort,setSort]=useState('level'); const [lvF,setLvF]=useState(0);
+  const recIds=useMemo(()=>new Set(recommendStories(stories, state, known).slice(0,6).map(s=>s.id)),[stories, state.words, state.storiesDone, known, state.unlocked]);
+  const active=q.trim()||filter!=='all'||sort!=='level'||lvF;
+  const list=useMemo(()=>{ if(!active) return [];
+    const t=q.trim().toLowerCase();
+    let r=stories.filter(s=>!t || [s.title,s.he,s.blurb,...(s.tags||[])].join(' ').toLowerCase().includes(t));
+    if(lvF) r=r.filter(s=>s.level===lvF);
+    if(filter==='unread') r=r.filter(s=>!state.storiesDone[s.id]); if(filter==='read') r=r.filter(s=>state.storiesDone[s.id]); if(filter==='rec') r=r.filter(s=>recIds.has(s.id));
+    const S=x=>storyStats(x,state);
+    const by={level:(a,b)=>a.level-b.level, short:(a,b)=>S(a).d.words-S(b).d.words, long:(a,b)=>S(b).d.words-S(a).d.words, mostnew:(a,b)=>S(b).newW-S(a).newW, leastnew:(a,b)=>S(a).newW-S(b).newW}[sort];
+    return [...r].sort(by); },[active, q, filter, sort, lvF, stories, state.words, state.storiesDone, recIds]);
+  const card=s=>{ const open=isOpenLevel(s.level, known, state.unlocked)||s.user; const need=LEVELS[s.level-1].min-known;
+    return <StoryCard key={s.id} story={s} state={state} locked={!open} onOpen={()=>openStory(s.id)} onLocked={()=>toast(`הסיפור נעול. חסרות ${need} מילים מוכרות, או לחצו "בא לי אתגר, פתח עכשיו" בכותרת של שלב ${s.level}.`)}/>; };
+  return (<div className="flex flex-col gap-6">
+    <HeroCard state={state} stories={stories} known={known} openStory={openStory}/>
+    <LevelTracker state={state} stories={stories} known={known}/>
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
+        <h1 className="page-title me-auto">הספרייה שלך</h1>
+        <button className="btn btn-primary px-4 text-sm" onClick={onAdd}><IconPlus size={18}/>הוסף סיפור חדש</button>
+      </div>
+      <div className="flex flex-col gap-2.5">
+        <label className="flex items-center gap-2 rounded-xl border-[1.5px] border-line bg-surface px-3 h-12 focus-within:border-primary" htmlFor="lib-search">
+          <IconSearch size={18}/><input id="lib-search" className="flex-1 min-w-0 bg-transparent outline-none text-base h-full" placeholder="חיפוש סיפור לפי שם או נושא (חיות, נסיעות, עבודה…)" value={q} onChange={e=>setQ(e.target.value)}/>
+          {q&&<button className="hit text-muted" onClick={()=>setQ('')} aria-label="ניקוי החיפוש"><IconX size={16}/></button>}
+        </label>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex gap-1.5 flex-wrap" role="group" aria-label="סינון">{FILTERS.map(([k,l])=><button key={k} className="filter-pill" aria-pressed={filter===k} onClick={()=>setFilter(k)}>{l}</button>)}</div>
+          <div className="flex gap-2 ms-auto">
+            <select id="lib-level" className="select-pill" value={lvF} onChange={e=>setLvF(+e.target.value)} aria-label="סינון לפי שלב"><option value={0}>כל השלבים</option>{LEVELS.map(L=><option key={L.n} value={L.n}>שלב {L.n}</option>)}</select>
+            <select id="lib-sort" className="select-pill" value={sort} onChange={e=>setSort(e.target.value)} aria-label="מיון">{SORTS.map(([k,l])=><option key={k} value={k}>{l}</option>)}</select>
+          </div>
+        </div>
+        <div className="flex gap-3 text-xs text-muted flex-wrap items-center"><span>מקרא:</span><StatusPill kind="new" label="חדשה"/><StatusPill kind="learning" label="בלמידה"/><StatusPill kind="known" label="מוכרת"/></div>
       </div>
     </section>
 
-    {state.userStories.length>0&&<section className="flex flex-col gap-3">
-      <div className="flex items-center gap-3"><h2 className="text-lg font-bold">הסיפורים שהוספת</h2><span className="text-sm text-muted num">{state.userStories.length}</span>
-        <button className="btn btn-line px-3 py-1.5 text-sm ms-auto" onClick={onAdd}><IconPlus size={16}/>עוד סיפור</button></div>
-      <div className="grid gap-3 md:grid-cols-2">{state.userStories.map(s=><StoryCard key={s.id} story={s} state={state} onOpen={()=>openStory(s.id)}/>)}</div>
-    </section>}
-
-    {LEVELS.map(L=>{ const open=L.n<=lv || state.unlocked[L.n]; const list=STORIES.filter(s=>s.level===L.n); const need=L.min-known;
-      return (<section key={L.n} className="flex flex-col gap-3">
-        <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
-          <div className={`w-9 h-9 rounded-full grid place-items-center font-bold num ${open?'':'text-muted'}`} style={open?{background:'var(--primary)', color:'var(--primary-ink)'}:{background:'var(--sunk)'}}>{open?L.n:<IconLock size={15}/>}</div>
-          <div className="min-w-0 me-auto"><h2 className="text-lg font-bold leading-tight">שלב <span className="num">{L.n}</span> · {L.name}</h2>
-            <div className="text-sm text-muted">{L.desc} · <span className="num" dir="ltr">{L.next?`${L.min}–${L.next-1}`:`${L.min-1}+`}</span> מילים מוכרות</div></div>
-          {L.n===lv&&<span className="tag tag-level">השלב שלך</span>}
-          {!open&&<><span className="text-sm text-muted">נפתח בעוד <b className="num text-ink">{need}</b> מילים</span>
-            <button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>{ actions.unlock(L.n); toast(`שלב ${L.n} נפתח. בהצלחה!`); }}>בא לי אתגר, פתח עכשיו</button></>}
-          {open&&L.n>lv&&<><span className="tag">נפתח ידנית</span><button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>{ actions.lock(L.n); toast(`שלב ${L.n} ננעל שוב. הוא ייפתח לבד כשתגיעו ל־${L.min} מילים מוכרות.`); }}><IconLock size={14}/>נעילה מחדש</button></>}
-        </div>
-        <div className="grid gap-3 md:grid-cols-2">{list.map(s=><StoryCard key={s.id} story={s} state={state} locked={!open} onOpen={()=>openStory(s.id)} onLocked={()=>toast(`הסיפור נעול. חסרות ${need} מילים מוכרות, או לחצו "בא לי אתגר, פתח עכשיו" בכותרת של שלב ${L.n}.`)}/>)}</div>
-      </section>); })}
+    {active ? <section className="flex flex-col gap-3">
+      <div className="flex items-center gap-3"><h2 className="section-title me-auto">תוצאות</h2><span className="meta num">{list.length} סיפורים</span>
+        <button className="hit text-primary font-semibold text-sm" onClick={()=>{ setQ(''); setFilter('all'); setSort('level'); setLvF(0); }}>ניקוי הסינון</button></div>
+      {list.length?<div className="grid gap-4 md:grid-cols-2">{list.map(card)}</div>
+        :<div className="card p-6 text-center text-muted">לא נמצאו סיפורים. נסו מילה אחרת או סינון אחר.</div>}
+    </section> : <>
+      <section className="flex flex-col gap-3">
+        <div className="flex items-center gap-3"><h2 className="section-title me-auto">הסיפורים שלי</h2>{state.userStories.length>0&&<span className="meta num">{state.userStories.length}</span>}</div>
+        <div className="grid gap-4 md:grid-cols-2">{state.userStories.map(card)}<AddStoryTile onAdd={onAdd}/></div>
+      </section>
+      {LEVELS.map(L=>{ const open=L.n<=lv || state.unlocked[L.n]; const ls=STORIES.filter(s=>s.level===L.n); const need=L.min-known; const read=ls.filter(s=>state.storiesDone[s.id]).length;
+        return (<section key={L.n} className="flex flex-col gap-3">
+          <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
+            <div className={`w-10 h-10 rounded-full grid place-items-center font-extrabold num ${open?'':'text-muted'}`} style={open?{background:'var(--primary)', color:'var(--primary-ink)'}:{background:'var(--sunk)'}}>{open?L.n:<IconLock size={15}/>}</div>
+            <div className="min-w-0 me-auto"><h2 className="section-title">שלב <span className="num">{L.n}</span> · {L.name}</h2>
+              <div className="meta">{L.desc} · <span className="num">{read}/{ls.length}</span> נקראו</div></div>
+            {L.n===lv&&<span className="tag tag-level">השלב שלך</span>}
+            {!open&&<><span className="text-sm text-muted">נפתח בעוד <b className="num text-ink">{need}</b> מילים</span>
+              <button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>{ actions.unlock(L.n); toast(`שלב ${L.n} נפתח. בהצלחה!`); }}>בא לי אתגר, פתח עכשיו</button></>}
+            {open&&L.n>lv&&<><span className="tag">נפתח ידנית</span><button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>{ actions.lock(L.n); toast(`שלב ${L.n} ננעל שוב. הוא ייפתח לבד כשתגיעו ל־${L.min} מילים מוכרות.`); }}><IconLock size={14}/>נעילה מחדש</button></>}
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">{ls.map(card)}</div>
+        </section>); })}
+    </>}
   </div>);
 }
 
@@ -535,50 +714,71 @@ function splitParas(raw){
 }
 function AddStory({state, onClose, onSave}){
   const [text,setText]=useState(''); const [title,setTitle]=useState(''); const [cover,setCover]=useState('📖'); const [level,setLevel]=useState(0); const [err,setErr]=useState('');
+  const [coverMode,setCoverMode]=useState('emoji'); const [image,setImage]=useState(null); const [imgBusy,setImgBusy]=useState(false); const [tags,setTags]=useState(null);
+  const [closing, close]=useClosing(onClose);
   const paras=useMemo(()=>splitParas(text),[text]);
   const stats=useMemo(()=>{ const keys=[...new Set(paras.flatMap(p=>(p.match(WORD_RE)||[]).map(w=>w.toLowerCase())))];
-    return { words:paras.reduce((a,p)=>a+countWords(p),0), unique:keys.length, known:keys.filter(k=>state.words[k]==='known').length, learning:keys.filter(k=>state.words[k]==='learning').length, dict:keys.filter(k=>wordInfo(k).he).length }; },[paras]);
+    return { words:paras.reduce((a,p)=>a+countWords(p),0), unique:keys.length, known:keys.filter(k=>state.words[k]==='known').length, fresh:keys.filter(k=>!state.words[k]&&!NAMES.has(k)).length, dict:keys.filter(k=>wordInfo(k).he).length }; },[paras]);
+  const autoTags=useMemo(()=>detectTopics(text),[text]); const tagList=tags||autoTags;
   const auto=suggestLevel(stats.words); const lvl=level||auto;
-  const [closing, close]=useClosing(onClose);
   useEffect(()=>{ const k=e=>{ if(e.key==='Escape') close(); }; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[]);
-  const onFile=e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return; if(f.size>400000){ setErr('הקובץ גדול מדי. נסו קובץ טקסט של עד 400KB.'); return; }
+  const onFile=e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return; if(f.size>2e6){ setErr('הקובץ גדול מדי. נסו קובץ טקסט של עד 2MB.'); return; }
     const r=new FileReader(); r.onload=()=>{ setText(String(r.result||'')); setErr(''); if(!title) setTitle(f.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ')); }; r.onerror=()=>setErr('לא הצלחתי לקרוא את הקובץ.'); r.readAsText(f); };
+  const onImage=async e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return; setImgBusy(true); setErr('');
+    try{ setImage(await compressImage(f, 300, .75)); setCoverMode('image'); }
+    catch(x){ setErr(x.message==='type'?'אפשר להעלות רק תמונות JPG, PNG או WEBP.':x.message==='big'?'התמונה גדולה מדי (עד 15MB).':'לא הצלחתי לקרוא את התמונה. נסו תמונה אחרת.'); }
+    setImgBusy(false); };
+  const toggleTag=t=>{ const cur=tagList; const n=cur.includes(t)?cur.filter(x=>x!==t):[...cur,t]; setTags(n.length?n:['יומיום']); };
   const save=()=>{
     if(stats.words<5){ setErr('צריך טקסט באנגלית של לפחות כמה מילים.'); return; }
-    if(stats.words>8000){ setErr('הטקסט ארוך מדי (מעל 8,000 מילים). חלקו אותו לכמה סיפורים.'); return; }
-    onSave({ id:'u_'+Date.now().toString(36), user:true, level:lvl, cover:cover||'📖', title:title.trim()||splitSentences(paras[0])[0].slice(0,48), he:'', blurb:'', paras:paras.map(en=>({en})) }, stats);
+    if(stats.words>20000){ setErr('הטקסט ארוך מדי (מעל 20,000 מילים). חלקו אותו לכמה סיפורים.'); return; }
+    const st={ id:'u_'+Date.now().toString(36), user:true, level:lvl, cover:cover||'📖', title:title.trim()||splitSentences(paras[0])[0].slice(0,48), he:'', blurb:'', tags:tagList, paras:paras.map(en=>({en})) };
+    if(coverMode==='image'&&image) st.image=image;
+    onSave(st, stats);
   };
   return (<div className={`overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center ${closing?'out':''}`} style={{background:'color-mix(in srgb,var(--ink) 40%,transparent)'}} onClick={close}>
     <div role="dialog" aria-modal="true" aria-label="הוספת סיפור חדש" className={`sheet card w-full sm:max-w-2xl rounded-b-none sm:rounded-[20px] flex flex-col ${closing?'out':''}`} style={{maxHeight:'92vh'}} onClick={e=>e.stopPropagation()}>
       <div className="flex items-center gap-3 p-5 border-b border-line">
-        <h2 className="text-xl font-bold me-auto">הוספת סיפור חדש</h2>
+        <h2 className="text-xl font-extrabold me-auto">הוספת סיפור חדש</h2>
         <button className="btn btn-ghost w-11 h-11" onClick={close} aria-label="סגירה"><IconX size={18}/></button>
       </div>
-      <div className="p-5 flex flex-col gap-4 overflow-y-auto">
+      <div className="p-5 flex flex-col gap-5 overflow-y-auto">
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3 flex-wrap"><label htmlFor="add-text" className="font-semibold me-auto">1. הטקסט באנגלית</label>
+          <div className="flex items-center gap-3 flex-wrap"><label htmlFor="add-text" className="font-bold me-auto">1. הטקסט באנגלית</label>
             <label className="btn btn-line px-3 py-1.5 text-sm cursor-pointer">העלאת קובץ <bdi dir="ltr">.txt</bdi><input id="add-file" type="file" accept=".txt,text/plain" className="sr-only" onChange={onFile}/></label></div>
           <textarea id="add-text" dir="ltr" className="field book text-left" rows={8} placeholder="Paste any English text here: an article, a page from a book, or a story you asked an AI to write…" value={text} onChange={e=>{ setText(e.target.value); setErr(''); }}></textarea>
-          {stats.words>0&&<div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
-            {[[stats.words,'מילים'],[paras.length,'פסקאות'],[stats.known,'מילים שכבר מוכרות לך'],[`${stats.dict}/${stats.unique}`,'נמצאות במילון']].map(([v,l])=><div key={l} className="rounded-xl bg-sunk py-2 px-1"><div className="num font-bold text-lg">{v}</div><div className="text-[11px] text-muted leading-tight">{l}</div></div>)}
+          {stats.words>0&&<div className="analysis grid grid-cols-2 sm:grid-cols-4 gap-2 text-center" aria-live="polite">
+            {[[stats.words.toLocaleString('he-IL'),'מילים'],[readMinutes(stats.words)+' דק׳','זמן קריאה משוער'],[`שלב ${auto}`,LEVELS[auto-1].name],[stats.fresh,'מילים חדשות לך']].map(([v,l])=><div key={l} className="rounded-xl bg-sunk py-2 px-1"><div className="num font-extrabold text-lg">{v}</div><div className="text-[11px] text-muted leading-tight">{l}</div></div>)}
           </div>}
-          {stats.words>0&&stats.dict<stats.unique&&<p className="text-xs text-muted">ל־<span className="num">{stats.unique-stats.dict}</span> מילים אין תרגום במילון המובנה. הן יקבלו תעתיק הגייה אוטומטי, ואת התרגום אפשר יהיה להוסיף בלחיצה על המילה.</p>}
+          {stats.words>0&&<p className="text-xs text-muted"><span className="num">{paras.length}</span> פסקאות · <span className="num">{stats.known}</span> מילים שכבר מוכרות לך · <span className="num">{stats.dict}/{stats.unique}</span> נמצאות במילון. מילים שלא במילון יקבלו תעתיק הגייה אוטומטי.</p>}
         </div>
         <div className="grid sm:grid-cols-2 gap-4">
-          <div className="flex flex-col gap-2"><label htmlFor="add-title" className="font-semibold">2. כותרת</label>
+          <div className="flex flex-col gap-2"><label htmlFor="add-title" className="font-bold">2. כותרת</label>
             <input id="add-title" dir="auto" className="field" placeholder="למשל: My first article" value={title} onChange={e=>setTitle(e.target.value)} maxLength={80}/></div>
-          <div className="flex flex-col gap-2"><span className="font-semibold">רמת קושי</span>
+          <div className="flex flex-col gap-2"><span className="font-bold">רמת קושי</span>
             <div className="seg self-start" role="group" aria-label="רמת קושי">{LEVELS.map(L=><button key={L.n} aria-pressed={lvl===L.n} onClick={()=>setLevel(L.n)} title={L.name}>שלב {L.n}</button>)}</div>
-            <span className="text-xs text-muted">{stats.words>0?<>לפי האורך, ההצעה שלי: שלב <span className="num">{auto}</span> ({LEVELS[auto-1].name}).</>:'אציע רמה לפי אורך הטקסט.'}</span></div>
+            <span className="text-xs text-muted">{level?<button className="hit text-primary font-semibold" onClick={()=>setLevel(0)}>חזרה להצעה האוטומטית (שלב {auto})</button>:'נקבע אוטומטית לפי האורך: עד 60 מילים שלב 1, עד 120 שלב 2, עד 250 שלב 3, מעל זה שלב 4.'}</span></div>
         </div>
-        <div className="flex flex-col gap-2"><span className="font-semibold">אימוג׳י</span>
-          <div className="flex flex-wrap gap-1.5 items-center">{EMOJI.map(e=><button key={e} aria-pressed={cover===e} aria-label={'אימוג׳י '+e} onClick={()=>setCover(e)} className="w-11 h-11 rounded-xl text-xl grid place-items-center" style={{background:cover===e?'var(--primary-soft)':'var(--sunk)', boxShadow:cover===e?'0 0 0 2px var(--primary) inset':'none'}}>{e}</button>)}
-            <input id="add-emoji" className="field text-center text-xl" style={{width:'3.5rem', padding:'.35rem', minHeight:'44px'}} value={EMOJI.includes(cover)?'':cover} onChange={e=>setCover(e.target.value.slice(0,4))} placeholder="אחר" aria-label="אימוג׳י אחר"/></div>
+        <div className="flex flex-col gap-2"><span className="font-bold">נושאים</span>
+          <div className="flex flex-wrap gap-1.5">{TOPICS.map(t=><button key={t} className="filter-pill" aria-pressed={tagList.includes(t)} onClick={()=>toggleTag(t)}>{t}</button>)}</div>
+          {!tags&&stats.words>0&&<span className="text-xs text-muted">זוהו אוטומטית מהטקסט. אפשר לשנות.</span>}</div>
+        <div className="flex flex-col gap-2"><span className="font-bold">3. תמונת שער</span>
+          <div className="seg self-start" role="group" aria-label="סוג שער"><button aria-pressed={coverMode==='emoji'} onClick={()=>setCoverMode('emoji')}>אימוג׳י</button><button aria-pressed={coverMode==='image'} onClick={()=>setCoverMode('image')}>תמונה משלי</button></div>
+          {coverMode==='emoji' ? <div className="flex flex-wrap gap-1.5 items-center">{EMOJI.map(e=><button key={e} aria-pressed={cover===e} aria-label={'אימוג׳י '+e} onClick={()=>setCover(e)} className="w-11 h-11 rounded-xl text-xl grid place-items-center" style={{background:cover===e?'var(--primary-soft)':'var(--sunk)', boxShadow:cover===e?'0 0 0 2px var(--primary) inset':'none'}}>{e}</button>)}
+              <input id="add-emoji" className="field text-center text-xl" style={{width:'3.5rem', padding:'.35rem', minHeight:'44px'}} value={EMOJI.includes(cover)?'':cover} onChange={e=>setCover(e.target.value.slice(0,4))} placeholder="אחר" aria-label="אימוג׳י אחר"/></div>
+          : <div className="flex items-center gap-4 flex-wrap">
+              {image?<img src={image} alt="תמונת השער" className="w-24 h-24 rounded-2xl object-cover border border-line"/>:<div className="w-24 h-24 rounded-2xl border-2 border-dashed border-line grid place-items-center text-muted text-xs text-center p-2">אין תמונה</div>}
+              <div className="flex flex-col gap-2">
+                <label className="btn btn-line px-4 cursor-pointer">{imgBusy?'מכין את התמונה…':image?'החלפת תמונה':'בחירת תמונה (JPG, PNG, WEBP)'}<input id="add-image" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={onImage}/></label>
+                {image&&<button className="hit text-muted underline text-sm self-start" onClick={()=>setImage(null)}>הסרת התמונה</button>}
+                <span className="text-xs text-muted">התמונה מוקטנת ונשמרת רק בדפדפן שלך.</span>
+              </div>
+            </div>}
         </div>
-        {err&&<div className="rounded-xl p-3 text-sm" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{err}</Bi></div>}
+        {err&&<div className="rounded-xl p-3 text-sm" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{err}</Bi></div>}
       </div>
       <div className="p-5 border-t border-line flex gap-2 flex-wrap" style={{paddingBottom:'max(20px, env(safe-area-inset-bottom,0px))'}}>
-        <button className="btn btn-primary py-3 px-6" onClick={save} disabled={stats.words<5}><IconCheck size={18}/>שמור סיפור</button>
+        <button className="btn btn-go py-3 px-6" onClick={save} disabled={stats.words<5||imgBusy}><IconCheck size={18}/>שמור סיפור</button>
         <button className="btn btn-ghost py-3 px-5" onClick={close}>ביטול</button>
       </div>
     </div>
@@ -860,11 +1060,106 @@ function SelectionPopover({rootRef, disabled, onSpeak, onCopy}){
   </div>);
 }
 
+/* ---------- flashcards (spaced repetition session) ---------- */
+function FlashSession({keys, state, actions, voice, title, onDone, celebrate}){
+  const [queue,setQueue]=useState(()=>keys.slice()); const [flipped,setFlipped]=useState(false);
+  const [stats,setStats]=useState({seen:0, ok:0, again:0, graduated:[]}); const requeued=useRef(new Set());
+  const k=queue[0]; const info=k?wordInfo(k):null; const card=k?srsCard(state,k):null;
+  useEffect(()=>{ if(k){ setFlipped(false); speakText(k,.9,voice); } },[k, stats.seen]);
+  const grade=g=>{ if(!k) return; const next=srsNext(card,g);
+    actions.reviewWord(k,g);
+    const grad=next.iv>=GRADUATE_DAYS;
+    setStats(s=>({seen:s.seen+1, ok:s.ok+(g>=2?1:0), again:s.again+(g===0?1:0), graduated:grad?[...s.graduated,k]:s.graduated}));
+    setQueue(q=>{ const rest=q.slice(1); if(g===0&&!requeued.current.has(k)){ requeued.current.add(k); return [...rest,k]; } return rest; });
+    if(grad) celebrate&&celebrate(false); };
+  useEffect(()=>{ const h=e=>{ const t=e.target; if(t&&/INPUT|TEXTAREA|SELECT/.test(t.tagName)) return;
+      if(e.key===' '||e.key==='Enter'){ e.preventDefault(); if(!flipped) setFlipped(true); else grade(2); }
+      else if(flipped&&/^[1-4]$/.test(e.key)) grade(+e.key-1); };
+    window.addEventListener('keydown',h); return ()=>window.removeEventListener('keydown',h); });
+  if(!k) return (<section className="card p-6 sm:p-8 flex flex-col gap-4 items-start rise" role="status">
+    <div className="eyebrow">{title}</div>
+    <h2 className="text-3xl font-extrabold">{stats.seen?'סיימת את החזרה!':'אין כרגע מילים לחזרה'}</h2>
+    {stats.seen>0&&<div className="grid grid-cols-3 gap-3 w-full max-w-md">
+      {[[stats.seen,'כרטיסים'],[stats.ok,'ידעת'],[stats.graduated.length,'עברו למוכרות']].map(([v,l])=><div key={l} className="rounded-xl bg-sunk p-3 text-center"><div className="num text-2xl font-extrabold">{v}</div><div className="text-xs text-muted">{l}</div></div>)}
+    </div>}
+    {stats.graduated.length>0&&<div className="flex flex-wrap gap-1.5" dir="ltr">{stats.graduated.map(w=><span key={w} className="pill pill-known book">{w}</span>)}</div>}
+    <p className="text-muted">{stats.seen?'המילים יחזרו בדיוק כשהזיכרון מתחיל להיחלש. ככה הן נשארות לתמיד.':'כל מילה ששמרת לתרגול תופיע כאן כשיגיע הזמן לחזור עליה.'}</p>
+    <button className="btn btn-primary px-6" onClick={onDone}>סיום</button>
+  </section>);
+  const total=stats.seen+queue.length; const ex=examplesFor(k, STORIES)[0];
+  return (<div className="flex flex-col gap-4 pb-28 sm:pb-0">
+    <div className="flex items-center gap-3">
+      <button className="btn btn-ghost px-3 text-sm" onClick={onDone}><IconX size={16}/>יציאה</button>
+      <div className="flex-1 h-2.5 rounded-full bg-sunk overflow-hidden" dir="ltr"><div className="h-full bar" style={{width:(stats.seen/Math.max(1,total)*100)+'%', background:'var(--primary)'}}></div></div>
+      <span className="num text-sm text-muted">{stats.seen}/{total}</span>
+    </div>
+    <div className="eyebrow">{title}</div>
+    <button key={k+stats.seen} className={`flash card rise ${flipped?'is-flipped':''}`} onClick={()=>!flipped&&setFlipped(true)} aria-label={flipped?'הכרטיס הפוך':'לחצו כדי לראות את הפירוש'}>
+      <div className="flex items-center justify-center gap-3" dir="ltr">
+        <span className="book text-5xl sm:text-6xl font-bold">{k}</span>
+      </div>
+      {!flipped ? <span className="text-muted text-sm mt-4">נסו להיזכר מה זה אומר, ואז לחצו כדי לבדוק</span>
+      : <div className="flex flex-col items-center gap-2 mt-4 rise">
+          <div className="text-3xl font-extrabold"><Bi>{info.he||'(אין תרגום)'}</Bi></div>
+          <div className="text-xl" style={{color:'var(--primary)'}}>{info.pron}</div>
+          {ex&&<div dir="ltr" className="book text-muted text-center max-w-md">“{ex.en}”{ex.he&&<div dir="rtl" className="text-sm">{ex.he}</div>}</div>}
+        </div>}
+    </button>
+    <div className="flex justify-center gap-2">
+      <button className="btn btn-ghost px-4" onClick={()=>speakText(k,.9,voice)}><IconSpeaker size={18}/>השמעה</button>
+      <button className="btn btn-ghost px-4" onClick={()=>speakText(k,.45,voice)}><span aria-hidden="true">🐢</span>לאט</button>
+    </div>
+    {flipped ? <div className="grade-row grid grid-cols-4 gap-2">
+      {[[0,'שכחתי','bad'],[1,'קשה','learn'],[2,'ידעתי','primary'],[3,'קל','known']].map(([g,l,c])=><button key={g} className={`btn grade grade-${c} flex-col py-2`} style={{minHeight:'60px'}} onClick={()=>grade(g)}>
+        <span className="font-extrabold">{l}</span><span className="text-[11px] opacity-80 num">{gradeLabel(card,g)}</span></button>)}
+    </div> : <button className="btn btn-primary py-3 dock-mobile" onClick={()=>setFlipped(true)}>הצגת התשובה</button>}
+    <p className="text-xs text-muted text-center hidden sm:block">מקשים: רווח להפוך · <bdi dir="ltr">1–4</bdi> לדרג</p>
+  </div>);
+}
+
+/* ---------- post-reading summary ---------- */
+function SummaryModal({story, snap, state, actions, voice, onClose, onPractice}){
+  const [closing, close]=useClosing(onClose);
+  useEffect(()=>{ const k=e=>{ if(e.key==='Escape') close(); }; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[]);
+  const d=storyData(story); const keys=d.keys.filter(k=>!NAMES.has(k));
+  const metNew=keys.filter(k=>!snap[k] && state.words[k]); const promoted=keys.filter(k=>snap[k]==='learning'&&state.words[k]==='known');
+  const stillNew=keys.filter(k=>!state.words[k]); const learning=keys.filter(k=>state.words[k]==='learning');
+  const [bulk,setBulk]=useState(false);
+  const Chips=({list,kind})=> <div className="flex flex-wrap gap-1.5" dir="ltr">{list.slice(0,40).map(k=><button key={k} className={`pill pill-${kind} book`} onClick={()=>speakText(k,.9,voice)} title={wordInfo(k).he||''}>{k}</button>)}{list.length>40&&<span className="meta">+{list.length-40}</span>}</div>;
+  return (<div className={`overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center ${closing?'out':''}`} style={{background:'color-mix(in srgb,var(--ink) 40%,transparent)'}} onClick={close}>
+    <div role="dialog" aria-modal="true" aria-label="סיכום הקריאה" className={`sheet card w-full sm:max-w-lg rounded-b-none sm:rounded-[22px] p-5 sm:p-6 flex flex-col gap-4 ${closing?'out':''}`} style={{maxHeight:'92vh', overflowY:'auto', paddingBottom:'max(20px, env(safe-area-inset-bottom,0px))'}} onClick={e=>e.stopPropagation()}>
+      <div className="flex items-start gap-3"><StoryCover story={story} size={56}/>
+        <div className="flex-1 min-w-0"><div className="eyebrow">סיימת לקרוא</div><h2 className="text-2xl font-extrabold leading-tight">כל הכבוד! +10 נקודות</h2><div dir="ltr" className="book text-muted text-left truncate">{story.title}</div></div>
+        <button className="btn btn-ghost w-11 h-11 shrink-0" onClick={close} aria-label="סגירה"><IconX size={18}/></button></div>
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-xl p-3 tint-new"><div className="num text-2xl font-extrabold">{metNew.length}</div><div className="text-xs">מילים חדשות שפגשת</div></div>
+        <div className="rounded-xl p-3 tint-known"><div className="num text-2xl font-extrabold">{promoted.length}</div><div className="text-xs">עברו מבלמידה למוכרות</div></div>
+        <div className="rounded-xl p-3 tint-learn"><div className="num text-2xl font-extrabold">{learning.length}</div><div className="text-xs">ממתינות לתרגול</div></div>
+      </div>
+      {metNew.length>0&&<div className="flex flex-col gap-1.5"><div className="text-sm font-bold">מילים חדשות שפגשת בסיפור</div><Chips list={metNew} kind={'learning'}/></div>}
+      {promoted.length>0&&<div className="flex flex-col gap-1.5"><div className="text-sm font-bold">מילים שקידמת למוכרות 🎉</div><Chips list={promoted} kind="known"/></div>}
+      {stillNew.length>0&&<div className="rounded-xl bg-sunk p-3 flex flex-col gap-2">
+        <div className="text-sm">נשארו <b className="num">{stillNew.length}</b> מילים כחולות שלא לחצת עליהן. מכירים אותן?</div>
+        {!bulk?<button className="btn btn-line px-4 text-sm self-start" onClick={()=>{ actions.finishStory(story,true); setBulk(true); }}>כן, סמנו את כולן כמוכרות</button>
+          :<span className="text-sm font-semibold" style={{color:'var(--known)'}}>סומנו כמוכרות</span>}
+      </div>}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <button className="btn btn-go px-5 py-3 flex-1" onClick={()=>onPractice(learning)} disabled={!learning.length}><IconBolt size={18}/>תרגל מילים קשות מהסיפור{learning.length?` (${learning.length})`:''}</button>
+        <button className="btn btn-ghost px-5 py-3" onClick={close}>חזרה לסיפור</button>
+      </div>
+    </div>
+  </div>);
+}
+
 /* ---------- reader ---------- */
 const FONT_SIZES=['1.15rem','1.32rem','1.5rem','1.72rem'];
-function Reader({story, stories, state, actions, voice, voices, back, toast, onWord}){
+const READ_SNAPS={};
+function Reader({story, stories, state, actions, voice, voices, back, toast, onWord, onPractice}){
   const {settings}=state; const d=storyData(story);
-  const [finishOpen,setFinishOpen]=useState(false);
+  const [summary,setSummary]=useState(false);
+  // word statuses when this reading began; kept across leaving and reopening the story until "finished"
+  const snap=useRef(null); if(!snap.current){ if(!READ_SNAPS[story.id]){ const o={}; storyData(story).keys.forEach(k=>{ if(state.words[k]) o[k]=state.words[k]; }); READ_SNAPS[story.id]=o; } snap.current=READ_SNAPS[story.id]; }
+  useEffect(()=>{ actions.setLastStory(story.id, 0); },[story.id]);
   const [confirmDel,setConfirmDel]=useState(false);
   const [trans,setTrans]=useState({});
   const paraRefs=useRef([]);
@@ -922,8 +1217,8 @@ function Reader({story, stories, state, actions, voice, voices, back, toast, onW
       {dictation&&<div className="rounded-xl px-4 py-3 mb-6 text-sm font-semibold flex items-center gap-2 mx-auto" style={{maxWidth:'38rem', background:'var(--sun-soft)', color:'var(--ink)'}}><IconEar size={18}/>מצב הכתבה פעיל: הטקסט מוסתר. הקשיבו, וכתבו באזור הכתיבה.</div>}
       <div className="mx-auto" style={{maxWidth:'38rem'}}>
         <header dir="ltr" className="text-left border-b border-line pb-6 mb-8">
-          <div className="text-4xl mb-4" aria-hidden="true">{story.cover}</div>
-          <h1 className="book text-3xl sm:text-[2.5rem] font-bold leading-tight">{story.title}</h1>
+          <div className="mb-5"><StoryCover story={story} size={84} radius={20}/></div>
+          <h1 className="book text-[2rem] sm:text-[2.75rem] font-extrabold leading-tight tracking-tight">{story.title}</h1>
           {story.he&&<div dir="rtl" className="text-muted mt-2 text-right">{story.he}</div>}
         </header>
         <div className="flex flex-col gap-6" style={{'--read-size':FONT_SIZES[settings.font]||FONT_SIZES[1]}}>
@@ -948,19 +1243,10 @@ function Reader({story, stories, state, actions, voice, voices, back, toast, onW
             </div>); })}
         </div>
 
-        <div className="mt-12 rounded-2xl p-5 flex flex-col gap-3" style={{background:'var(--primary-soft)'}}>
-          {doneToday ? <div className="font-semibold flex items-center gap-2" style={{color:'var(--good)'}}><IconCheck/>כל הכבוד! קראת את הסיפור הזה היום.</div>
-          : !finishOpen ? <>
-            <div className="text-xl font-bold">סיימת לקרוא?</div>
-            <button className="btn btn-primary py-3 px-5 self-start" onClick={()=>setFinishOpen(true)}><IconCheck/>סיימתי את הסיפור</button>
-          </> : <>
-            <div className="text-xl font-bold">יופי! מה עם המילים הכחולות?</div>
-            <p className="text-sm text-muted">נשארו בסיפור <b className="num">{newCount}</b> מילים חדשות שלא לחצת עליהן. אם הן מוכרות לך, אפשר לסמן את כולן בבת אחת.</p>
-            <div className="flex flex-wrap gap-2">
-              {newCount>0&&<button className="btn btn-primary py-3 px-4" onClick={()=>{ actions.finishStory(story, true); setFinishOpen(false); }}>כל המילים הכחולות מוכרות לי</button>}
-              <button className="btn btn-ghost py-3 px-4" style={{background:'var(--surface)'}} onClick={()=>{ actions.finishStory(story, false); setFinishOpen(false); }}>סיימתי, בלי לשנות מילים</button>
-            </div>
-          </>}
+        <div className="finish-box mt-12 rounded-2xl p-5 flex flex-col sm:flex-row gap-3 sm:items-center">
+          <div className="flex-1"><div className="text-xl font-extrabold">{doneToday?'קראת את הסיפור הזה היום ✓':'הגעת לסוף הסיפור'}</div>
+            <div className="text-sm text-muted">{doneToday?'אפשר לראות שוב את הסיכום ולתרגל את המילים הקשות.':'לחצו כדי לראות מה למדת ולתרגל את המילים הקשות.'}</div></div>
+          <button className="btn btn-go px-6 py-3 text-lg" onClick={()=>{ if(!doneToday){ player.stop(); actions.finishStory(story,false); } setSummary(true); }}><IconCheck/>סיימתי לקרוא</button>
         </div>
         {story.user&&<div className="mt-5 flex items-center gap-3 flex-wrap text-sm">
           {!confirmDel ? <button className="hit text-muted underline flex items-center gap-1" onClick={()=>setConfirmDel(true)}><IconTrash size={15}/>מחיקת הסיפור הזה</button>
@@ -972,6 +1258,7 @@ function Reader({story, stories, state, actions, voice, voices, back, toast, onW
     </div>
     <SelectionPopover rootRef={storyRef} disabled={dictation} onSpeak={t=>{ if(player.playing) player.stop(); speakText(t,.9,voice); }} onCopy={copyToPractice}/>
 
+    {summary&&<SummaryModal story={story} snap={snap.current} state={state} actions={actions} voice={voice} onClose={()=>{ setSummary(false); delete READ_SNAPS[story.id]; snap.current=null; }} onPractice={ks=>{ setSummary(false); onPractice(ks, story.title); }}/>}
     <div className="player" dir="rtl">
       <div className="h-1 bg-sunk" dir="ltr"><div className="h-full bar" style={{width:((player.curP+(player.playing?1:0))/story.paras.length*100)+'%', background:'var(--karaoke)'}} ></div></div>
       <div className="gutter"><div className="max-w-[860px] mx-auto py-2.5 flex items-center gap-x-3 gap-y-2 flex-wrap">
@@ -1000,6 +1287,20 @@ function Reader({story, stories, state, actions, voice, voices, back, toast, onW
 }
 
 /* ---------- practice ---------- */
+function SrsCard({state, onStart}){
+  const due=dueWords(state); const learning=Object.values(state.words).filter(s=>s==='learning').length; const next=nextDueAt(state);
+  const reviews=(state.totals&&state.totals.reviews)||0;
+  return (<section className="card srs-card p-5 sm:p-6 flex flex-col sm:flex-row gap-4 sm:items-center">
+    <span className="w-14 h-14 rounded-2xl grid place-items-center shrink-0 text-2xl" style={{background:'var(--primary-soft)'}} aria-hidden="true">🧠</span>
+    <div className="flex-1 min-w-0">
+      <div className="eyebrow">חזרה מרווחת (<bdi dir="ltr">SRS</bdi>)</div>
+      <h2 className="text-2xl font-extrabold">{due.length?<><span className="num">{due.length}</span> מילים מחכות לחזרה</>:'אין מילים לחזרה כרגע'}</h2>
+      <p className="text-sm text-muted">{due.length?'כל מילה חוזרת בדיוק כשמתחילים לשכוח אותה. כמה דקות ביום מספיקות.':next?`החזרה הבאה ${relTime(next)}. בינתיים אפשר לקרוא סיפור.`:learning?'':'שמרו מילים לתרגול מתוך הסיפורים, והן יופיעו כאן.'}
+        {' '}<span className="num">{learning}</span> בלמידה · <span className="num">{reviews}</span> חזרות עד היום</p>
+    </div>
+    <button className="btn btn-go px-6 py-3 text-lg shrink-0" disabled={!due.length} onClick={()=>onStart(due.slice(0,30),'חזרה מרווחת')}><IconPlay size={18}/>{due.length?`התחל חזרה (${Math.min(30,due.length)})`:'אין חזרות'}</button>
+  </section>);
+}
 const CHEERS=['מעולה!','בדיוק!','יפה מאוד!','כל הכבוד!','איזה יופי!','נכון!'];
 const COMFORT=['לא נורא! כל טעות עוזרת למוח לזכור טוב יותר.','כמעט! בפעם הבאה זה כבר ייזכר.','זה בסדר לטעות. ככה בדיוק לומדים.','שווה לנסות שוב. המילה הזו תחזור עוד מעט.'];
 const SESSION_SEC=120;
@@ -1023,7 +1324,7 @@ function makeQuestion(learning, quiz, lastKey, mode){
   }
   return {key, type, options, id:Math.random()};
 }
-function Practice({state, stories, known, actions, voice, celebrate, goRead, onWord}){
+function Practice({state, stories, known, actions, voice, celebrate, goRead, onWord, onSrs}){
   const learning=Object.keys(state.words).filter(k=>state.words[k]==='learning');
   const lvNow=levelFor(known);
   const fallback=[...new Set(STORIES.filter(s=>s.level<=lvNow).flatMap(s=>storyData(s).keys))].filter(k=>k.length>2 && !NAMES.has(k) && state.words[k]!=='known' && MEANING[k] && !MEANING[k].includes('('));
@@ -1060,7 +1361,7 @@ function Practice({state, stories, known, actions, voice, celebrate, goRead, onW
       else if(picked!==null && e.key==='Enter'){ e.preventDefault(); next(); } };
     window.addEventListener('keydown',h); return ()=>window.removeEventListener('keydown',h); });
 
-  if(phase==='intro') return (<section className="card p-6 sm:p-8 flex flex-col gap-5">
+  if(phase==='intro') return (<div className="flex flex-col gap-4"><SrsCard state={state} onStart={onSrs}/><section className="card p-6 sm:p-8 flex flex-col gap-5">
     <div className="flex items-center gap-4 flex-wrap">
       <div className="w-14 h-14 rounded-xl grid place-items-center" style={{background:'var(--learn-bg)'}}><IconBolt size={28}/></div>
       <div className="flex-1 min-w-0"><h1 className="text-2xl sm:text-3xl font-bold">חזרה מהירה של 2 דקות</h1>
@@ -1082,7 +1383,7 @@ function Practice({state, stories, known, actions, voice, celebrate, goRead, onW
       </div>
     </div>}
     <div className="text-xs text-muted hidden sm:block">טיפ: אפשר לענות עם המקשים <bdi dir="ltr">1–4</bdi> ולהמשיך עם <bdi dir="ltr">Enter</bdi>.</div>
-  </section>);
+  </section></div>);
 
   if(phase==='done') return (<section className="card p-6 sm:p-8 flex flex-col gap-5 items-start rise">
     <h1 className="text-3xl font-bold">{stats.n===0?'נגמר הזמן':'סיימת סבב!'}</h1>
@@ -1434,9 +1735,79 @@ function GroupCard({state, actions, profile, known, streak, toast}){
   </section>);
 }
 
+/* ---------- vocabulary explorer ---------- */
+function VocabExplorer({state, stories, known, voice, onWord}){
+  const [tab,setTab]=useState('learning'); const [q,setQ]=useState(''); const [limit,setLimit]=useState(120);
+  const lists=useMemo(()=>{ const kn=[], le=[]; for(const k in state.words){ if(NAMES.has(k)) continue; if(state.words[k]==='known') kn.push(k); else if(state.words[k]==='learning') le.push(k); }
+    const fresh=new Set(); for(const s of stories){ if(!(isOpenLevel(s.level, known, state.unlocked)||s.user)) continue; for(const k of storyData(s).keys) if(!state.words[k]&&!NAMES.has(k)&&wordInfo(k).he) fresh.add(k); }
+    return {known:kn.sort(), learning:le.sort(), new:[...fresh].sort()}; },[state.words, stories, known, state.unlocked]);
+  useEffect(()=>setLimit(120),[tab,q]);
+  const t=q.trim().toLowerCase(); const heQ=isHebrew(t);
+  const items=lists[tab].filter(k=>!t || (heQ?String(wordInfo(k).he||'').includes(q.trim()):k.includes(t)));
+  const T=[['known','מוכרות'],['learning','בלמידה'],['new','חדשות']];
+  return (<section className="card p-5 sm:p-6 flex flex-col gap-4">
+    <div className="flex items-center gap-3 flex-wrap"><h2 className="section-title me-auto">אוצר המילים שלי</h2><span className="meta">לחיצה על מילה משמיעה אותה</span></div>
+    <div className="flex gap-1.5 flex-wrap" role="tablist">{T.map(([k,l])=><button key={k} role="tab" aria-selected={tab===k} className={`vtab vtab-${k==='learning'?'learning':k}`} onClick={()=>setTab(k)}>{l} <b className="num">{lists[k].length}</b></button>)}</div>
+    <label className="flex items-center gap-2 rounded-xl border-[1.5px] border-line bg-surface px-3 h-11" htmlFor="vocab-search"><IconSearch size={17}/>
+      <input id="vocab-search" dir="auto" className="flex-1 min-w-0 h-full bg-transparent outline-none" placeholder="חיפוש מילה באנגלית או בעברית" value={q} onChange={e=>setQ(e.target.value)}/></label>
+    {items.length===0 ? <p className="text-sm text-muted text-center py-4">{t?'לא נמצאו מילים.':tab==='known'?'עוד אין מילים מוכרות. סמנו "כבר מכיר!" על מילים בסיפורים.':tab==='learning'?'עוד אין מילים בלמידה. לחצו על מילה בסיפור כדי להוסיף.':'קראתם את כל המילים בסיפורים הפתוחים!'}</p>
+    : <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">{items.slice(0,limit).map(k=>{ const i=wordInfo(k); const c=tab==='learning'?srsCard(state,k):null;
+        return (<li key={k} className={`vword vword-${tab}`}>
+          <button className="flex-1 min-w-0 text-start" onClick={()=>speakText(k,.9,voice)} aria-label={`השמעת ${k}`}>
+            <span dir="ltr" className="book font-bold text-lg block text-left truncate">{k}</span>
+            <span className="text-xs text-muted block truncate"><Bi>{i.he||''}</Bi></span>
+            {c&&c.last>0&&<span className="text-[10px] text-muted block">חזרה {relTime(c.due)}</span>}
+          </button>
+          <button className="hit w-8 h-8 grid place-items-center rounded-lg text-muted shrink-0" onClick={()=>onWord(k,k)} aria-label={`פרטים על ${k}`}><IconBook size={15}/></button>
+        </li>); })}</ul>}
+    {items.length>limit&&<button className="btn btn-ghost px-4 self-center" onClick={()=>setLimit(l=>l+240)}>הצגת עוד ({items.length-limit})</button>}
+  </section>);
+}
+/* ---------- achievements ---------- */
+function Achievements({state}){
+  const st=badgeStats(state); const got=state.badges||{}; const n=BADGES.filter(b=>got[b.id]).length;
+  return (<section className="card p-5 sm:p-6 flex flex-col gap-4">
+    <div className="flex items-center gap-3"><h2 className="section-title me-auto">הישגים</h2><span className="meta num">{n}/{BADGES.length} נפתחו</span></div>
+    <ul className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">{BADGES.map(b=>{ const have=!!got[b.id]; const v=Math.min(b.need, st[b.of]||0);
+      return (<li key={b.id} className={`badge ${have?'is-on':''}`} title={b.desc}>
+        <span className="badge-icon" aria-hidden="true">{b.icon}</span>
+        <span className="font-extrabold leading-tight">{b.name}</span>
+        <span className="text-xs text-muted leading-snug">{b.desc}</span>
+        {have ? <span className="text-[11px] font-bold" style={{color:'var(--known)'}}>✓ נפתח</span>
+          : <span className="w-full"><span className="block h-1.5 rounded-full bg-sunk overflow-hidden" dir="ltr"><span className="block h-full bar" style={{width:(v/b.need*100)+'%', background:'var(--primary)'}}></span></span><span className="text-[11px] text-muted num">{v}/{b.need}</span></span>}
+      </li>); })}</ul>
+  </section>);
+}
+/* ---------- backup ---------- */
+function BackupCard({state, actions, profile, toast}){
+  const [pending,setPending]=useState(null); const [err,setErr]=useState(''); const fileRef=useRef(null);
+  const size=useMemo(()=>{ try{ return JSON.stringify(state).length; }catch(e){ return 0; } },[state]);
+  const exportJson=()=>{ const data={app:'lumi-english', version:3, exported:new Date().toISOString(), profile:{name:profile.name, avatar:profile.avatar}, state};
+    const text=JSON.stringify(data); const name=`lumi-english-${profile.name.replace(/[^\wא-ת-]+/g,'')||'backup'}-${todayKey()}.json`;
+    try{ const url=URL.createObjectURL(new Blob([text],{type:'application/json'})); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000); toast('קובץ הגיבוי ירד למחשב'); }
+    catch(e){ copyText(text).then(ok=>toast(ok?'ההורדה חסומה כאן, אז הגיבוי הועתק ללוח':'ההורדה חסומה כאן. פתחו את האתר lumi-english.netlify.app')); } };
+  const onFile=e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return; setErr('');
+    const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(String(r.result)); if(!d||d.app!=='lumi-english'||!d.state||typeof d.state.words!=='object') throw 0; setPending(d); }catch(x){ setErr('הקובץ הזה לא נראה כמו גיבוי של Lumi English.'); } }; r.readAsText(f); };
+  return (<section className="card p-5 sm:p-6 flex flex-col gap-3">
+    <h2 className="section-title">גיבוי ושחזור</h2>
+    <div className="rounded-xl p-3 text-sm leading-relaxed" style={{background:'var(--sun-soft)'}}><b>חשוב לדעת: </b>ההתקדמות שלך שמורה רק בדפדפן הזה. ניקוי נתוני הגלישה, החלפת דפדפן או מכשיר חדש מתחילים מאפס. מומלץ להוריד גיבוי מדי פעם (כולל הסיפורים והתמונות שהוספת).</div>
+    <div className="flex gap-2 flex-wrap items-center">
+      <button className="btn btn-primary px-5" onClick={exportJson}>הורד גיבוי (<bdi dir="ltr">JSON</bdi>)</button>
+      <button className="btn btn-line px-5" onClick={()=>fileRef.current&&fileRef.current.click()}>שחזר מגיבוי</button>
+      <input ref={fileRef} id="backup-file" type="file" accept="application/json,.json" className="sr-only" onChange={onFile}/>
+      <span className="meta num">גודל הנתונים: {(size/1024).toFixed(0)} KB</span>
+    </div>
+    {err&&<div className="rounded-xl p-3 text-sm" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}>{err}</div>}
+    {pending&&<div className="rounded-xl border border-line p-3 flex flex-col gap-2" role="alertdialog" aria-label="אישור שחזור">
+      <div className="text-sm">לשחזר את הגיבוי של <b><bdi>{(pending.profile&&pending.profile.name)||'משתמש'}</bdi></b> מ־<span className="num">{String(pending.exported||'').slice(0,10)}</span>? <b>ההתקדמות הנוכחית של המשתמש הזה תוחלף.</b></div>
+      <div className="flex gap-2"><button className="btn py-2 px-4" style={{background:'var(--bad)', color:'var(--surface)'}} onClick={()=>{ actions.restore(pending.state); setPending(null); toast('הגיבוי שוחזר'); }}>כן, לשחזר</button><button className="btn btn-ghost py-2 px-4" onClick={()=>setPending(null)}>ביטול</button></div>
+    </div>}
+  </section>);
+}
+
 /* ---------- progress ---------- */
 const HE_DAYS=['א׳','ב׳','ג׳','ד׳','ה׳','ו׳','ש׳'];
-function Progress({state, stories, actions, streak, known, profile, toast}){
+function Progress({state, stories, actions, streak, known, profile, toast, voice, onWord}){
   const [off,setOff]=useState(0);
   const [confirmReset,setConfirmReset]=useState(false);
   const today=new Date(); const tk=todayKey();
@@ -1446,6 +1817,8 @@ function Progress({state, stories, actions, streak, known, profile, toast}){
   const todayH=state.history[tk]||{xp:0,met:false};
   const metCount=days.filter(d=>state.history[dayKey(d)]&&state.history[dayKey(d)].met).length;
   const weekWords=days.reduce((a,d)=>a+((state.history[dayKey(d)]&&state.history[dayKey(d)].words)||0),0);
+  const weekLearned=days.reduce((a,d)=>a+((state.history[dayKey(d)]&&state.history[dayKey(d)].learned)||0),0);
+  const activeDays=days.filter(d=>{ const h=state.history[dayKey(d)]; return h&&(h.xp>0||h.words>0); }).length;
   const maxW=Math.max(200, ...days.map(d=>(state.history[dayKey(d)]&&state.history[dayKey(d)].words)||0));
   const learning=Object.values(state.words).filter(s=>s==='learning').length;
   const acc=state.totals.answered?Math.round(state.totals.correct/state.totals.answered*100):null;
@@ -1478,21 +1851,22 @@ function Progress({state, stories, actions, streak, known, profile, toast}){
 
     <section className="card p-5 sm:p-6 flex flex-col gap-5">
       <div className="flex items-center gap-2">
-        <button className="btn btn-ghost w-11 h-11" onClick={()=>setOff(o=>o-1)} aria-label="השבוע הקודם"><IconChevR size={18}/></button>
+        <button className="btn btn-ghost px-3 text-sm" onClick={()=>setOff(o=>o-1)}><IconChevR size={16}/>שבוע קודם</button>
         <div className="flex-1 text-center">
           <h2 className="font-bold text-lg">{off===0?'השבוע':off===-1?'שבוע שעבר':off===1?'שבוע הבא':`שבוע ${fmt.format(days[0])}`}</h2>
           <div className="text-xs text-muted num">{fmt.format(days[0])} – {fmt.format(days[6])}</div>
         </div>
-        <button className="btn btn-ghost w-11 h-11" onClick={()=>setOff(o=>o+1)} aria-label="השבוע הבא"><IconChevL size={18}/></button>
+        <button className="btn btn-ghost px-3 text-sm" onClick={()=>setOff(o=>o+1)} disabled={off>=0}>שבוע הבא<IconChevL size={16}/></button>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-sunk p-3"><div className="num text-2xl font-bold">{weekWords.toLocaleString('he-IL')}</div><div className="text-xs text-muted">מילים שקראת בשבוע הזה</div></div>
-        <div className="rounded-xl bg-sunk p-3"><div className="num text-2xl font-bold">{metCount}<span className="text-muted text-base font-semibold">/7</span></div><div className="text-xs text-muted">ימים שבהם הושלם היעד</div></div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="rounded-xl tint-known p-3"><div className="num text-2xl font-extrabold">{weekLearned}</div><div className="text-xs">מילים שלמדת השבוע</div></div>
+        <div className="rounded-xl bg-sunk p-3"><div className="num text-2xl font-extrabold">{activeDays}<span className="text-muted text-base font-semibold">/7</span></div><div className="text-xs text-muted">ימים פעילים · <span className="num">{metCount}</span> עם יעד מלא</div></div>
+        <div className="rounded-xl bg-sunk p-3 col-span-2 sm:col-span-1"><div className="num text-2xl font-extrabold">{weekWords.toLocaleString('he-IL')}</div><div className="text-xs text-muted">מילים שקראת או שמעת</div></div>
       </div>
       <div className="grid grid-cols-7 gap-1.5 sm:gap-3" role="list">
-        {days.map((d,i)=>{ const k=dayKey(d); const h=state.history[k]||{}; const isToday=k===tk; const future=d>today && !isToday; const w=h.words||0;
-          return (<div key={k} role="listitem" aria-label={`${fmt.format(d)}: ${w} מילים${h.met?', היעד הושלם':''}`} className="flex flex-col items-center gap-1.5" style={{opacity:future?.45:1}}>
-            <span className="num text-xs font-semibold" style={{color:w?'var(--ink)':'var(--muted)'}}>{w||'–'}</span>
+        {days.map((d,i)=>{ const k=dayKey(d); const h=state.history[k]||{}; const isToday=k===tk; const future=d>today && !isToday; const w=h.words||0; const ln=h.learned||0;
+          return (<div key={k} role="listitem" aria-label={`${fmt.format(d)}: ${w} מילים, ${ln} נלמדו${h.met?', היעד הושלם':''}`} className="flex flex-col items-center gap-1.5" style={{opacity:future?.45:1}}>
+            <span className="num text-xs font-semibold leading-tight text-center" style={{color:w?'var(--ink)':'var(--muted)'}}>{w||'–'}{ln>0&&<span className="block text-[10px]" style={{color:'var(--known)'}}>+{ln}</span>}</span>
             <div className="w-full rounded-lg bg-sunk flex items-end overflow-hidden" style={{height:'110px'}}>
               <div className="w-full rounded-lg bar" style={{height:(w?Math.max(6,w/maxW*100):0)+'%', background:h.met?'var(--good)':'var(--primary)'}}></div>
             </div>
@@ -1500,9 +1874,11 @@ function Progress({state, stories, actions, streak, known, profile, toast}){
             <span className={`text-xs leading-tight text-center rounded-md px-1.5 py-0.5 ${isToday?'font-bold':'text-muted'}`} style={isToday?{background:'var(--primary-soft)', color:'var(--primary)'}:{}}>{HE_DAYS[i]}<br/><span className="num">{d.getDate()}</span></span>
           </div>); })}
       </div>
-      <p className="text-xs text-muted">העמודה מראה כמה מילים קראת או שמעת באותו יום. ה־V הירוק מסמן יום שבו הושלם היעד היומי.</p>
+      <p className="text-xs text-muted">העמודה מראה כמה מילים קראת או שמעת באותו יום, והמספר הירוק כמה מילים למדת. ה־V מסמן יום שבו הושלם היעד היומי.</p>
     </section>
 
+    <Achievements state={state}/>
+    <VocabExplorer state={state} stories={stories} known={known} voice={voice} onWord={onWord}/>
     <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
       {[[known,'מילים מוכרות','var(--good)'],[learning,'בלמידה','var(--ink)'],[doneCount+'/'+stories.length,'סיפורים שנקראו','var(--primary)'],[acc===null?'–':acc+'%','דיוק בתרגול','var(--coral)']].map(([v,l,c])=>
         <div key={l} className="rounded-xl bg-sunk p-4"><div className="num text-3xl font-bold" style={{color:c}} dir="ltr">{typeof v==='number'?<Count value={v}/>:v}</div><div className="text-sm text-muted">{l}</div></div>)}
@@ -1516,6 +1892,7 @@ function Progress({state, stories, actions, streak, known, profile, toast}){
       </ul>
     </section>
 
+    <BackupCard state={state} actions={actions} profile={profile} toast={toast}/>
     <div className="flex items-center gap-3 flex-wrap text-sm">
       {!confirmReset ? <button className="hit text-muted underline" onClick={()=>setConfirmReset(true)}>איפוס כל ההתקדמות</button>
       : <><span>למחוק את כל המילים, הרצף, ההיסטוריה והסיפורים שהוספת?</span><button className="btn py-2 px-3" style={{background:'var(--bad)', color:'var(--surface)'}} onClick={()=>{ actions.reset(); setConfirmReset(false); }}>כן, לאפס</button><button className="btn btn-ghost py-2 px-3" onClick={()=>setConfirmReset(false)}>ביטול</button></>}
@@ -1666,6 +2043,7 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
   useEffect(()=>{ if(!saveState(state) && !warned.current){ warned.current=true; setTimeout(()=>NOTIFY('הדפדפן חוסם שמירה מקומית, ולכן ההתקדמות לא תישמר אחרי סגירת העמוד.'),600); } },[state]);
   CUSTOM=state.customDict||{}; NET=state.netDict||{};
   const voiceRef=useRef(()=>{}); const [listening,setListening]=useState(false);
+  const [flash,setFlash]=useState(null);
   const [card,setCard]=useState(null);
   const openCard=useCallback((key, display)=>{ const k=String(key).toLowerCase(); if(k) setCard({key:k, display:display||k}); },[]);
   const stories=useMemo(()=>[...STORIES, ...state.userStories],[state.userStories]);
@@ -1682,6 +2060,11 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
   const prevMet=useRef(todayH.met);
   useEffect(()=>{ if(todayH.met && !prevMet.current){ celebrate(true); toast('השלמת את היעד היומי! הרצף ממשיך'); } prevMet.current=todayH.met; },[todayH.met]);
   const known=Object.keys(state.words).filter(k=>state.words[k]==='known' && !NAMES.has(k)).length;
+  useEffect(()=>{ const st=badgeStats(state); const got=state.badges; const earned=BADGES.filter(b=>(st[b.of]||0)>=b.need && !(got&&got[b.id]));
+    const o={}; earned.forEach(b=>{ o[b.id]=todayKey(); });
+    if(!got){ actions.setBadges(o); return; }          // first run: record what is already earned, silently
+    if(!earned.length) return; actions.setBadges(o);
+    const t=setTimeout(()=>{ toast(`הישג חדש: ${earned[0].icon} ${earned[0].name}`+(earned.length>1?` ועוד ${earned.length-1}`:'')); celebrate(false); },400); return ()=>clearTimeout(t); },[state.storiesDone, state.words, state.history, state.totals, state.talkDone, state.phon, state.userStories, state.group]);
   const lv=levelFor(known); const prevLv=useRef(lv);
   useEffect(()=>{ if(lv>prevLv.current){ celebrate(true); toast(`עלית לשלב ${lv}: ${LEVELS[lv-1].name}. נפתחו סיפורים חדשים!`); } prevLv.current=lv; },[lv]);
 
@@ -1691,18 +2074,27 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
     setGoal:(g)=>setState(s=>{ const d=todayKey(); const h=s.history[d]; const n={...s, goal:g}; if(h && h.xp>=g && !h.met) n.history={...s.history,[d]:{...h, met:true}}; return n; }),
     setWordStatus:(k,st)=>setState(s=>{ const prev=s.words[k]; if(prev===st) return s;
       let xp=0; if(st==='known' && !NAMES.has(k)) xp=2; else if(st==='learning' && !prev) xp=1;
-      return withXP({...s, words:{...s.words,[k]:st}}, xp); }),
+      return withXP(withStatus(s,k,st), xp); }),
+    reviewWord:(k, grade)=>setState(s=>{ const c=srsNext(srsCard(s,k), grade); let n={...s, srs:{...(s.srs||{}),[k]:c}, totals:{...s.totals, reviews:((s.totals&&s.totals.reviews)||0)+1}};
+      if(c.iv>=GRADUATE_DAYS && s.words[k]==='learning') n=withStatus(n,k,'known');
+      return withXP(n, grade>=2?2:1); }),
+    setLastStory:(id,p)=>setState(s=>({...s, lastStory:id?{id, p:p||0, at:Date.now()}:null})),
+    setBadges:(b)=>setState(s=>({...s, badges:{...(s.badges||{}),...b}})),
+    restore:(data)=>setState(()=>({...DEFAULT_STATE, ...data, settings:{...DEFAULT_STATE.settings, ...(data.settings||{})}, totals:{...DEFAULT_STATE.totals, ...(data.totals||{})}})),
     setCustom:(k,he)=>setState(s=>({...s, customDict:{...s.customDict,[k]:he}})),
     setNet:(k,e)=>setState(s=>({...s, netDict:{...(s.netDict||{}),[k]:e}})),
     clearWord:(k)=>setState(s=>{ const w={...s.words}; delete w[k]; return {...s, words:w}; }),
     markRead:(story, idxs)=>setState(s=>withRead(s, story, idxs)),
     finishStory:(story, markAll)=>setState(s=>{ let words=s.words, bonus=0;
-      if(markAll){ words={...s.words}; for(const k of storyData(story).keys) if(!words[k]){ words[k]='known'; bonus++; } }
+      let base=s;
+      if(markAll){ for(const k of storyData(story).keys) if(!base.words[k]&&!NAMES.has(k)){ base=withStatus(base,k,'known'); bonus++; } else if(!base.words[k]) base=withStatus(base,k,'known'); }
+      words=base.words; s=base;
       const prev=s.storiesDone[story.id]; const already=prev&&prev.date===todayKey();
-      const n=withRead({...s, words, storiesDone:{...s.storiesDone,[story.id]:{date:todayKey(), times:((prev&&prev.times)||0)+1}}}, story, story.paras.map((_,i)=>i));
+      const n=withRead({...s, lastStory:s.lastStory&&s.lastStory.id===story.id?null:s.lastStory, words, storiesDone:{...s.storiesDone,[story.id]:{date:todayKey(), times:((prev&&prev.times)||0)+1}}}, story, story.paras.map((_,i)=>i));
       return withXP(n, (already?0:10)+Math.min(bonus,15)); }),
     recordAnswer:(k, ok)=>setState(s=>{ const q=s.quiz[k]||{c:0,w:0};
-      return withXP({...s, quiz:{...s.quiz,[k]:{c:q.c+(ok?1:0), w:q.w+(ok?0:1)}}, totals:{answered:s.totals.answered+1, correct:s.totals.correct+(ok?1:0)}}, ok?3:1); }),
+      if(s.words[k]==='learning'){ const c=srsNext(srsCard(s,k), ok?2:0); s={...s, srs:{...(s.srs||{}),[k]:c}}; }
+      return withXP({...s, quiz:{...s.quiz,[k]:{c:q.c+(ok?1:0), w:q.w+(ok?0:1)}}, totals:{...s.totals, answered:s.totals.answered+1, correct:s.totals.correct+(ok?1:0)}}, ok?3:1); }),
     recordSound:(k, ok)=>setState(s=>{ const ph=s.phon||{}; const q=ph[k]||{c:0,w:0}; return withXP({...s, phon:{...ph,[k]:{c:q.c+(ok?1:0), w:q.w+(ok?0:1)}}}, ok?2:0); }),
     finishTalk:(id)=>setState(s=>{ const td=s.talkDone||{}; const first=!td[id]||td[id]!==todayKey(); return withXP({...s, talkDone:{...td,[id]:todayKey()}}, first?10:0); }),
     noteCombo:(n)=>setState(s=>n>s.bestCombo?{...s, bestCombo:n}:s),
@@ -1730,12 +2122,13 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
     <main className="gutter" style={{paddingBlock:'24px 56px'}}>
       <div className="mx-auto" style={{maxWidth:tab==='read'&&story&&state.settings.pane!==false?'1240px':'860px', transition:'max-width .3s ease'}}>
         {tab==='read' && (story
-          ? <Reader key={story.id} story={story} stories={stories} state={state} actions={actions} voice={voice} voices={voices} back={()=>{ setStoryId(null); window.scrollTo({top:0}); }} toast={toast} onWord={openCard}/>
-          : <Library state={state} known={known} actions={actions} openStory={openStory} onAdd={()=>setAdding(true)} toast={toast}/>)}
+          ? <Reader key={story.id} story={story} stories={stories} state={state} actions={actions} voice={voice} voices={voices} back={()=>{ setStoryId(null); window.scrollTo({top:0}); }} toast={toast} onWord={openCard} onPractice={(keys,title)=>{ setFlash({keys,title:'מילים קשות מ־'+title,id:Math.random()}); setStoryId(null); changeTab('practice'); }}/>
+          : <Library state={state} known={known} actions={actions} openStory={openStory} onAdd={()=>setAdding(true)} toast={toast} stories={stories}/>)}
         {tab==='sounds' && <Sounds state={state} actions={actions} voice={voice} celebrate={celebrate} onWord={openCard}/>}
         {tab==='talk' && <Talk state={state} actions={actions} voice={voice} profileName={profile.name}/>}
-        {tab==='practice' && <Practice state={state} stories={stories} known={known} actions={actions} voice={voice} celebrate={celebrate} goRead={()=>changeTab('read')} onWord={openCard}/>}
-        {tab==='progress' && <Progress state={state} stories={stories} actions={actions} streak={streak} known={known} profile={profile} toast={toast}/>}
+        {tab==='practice' && (flash ? <FlashSession key={flash.id} keys={flash.keys} title={flash.title} state={state} actions={actions} voice={voice} celebrate={celebrate} onDone={()=>setFlash(null)}/>
+          : <Practice state={state} stories={stories} known={known} actions={actions} voice={voice} celebrate={celebrate} goRead={()=>changeTab('read')} onWord={openCard} onSrs={(keys,title)=>setFlash({keys,title,id:Math.random()})}/>)}
+        {tab==='progress' && <Progress state={state} stories={stories} actions={actions} streak={streak} known={known} profile={profile} toast={toast} voice={voice} onWord={openCard}/>}
       </div>
     </main>
     {adding&&<AddStory state={state} onClose={()=>setAdding(false)} onSave={(st, stats)=>{ actions.addStory(st); setAdding(false); try{ synth&&synth.cancel(); }catch(e){} openStory(st.id);

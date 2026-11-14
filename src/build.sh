@@ -4,7 +4,7 @@ S=/tmp/claude-0/-home-user/d0cf8880-94af-5395-b228-967c754cd632/scratchpad; L=$S
 node -e "
 const B=require('$L/@babel/standalone');const fs=require('fs');
 fs.writeFileSync('app.js',B.transform(fs.readFileSync('app.jsx','utf8'),{presets:['react']}).code);
-const lib=['lang.js','stories.js','dict_old.js','dict_new.js','extra.js','vocab2.js','phonics.js','talk.js','lookup.js'].map(f=>fs.readFileSync(f,'utf8').replace(/if\(typeof module[^\n]*\n?/g,'')).join('\n');
+const lib=['lang.js','stories.js','stories_daily.js','dict_old.js','dict_new.js','extra.js','vocab2.js','phonics.js','talk.js','lookup.js'].map(f=>fs.readFileSync(f,'utf8').replace(/if\(typeof module[^\n]*\n?/g,'')).join('\n');
 fs.writeFileSync('bundle.js',lib+'\n'+fs.readFileSync('app.js','utf8'));"
 node --check bundle.js
 (cd $S/libs && sed -i "s#content:\[[^]]*\]#content:['$S/v2/app.jsx']#" tw.config.js && sed -i "s#fontFamily:{[^}]*}#fontFamily:{display:['Heebo','system-ui','sans-serif'],he:['Heebo','system-ui','sans-serif'],en:['Literata','Georgia','serif']}#" tw.config.js && npx tailwindcss -c tw.config.js -i in.css -o tw.css 2>/dev/null)

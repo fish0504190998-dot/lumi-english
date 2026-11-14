@@ -107,4 +107,6 @@ const STORIES = [
       { en:'Today, William works on projects that bring clean water, energy, and education to villages like his own. His story reminds us that a library card, some old junk, and a curious mind can be enough to change a life.', he:'היום ויליאם עובד על פרויקטים שמביאים מים נקיים, אנרגיה וחינוך לכפרים כמו הכפר שלו. הסיפור שלו מזכיר לנו שכרטיס ספרייה, קצת גרוטאות ישנות וראש סקרן יכולים להספיק כדי לשנות חיים.' }
     ]}
 ];
+const STORY_TAGS={"pizza": ["חיות"], "bus": ["חיות", "נסיעות"], "penguin": ["חיות"], "dragon": ["חיות"], "robot": ["יומיום"], "umbrella": ["יומיום"], "hachiko": ["סיפור אמיתי", "חיות"], "honey": ["סיפור אמיתי", "חיות"], "popsicle": ["סיפור אמיתי"], "mile": ["סיפור אמיתי"], "penicillin": ["סיפור אמיתי", "עבודה"], "windmill": ["סיפור אמיתי"]};
+STORIES.forEach(x=>{ x.tags=STORY_TAGS[x.id]||['יומיום']; });
 if(typeof module!=='undefined') module.exports={STORIES};

@@ -3,7 +3,7 @@
 set -e
 B=/tmp/claude-0/-home-user-lumi-english/d0cf8880-94af-5395-b228-967c754cd632/scratchpad/brand
 SITE=/home/user/lumi-site
-cp $B/apple-touch-icon.png $B/icon-192.png $B/icon-512.png $B/favicon-32.png $B/og.png $SITE/
+cp $B/apple-touch-icon.png $B/icon-192.png $B/icon-512.png $B/favicon-32.png $B/og.png $B/og-v2.png $SITE/
 cp $B/logo.svg $SITE/favicon.svg
 cat > $SITE/manifest.webmanifest <<'M'
 {
@@ -34,19 +34,20 @@ tags='''<meta name="description" content="לומדים אנגלית בכיף, כ
 <meta name="apple-mobile-web-app-title" content="Lumi English">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Lumi English">
-<meta property="og:title" content="Lumi English · לומדים אנגלית בכיף, כל יום">
+<meta property="og:title" content="לומדים אנגלית בכיף, כל יום">
 <meta property="og:description" content="סיפורים מדורגים, צלילים ואותיות, שיחה בקול ותחרות עם חברים. בחינם, בעברית, בלי הרשמה.">
 <meta property="og:url" content="https://lumi-english.netlify.app/">
-<meta property="og:image" content="https://lumi-english.netlify.app/og.png">
+<meta property="og:image" content="https://lumi-english.netlify.app/og-v2.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="he_IL">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://lumi-english.netlify.app/og.png">
+<meta name="twitter:image" content="https://lumi-english.netlify.app/og-v2.png">
 '''
 anchor='<meta name="viewport" content="width=device-width, initial-scale=1">'
 assert src.count(anchor)==1
 out=src.replace(anchor, anchor+'\n'+tags)
+out=out.replace('<title>Lumi English</title>','<title>Lumi English · לומדים אנגלית בכיף</title>',1)
 # offline favicon (inline) must not override the site's own icons
 out=out.replace('<link rel="icon" href="data:image/svg+xml','<link rel="alternate icon" href="data:image/svg+xml')
 open('/home/user/lumi-site/index.html','w').write(out)
