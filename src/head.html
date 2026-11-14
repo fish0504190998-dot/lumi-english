@@ -18,6 +18,7 @@
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>
 <style>
   /* Layout: brand bar + level meter on top, sticky tab strip, one reading column (max 860px); book page in LTR serif, chrome in RTL; audio player docked to the bottom while reading */
   :root{
@@ -216,6 +217,10 @@
   .badge.is-on{ filter:none; opacity:1; background:linear-gradient(160deg,var(--sun-soft),var(--surface)); box-shadow:0 0 0 1.5px color-mix(in srgb,var(--sun) 60%,transparent) inset; }
   .badge-icon{ font-size:2rem; line-height:1; }
   h1,h2,h3{ font-weight:800; }
+  .skip-link{ position:absolute; top:-100px; inset-inline-start:12px; z-index:100; background:var(--ink); color:var(--bg); padding:.7rem 1rem; border-radius:12px; font-weight:700; }
+  .skip-link:focus{ top:calc(8px + env(safe-area-inset-top,0px)); }
+  #main:focus{ outline:none; }
+  .legal p{ max-width:62ch; }
   .player{ position:fixed; inset:auto 0 0 0; z-index:35; background:var(--surface); border-top:1px solid var(--line); box-shadow:0 -6px 20px rgba(20,40,46,.08); padding-bottom:env(safe-area-inset-bottom,0px); }
   @media (prefers-reduced-motion: reduce){ *,*::before,*::after{ animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; } .confetti{ display:none; } }
 </style>

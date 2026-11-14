@@ -17,8 +17,10 @@ h,n=re.subn(r'<script src="https://cdn.tailwindcss.com[^<]*</script>\s*<script>\
 for name in ['react','react-dom']:
   tag=f'<script src="https://cdnjs.cloudflare.com/ajax/libs/{name}/18.3.1/umd/{name}.production.min.js"></script>'; assert tag in h
   h=h.replace(tag,'<script>'+open(f'{L}/{name}/umd/{name}.production.min.js').read()+'</script>')
+tag=f'<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js"></script>'; assert tag in h
+h=h.replace(tag,'<script>'+open(f'{L}/@supabase/supabase-js/dist/umd/supabase.js').read()+'</script>')
 assert '<script src=' not in h
-doc='<!doctype html>\n<html lang="he"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">\n'+h+'\n</head><body><div id="root"></div><script>'+open('bundle.js').read()+'</script></body></html>'
+doc='<!doctype html>\n<html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">\n'+h+'\n</head><body><div id="root"></div><script>'+open('bundle.js').read()+'</script></body></html>'
 open('/home/user/lumi-english/lumi-english-offline.html','w').write(doc)
 PY
 ls -la /home/user/lumi-english/

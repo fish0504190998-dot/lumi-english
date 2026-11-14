@@ -166,7 +166,7 @@ function storyStats(story, s){ const d=storyData(story); const nw=d.keys.filter(
 function isOpenLevel(level, known, unlocked){ return level<=levelFor(known) || !!unlocked[level]; }
 function recommendStories(stories, s, known){
   const lv=levelFor(known);
-  return stories.filter(x=>!(s.storiesDone||{})[x.id] && isOpenLevel(x.level, known, s.unlocked))
+  return stories.filter(x=>!x.community && !(s.storiesDone||{})[x.id] && isOpenLevel(x.level, known, s.unlocked))
     .map(x=>{ const st=storyStats(x,s); const ratio=st.newW/Math.max(1,st.d.keys.length); return {x, sc:Math.abs(x.level-lv)*2 + Math.abs(ratio-.12)*6 + (x.user?-.5:0)}; })
     .sort((a,b)=>a.sc-b.sc).map(r=>r.x);
 }
@@ -184,8 +184,8 @@ function compressImage(file, max=300, quality=.75){
     img.src=url; });
 }
 function StoryCover({story, size=56, radius=14, className=''}){
-  if(story.image) return <img src={story.image} alt="" className={`object-cover shrink-0 ${className}`} style={{width:size, height:size, borderRadius:radius}}/>;
-  return <span className={`grid place-items-center shrink-0 ${className}`} style={{width:size, height:size, borderRadius:radius, fontSize:size*.55, background:'var(--sunk)'}} aria-hidden="true">{story.cover||'📖'}</span>;
+  if(story.image) return <img src={story.image} alt={`תמונת שער של הסיפור ${story.title}`} className={`object-cover shrink-0 ${className}`} style={{width:size, height:size, borderRadius:radius}}/>;
+  return <span className={`grid place-items-center shrink-0 ${className}`} style={{width:size, height:size, borderRadius:radius, fontSize:size*.55, background:'var(--sunk)'}} role="img" aria-label="איור הסיפור">{story.cover||'📖'}</span>;
 }
 function StatusPill({kind, n, label}){
   const L={new:'חדשות', learning:'בלמידה', known:'מוכרות'};
@@ -551,6 +551,194 @@ function Tabs({tab, setTab, learning}){
   </nav>);
 }
 
+/* ---------- cloud (Supabase): accounts, progress sync, community stories ---------- */
+/* The publishable key is meant to be public: it ships inside every Supabase web app. Access is decided by the
+   row level security rules in supabase-setup.sql and supabase-community.sql, not by hiding this key. */
+const CLOUD_CFG={ url:'https://jiwsiutwvqdcafmiqxox.supabase.co', key:'sb_publishable_EfvswdyANwtEjarf0FhQrA_K6-KgDZj' };
+const SUPPORT_EMAIL='support@lumi-english.app';     // change to your real support address
+let SB=null;
+try{ if(!/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname) && window.supabase&&window.supabase.createClient) SB=window.supabase.createClient(CLOUD_CFG.url, CLOUD_CFG.key, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true, storageKey:'lumi-auth'}}); }catch(e){ SB=null; }
+const CLOUD_ERR={ 'Invalid login credentials':'המייל או הסיסמה לא נכונים.', 'Email not confirmed':'עוד לא אישרת את המייל. בדקו את תיבת הדואר (גם בספאם) ולחצו על הקישור.',
+  'User already registered':'כבר יש חשבון עם המייל הזה. נסו להתחבר.', 'Password should be at least 6 characters':'הסיסמה צריכה לפחות 6 תווים.' };
+const cloudMsg=e=>{ const m=(e&&e.message)||''; for(const k in CLOUD_ERR) if(m.includes(k)) return CLOUD_ERR[k]; if(/fetch|network|Failed to/i.test(m)) return 'אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.'; if(/rate|too many/i.test(m)) return 'יותר מדי ניסיונות. חכו כמה דקות ונסו שוב.'; return 'משהו השתבש: '+m; };
+let SESSION=null; const SESSION_SUBS=new Set(); let RECOVERY=false;
+if(SB){ SB.auth.getSession().then(({data})=>{ SESSION=data.session; SESSION_SUBS.forEach(f=>f()); }).catch(()=>{});
+  SB.auth.onAuthStateChange((ev,s)=>{ SESSION=s; if(ev==='PASSWORD_RECOVERY') RECOVERY=true; SESSION_SUBS.forEach(f=>f()); }); }
+function useSession(){ const [,set]=useState(0); useEffect(()=>{ const f=()=>set(x=>x+1); SESSION_SUBS.add(f); return ()=>SESSION_SUBS.delete(f); },[]); return SESSION; }
+async function cloudPull(){ const u=SESSION&&SESSION.user; if(!u) return null;
+  const {data,error}=await SB.from('progress').select('data,updated_at').eq('user_id',u.id).maybeSingle(); if(error) throw error; return data; }
+async function cloudPush(payload){ const u=SESSION&&SESSION.user; if(!u) return null; const at=new Date().toISOString();
+  const {error}=await SB.from('progress').upsert({user_id:u.id, data:payload, updated_at:at}); if(error) throw error; return at; }
+/* remove anything that could be markup or invisible control characters from user text */
+function cleanText(s, max){ return String(s||'').replace(/<[^>]*>/g,' ').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F​-‏‪-‮⁦-⁩]/g,'').replace(/[ \t]+/g,' ').trim().slice(0,max||60000); }
+
+function AuthForm({onDone, intro}){
+  const [mode,setMode]=useState('in'); const [email,setEmail]=useState(''); const [pw,setPw]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState(null);
+  if(!SB) return <p className="text-sm text-muted">שמירה בענן זמינה באתר <bdi dir="ltr">lumi-english.netlify.app</bdi>.</p>;
+  const submit=async e=>{ e.preventDefault(); setBusy(true); setMsg(null);
+    try{
+      if(mode==='forgot'){ const {error}=await SB.auth.resetPasswordForEmail(email.trim(),{redirectTo:SITE_URL+'/'}); if(error) throw error; setMsg({ok:true, t:'שלחנו לך מייל עם קישור לבחירת סיסמה חדשה.'}); }
+      else if(mode==='up'){ const {data,error}=await SB.auth.signUp({email:email.trim(), password:pw, options:{emailRedirectTo:SITE_URL+'/'}}); if(error) throw error;
+        if(data.session) onDone(data.session); else setMsg({ok:true, t:'נרשמת! שלחנו מייל אישור. לחצו על הקישור במייל, ואז התחברו כאן.'}); }
+      else { const {data,error}=await SB.auth.signInWithPassword({email:email.trim(), password:pw}); if(error) throw error; onDone(data.session); }
+    }catch(x){ setMsg({ok:false, t:cloudMsg(x)}); } setBusy(false); };
+  return (<form className="flex flex-col gap-3" onSubmit={submit}>
+    {intro&&<p className="text-sm text-muted">{intro}</p>}
+    {mode!=='forgot'&&<div className="seg self-start" role="group" aria-label="כניסה או הרשמה"><button type="button" aria-pressed={mode==='in'} onClick={()=>setMode('in')}>התחברות</button><button type="button" aria-pressed={mode==='up'} onClick={()=>setMode('up')}>הרשמה</button></div>}
+    <label className="flex flex-col gap-1"><span className="text-sm font-semibold">מייל</span><input id="auth-email" type="email" dir="ltr" className="field text-left" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)}/></label>
+    {mode!=='forgot'&&<label className="flex flex-col gap-1"><span className="text-sm font-semibold">סיסמה{mode==='up'?' (לפחות 6 תווים)':''}</span><input id="auth-pw" type="password" dir="ltr" className="field text-left" autoComplete={mode==='up'?'new-password':'current-password'} minLength={6} required value={pw} onChange={e=>setPw(e.target.value)}/></label>}
+    {msg&&<div className="rounded-xl p-3 text-sm" role={msg.ok?'status':'alert'} style={{background:msg.ok?'var(--known-bg)':'var(--bad-soft)', color:msg.ok?'var(--known)':'var(--bad)'}}><Bi>{msg.t}</Bi></div>}
+    <div className="flex gap-2 flex-wrap items-center">
+      <button className="btn btn-primary px-5" disabled={busy}>{busy?'רגע…':mode==='in'?'התחברות':mode==='up'?'יצירת חשבון':'שליחת קישור'}</button>
+      {mode==='in'&&<button type="button" className="hit text-sm text-primary font-semibold" onClick={()=>{ setMode('forgot'); setMsg(null); }}>שכחתי סיסמה</button>}
+      {mode==='forgot'&&<button type="button" className="hit text-sm text-muted underline" onClick={()=>setMode('in')}>חזרה להתחברות</button>}
+    </div>
+  </form>);
+}
+function RecoveryDialog({onClose}){
+  const [pw,setPw]=useState(''); const [msg,setMsg]=useState(null); const [busy,setBusy]=useState(false);
+  const save=async e=>{ e.preventDefault(); setBusy(true); const {error}=await SB.auth.updateUser({password:pw}); setBusy(false);
+    if(error) setMsg({ok:false,t:cloudMsg(error)}); else { setMsg({ok:true,t:'הסיסמה עודכנה. אפשר להמשיך ללמוד.'}); RECOVERY=false; setTimeout(onClose,1500); } };
+  return (<div className="overlay fixed inset-0 z-[60] grid place-items-center gutter" style={{background:'color-mix(in srgb,var(--ink) 45%,transparent)'}}>
+    <form role="dialog" aria-modal="true" aria-label="בחירת סיסמה חדשה" className="sheet card w-full p-6 flex flex-col gap-3" style={{maxWidth:'26rem'}} onSubmit={save}>
+      <h2 className="text-xl font-extrabold">בחירת סיסמה חדשה</h2>
+      <input id="recovery-pw" type="password" dir="ltr" className="field text-left" autoComplete="new-password" minLength={6} required autoFocus placeholder="לפחות 6 תווים" value={pw} onChange={e=>setPw(e.target.value)}/>
+      {msg&&<div className="rounded-xl p-3 text-sm" role="status" style={{background:msg.ok?'var(--known-bg)':'var(--bad-soft)'}}>{msg.t}</div>}
+      <div className="flex gap-2"><button className="btn btn-primary px-5" disabled={busy}>שמירה</button><button type="button" className="btn btn-ghost px-4" onClick={()=>{ RECOVERY=false; onClose(); }}>ביטול</button></div>
+    </form></div>);
+}
+
+/* community stories */
+let COMMUNITY=[]; let COMMUNITY_AT=0; const COMMUNITY_SUBS=new Set(); let COMMUNITY_ERR='';
+const toStory=r=>({ id:'c_'+r.id, cid:r.id, community:true, ownerId:r.user_id, author:r.author_name, hidden:r.is_approved===false, level:r.level||1, title:cleanText(r.title,120), he:'', blurb:'',
+  tags:[r.topic||'יומיום'], cover:r.cover_emoji||'🌍', image:(r.cover_image&&/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(r.cover_image))?r.cover_image:null,
+  paras:splitParas(cleanText(r.content)).map(en=>({en})), raw:r });
+async function loadCommunity(force){
+  if(!SB) return; if(!force&&Date.now()-COMMUNITY_AT<60000) return;
+  try{ const {data,error}=await SB.from('community_stories').select('id,user_id,author_name,title,content,level,topic,cover_emoji,cover_image,is_approved,created_at').order('created_at',{ascending:false}).limit(200);
+    if(error) throw error; COMMUNITY=(data||[]).map(toStory); COMMUNITY_AT=Date.now(); COMMUNITY_ERR=''; }
+  catch(e){ COMMUNITY_ERR=cloudMsg(e); }
+  COMMUNITY_SUBS.forEach(f=>f());
+}
+function useCommunity(){ const [,set]=useState(0); useEffect(()=>{ const f=()=>set(x=>x+1); COMMUNITY_SUBS.add(f); loadCommunity(); return ()=>COMMUNITY_SUBS.delete(f); },[]); return COMMUNITY; }
+async function publishStory(st, author, editId){
+  const row={ author_name:cleanText(author,40)||'לומד/ת', title:cleanText(st.title,120), content:cleanText(st.paras.map(p=>p.en).join('\n\n')), level:st.level, topic:(st.tags&&st.tags[0])||'יומיום',
+    cover_emoji:st.image?null:(st.cover||'📖'), cover_image:st.image||null };
+  const q=editId ? SB.from('community_stories').update(row).eq('id',editId).select().single() : SB.from('community_stories').insert({...row, user_id:SESSION.user.id}).select().single();
+  const {data,error}=await q; if(error) throw error; await loadCommunity(true); return toStory(data);
+}
+async function deleteCommunityStory(id){ const {error}=await SB.from('community_stories').delete().eq('id',id); if(error) throw error; await loadCommunity(true); }
+const REPORT_REASONS=[['inappropriate','תוכן לא הולם או פוגעני'],['copyright','הפרת זכויות יוצרים'],['spam','ספאם או פרסומת'],['other','סיבה אחרת']];
+function ReportDialog({story, onClose, toast}){
+  const [closing, close]=useClosing(onClose); const [reason,setReason]=useState(''); const [details,setDetails]=useState(''); const [busy,setBusy]=useState(false); const [err,setErr]=useState('');
+  useEffect(()=>{ const k=e=>{ if(e.key==='Escape') close(); }; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[]);
+  const send=async e=>{ e.preventDefault(); setBusy(true); setErr('');
+    const {error}=await SB.from('story_reports').insert({story_id:story.cid, reason, details:cleanText(details,500)||null, reporter_id:(SESSION&&SESSION.user&&SESSION.user.id)||null});
+    setBusy(false); if(error) setErr(cloudMsg(error)); else { toast('תודה, הדיווח נשלח ונבדוק אותו'); close(); } };
+  return (<div className={`overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center ${closing?'out':''}`} style={{background:'color-mix(in srgb,var(--ink) 40%,transparent)'}} onClick={close}>
+    <form role="dialog" aria-modal="true" aria-label="דיווח על תוכן" className={`sheet card w-full sm:max-w-md rounded-b-none sm:rounded-[20px] p-5 flex flex-col gap-3 ${closing?'out':''}`} onClick={e=>e.stopPropagation()} onSubmit={send}>
+      <div className="flex items-center gap-3"><h2 className="text-xl font-extrabold me-auto">דיווח על תוכן</h2><button type="button" className="btn btn-ghost w-11 h-11" onClick={close} aria-label="סגירה"><IconX size={18}/></button></div>
+      <p className="text-sm text-muted">על הסיפור <bdi dir="ltr" className="book">{story.title}</bdi>. הדיווח אנונימי, ומנהלי האתר יבדקו אותו.</p>
+      <fieldset className="flex flex-col gap-2"><legend className="text-sm font-semibold mb-1">מה הבעיה?</legend>
+        {REPORT_REASONS.map(([k,l])=><label key={k} className="flex items-center gap-3 rounded-xl bg-sunk px-3 min-h-[44px] cursor-pointer"><input type="radio" className="w-5 h-5" name="report-reason" value={k} checked={reason===k} onChange={()=>setReason(k)}/>{l}</label>)}</fieldset>
+      <label className="flex flex-col gap-1"><span className="text-sm font-semibold">פרטים נוספים (לא חובה)</span><textarea id="report-details" className="field" rows={3} maxLength={500} value={details} onChange={e=>setDetails(e.target.value)}></textarea></label>
+      {err&&<div className="rounded-xl p-3 text-sm" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}>{err}</div>}
+      <div className="flex gap-2"><button className="btn btn-primary px-5" disabled={!reason||busy}>{busy?'שולח…':'שליחת דיווח'}</button><button type="button" className="btn btn-ghost px-4" onClick={close}>ביטול</button></div>
+    </form></div>);
+}
+
+/* ---------- legal pages ---------- */
+const LEGAL={
+  terms:{title:'תנאי שימוש', body:[
+    ['על השירות','Lumi English היא פלטפורמה לימודית לתרגול אישי של השפה האנגלית. השימוש באתר חינמי ומיועד ללמידה אישית בלבד.'],
+    ['תוכן שמשתמשים מעלים','המשתמש אחראי באופן בלעדי לחוקיות התוכן שהוא מעלה, כולל סיפורים ותמונות, ולכך שיש לו את הזכויות לעשות בו שימוש, בין אם הוא נשמר באופן פרטי ובין אם הוא משותף בספריית הקהילה. אין להעלות תוכן המוגן בזכויות יוצרים בלי רשות מבעל הזכויות, ואין להעלות תוכן פוגעני, מאיים, גזעני או בלתי חוקי.'],
+    ['סיפורי קהילה','בפרסום סיפור בספריית הקהילה, המשתמש מאשר שהסיפור נכתב על ידו או שאינו מוגן בזכויות יוצרים, ומסכים שהוא יוצג לכלל משתמשי האתר. הנהלת האתר רשאית להסיר כל סיפור מספריית הקהילה, לפי שיקול דעתה ובלי הודעה מוקדמת, ובכלל זה בעקבות דיווחים של משתמשים.'],
+    ['אחריות','השירות ניתן כפי שהוא (As-Is). איננו מתחייבים שהשירות יפעל ללא הפסקות או תקלות, ולא נישא באחריות לנזק שייגרם בשל הפסקות זמניות, תקלות טכניות או אובדן נתונים. מומלץ להוריד מדי פעם גיבוי של ההתקדמות.'],
+    ['שינויים','אנו רשאים לעדכן את תנאי השימוש מעת לעת. המשך השימוש באתר לאחר עדכון מהווה הסכמה לתנאים המעודכנים.']]},
+  privacy:{title:'מדיניות פרטיות', body:[
+    ['איזה מידע נאסף','כשנרשמים לשמירה בענן, נשמרים כתובת המייל (לצורך התחברות), התקדמות הלמידה (מילים מוכרות ומילים בלמידה, היסטוריית תרגול, רצף והישגים), הסיפורים והתמונות שהעליתם, ושם התצוגה שבחרתם. בלי הרשמה, כל המידע נשמר רק בדפדפן שלכם ולא נשלח אלינו.'],
+    ['איפה המידע נשמר','המידע נשמר בתשתית ענן מאובטחת של Supabase. כל משתמש מבודד ברמת השורה, באמצעות מנגנון ההרשאות של Supabase: רק אתם יכולים לקרוא ולשנות את ההתקדמות שלכם. סיפורים שבחרתם לפרסם כציבוריים גלויים לכל המשתמשים יחד עם שם התצוגה שבחרתם, ללא כתובת המייל.'],
+    ['שיתוף עם צדדים שלישיים','איננו מוכרים את המידע שלכם, ואיננו משתפים אותו עם מפרסמים או עם צדדים שלישיים לצורכי שיווק. המידע משמש רק להפעלת השירות.'],
+    ['שירותים חיצוניים','חיפוש מילה שאינה במילון המובנה נשלח לשירותי מילון ותרגום חיצוניים (dictionaryapi.dev ו־MyMemory). זיהוי דיבור מתבצע על ידי הדפדפן שלכם. קבוצות לימוד שומרות שם, דמות ונקודות בלבד.'],
+    ['מחיקת חשבון ונתונים','אפשר למחוק את החשבון וכל הנתונים בכל רגע: לוחצים על השם שלכם בראש המסך ובוחרים "מחק את החשבון והנתונים שלי". המחיקה סופית. אפשר גם לבקש מחיקה במייל לכתובת שבעמוד "צור קשר".']]},
+  access:{title:'הצהרת נגישות', body:[
+    ['המחויבות שלנו','אנו רואים חשיבות רבה בהנגשת האתר לאנשים עם מוגבלויות, ופועלים להתאים אותו לתקנות שוויון זכויות לאנשים עם מוגבלות (התאמות נגישות לשירות), התשע"ג־2013, ולתקן הישראלי ת"י 5568 המבוסס על הנחיות WCAG 2.1 ברמה AA, ככל האפשר.'],
+    ['התאמות שבוצעו באתר','פלטת צבעים חמה בניגודיות טובה, במצב בהיר ובמצב כהה. טקסט ברור עם אפשרות להגדלת גופן בעמוד הקריאה. ניווט מלא במקלדת: Tab למעבר, Enter לבחירה ו־Escape לסגירת חלונות. תוויות בעברית לקוראי מסך, וטקסט חלופי לתמונות. כפתורים בגודל נוח למגע (לפחות 44 פיקסלים). הקראה קולית של כל טקסט באנגלית, בשלוש מהירויות. התאמה לבקשת מערכת ההפעלה להפחתת תנועה.'],
+    ['מגבלות ידועות','תעתיקי ההגייה האוטומטיים למילים שאינן במילון הם משוערים. זיהוי הדיבור תלוי בדפדפן ופועל ב־Chrome וב־Edge. אנו ממשיכים לשפר את הנגישות באופן שוטף.'],
+    ['רכז/ת נגישות','נתקלתם בבעיית נגישות? נשמח לשמוע ולתקן. פנו אלינו במייל שבעמוד "צור קשר", וציינו את העמוד, את הבעיה ואת הדפדפן שבו השתמשתם. נשתדל לענות תוך 14 ימים.'],
+    ['עדכון ההצהרה','הצהרה זו עודכנה לאחרונה בנובמבר 2026.']]},
+  contact:{title:'צור קשר', body:[['שאלות, בקשות ודיווחים','לכל שאלה, בקשה למחיקת נתונים, דיווח על בעיית נגישות או על תוכן, כתבו לנו:']]}
+};
+function LegalModal({page, onClose}){
+  const [closing, close]=useClosing(onClose); const P=LEGAL[page]; const [copied,setCopied]=useState(false);
+  useEffect(()=>{ const k=e=>{ if(e.key==='Escape') close(); }; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[]);
+  return (<div className={`overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center ${closing?'out':''}`} style={{background:'color-mix(in srgb,var(--ink) 40%,transparent)'}} onClick={close}>
+    <div role="dialog" aria-modal="true" aria-labelledby="legal-title" className={`sheet card w-full sm:max-w-2xl rounded-b-none sm:rounded-[20px] flex flex-col ${closing?'out':''}`} style={{maxHeight:'90vh'}} onClick={e=>e.stopPropagation()}>
+      <div className="flex items-center gap-3 p-5 border-b border-line"><h2 id="legal-title" className="text-2xl font-extrabold me-auto">{P.title}</h2>
+        <button className="btn btn-ghost w-11 h-11" onClick={close} aria-label="סגירה" autoFocus><IconX size={18}/></button></div>
+      <div className="p-5 sm:p-6 overflow-y-auto flex flex-col gap-5 legal" style={{paddingBottom:'max(24px, env(safe-area-inset-bottom,0px))'}}>
+        {P.body.map(([h,t])=><section key={h}><h3 className="text-lg font-extrabold mb-1">{h}</h3><p className="leading-relaxed"><Bi>{t}</Bi></p></section>)}
+        {page==='contact'&&<div className="flex items-center gap-2 flex-wrap"><bdi dir="ltr" className="text-xl font-bold select-all rounded-xl bg-sunk px-4 py-2">{SUPPORT_EMAIL}</bdi>
+          <button className="btn btn-line px-4" onClick={async()=>{ if(await copyText(SUPPORT_EMAIL)) setCopied(true); }}>{copied?'הועתק ✓':'העתקת הכתובת'}</button></div>}
+      </div>
+    </div></div>);
+}
+function Footer({onOpen}){
+  const L=[['terms','תנאי שימוש'],['privacy','מדיניות פרטיות'],['access','הצהרת נגישות'],['contact','צור קשר']];
+  return (<footer className="gutter border-t border-line mt-10" style={{paddingBlock:'20px 32px'}}><div className="max-w-[860px] mx-auto flex flex-wrap items-center gap-x-1 gap-y-1 text-sm text-muted">
+    <span className="me-auto"><bdi dir="ltr">Lumi English</bdi> · לומדים אנגלית בכיף</span>
+    {L.map(([k,l])=><button key={k} className="hit px-2 min-h-[44px] underline-offset-4 hover:underline" onClick={()=>onOpen(k)}>{l}</button>)}
+  </div></footer>);
+}
+
+/* ---------- cloud account card + progress sync ---------- */
+const cloudPayload=s=>{ const {cloud, ...rest}=s; return {...rest, settings:{...rest.settings, voice:''}}; };
+function CloudSync({state, actions, toast}){
+  const session=useSession(); const uid=session&&session.user&&session.user.id;
+  const [ask,setAsk]=useState(null); const timer=useRef(null); const lastPushed=useRef(''); const stateRef=useRef(state); stateRef.current=state;
+  useEffect(()=>{ if(!SB||!uid) return; let dead=false;
+    (async()=>{ try{ const r=await cloudPull(); if(dead) return; const s=stateRef.current; const linked=s.cloud&&s.cloud.uid===uid;
+      if(!r){ const at=await cloudPush(cloudPayload(s)); actions.setCloud({uid, at}); lastPushed.current=JSON.stringify(cloudPayload(s)); toast('ההתקדמות הועלתה לענן'); }
+      else if(linked){ if(Date.parse(r.updated_at)>Date.parse(s.cloud.at)+1500){ lastPushed.current=JSON.stringify(r.data); actions.restore({...r.data, cloud:{uid, at:r.updated_at}}); toast('ההתקדמות עודכנה מהענן'); } else lastPushed.current=''; }
+      else setAsk(r);
+    }catch(e){ toast(cloudMsg(e)); } })(); return ()=>{ dead=true; }; },[uid]);
+  useEffect(()=>{ if(!SB||!uid||!(state.cloud&&state.cloud.uid===uid)) return; const body=JSON.stringify(cloudPayload(state)); if(body===lastPushed.current) return;
+    clearTimeout(timer.current); timer.current=setTimeout(async()=>{ try{ const at=await cloudPush(JSON.parse(body)); lastPushed.current=body; actions.setCloud({uid, at}); }catch(e){} },4000);
+    return ()=>clearTimeout(timer.current); },[state, uid]);
+  if(!ask) return null;
+  const nk=o=>Object.keys((o&&o.words)||{}).filter(k=>o.words[k]==='known').length;
+  const useRemote=()=>{ lastPushed.current=JSON.stringify(ask.data); actions.restore({...ask.data, cloud:{uid, at:ask.updated_at}}); setAsk(null); toast('ההתקדמות נטענה מהענן'); };
+  const useLocal=async()=>{ try{ const at=await cloudPush(cloudPayload(state)); actions.setCloud({uid, at}); lastPushed.current=JSON.stringify(cloudPayload(state)); setAsk(null); toast('ההתקדמות מהמכשיר הועלתה לענן'); }catch(e){ toast(cloudMsg(e)); } };
+  return (<div className="overlay fixed inset-0 z-[60] grid place-items-center gutter" style={{background:'color-mix(in srgb,var(--ink) 45%,transparent)'}}>
+    <div role="alertdialog" aria-modal="true" aria-labelledby="sync-title" className="sheet card w-full p-6 flex flex-col gap-4" style={{maxWidth:'30rem'}}>
+      <h2 id="sync-title" className="text-xl font-extrabold">נמצאה התקדמות בענן</h2>
+      <p className="text-sm text-muted leading-relaxed">בחשבון הזה כבר שמורה התקדמות ({nk(ask.data)} מילים מוכרות). במכשיר הזה יש התקדמות אחרת ({nk(state)} מילים מוכרות). איזו להשאיר?</p>
+      <button className="btn btn-go py-3 px-5" onClick={useRemote}>להשתמש בהתקדמות מהענן ({nk(ask.data)} מילים)</button>
+      <button className="btn btn-line py-3 px-5" onClick={useLocal}>להחליף את הענן במה שבמכשיר ({nk(state)} מילים)</button>
+      <button className="hit text-sm text-muted underline self-start" onClick={()=>{ setAsk(null); SB.auth.signOut(); }}>ביטול והתנתקות</button>
+    </div></div>);
+}
+function CloudCard({state, actions, toast, onClose}){
+  const session=useSession(); const user=session&&session.user; const [busy,setBusy]=useState(false); const [confirm,setConfirm]=useState(false); const [typed,setTyped]=useState('');
+  const linked=user&&state.cloud&&state.cloud.uid===user.id;
+  const del=async()=>{ setBusy(true); try{ const {error}=await SB.rpc('delete_my_account'); if(error) throw error; await SB.auth.signOut().catch(()=>{}); actions.setCloud(null); COMMUNITY_AT=0; toast('החשבון והנתונים בענן נמחקו'); onClose&&onClose(); }catch(e){ toast(cloudMsg(e)); setBusy(false); } };
+  return (<div className="border-t border-line pt-4 flex flex-col gap-3">
+    <div className="font-semibold flex items-center gap-2">☁️ שמירה בענן{user&&<span className="tag" style={{background:'var(--known-bg)', color:'var(--known)'}}>מחובר</span>}</div>
+    {!SB ? <p className="text-sm text-muted">שמירה בענן זמינה באתר <bdi dir="ltr">lumi-english.netlify.app</bdi>.</p>
+    : !user ? <AuthForm intro="עם חשבון ההתקדמות שלכם נשמרת בענן, וזמינה בכל מכשיר. בלי חשבון, הכול נשמר רק בדפדפן הזה." onDone={()=>{}}/>
+    : <>
+      <p className="text-sm text-muted leading-relaxed">מחוברים כ־<bdi dir="ltr" className="font-bold text-ink">{user.email}</bdi>. {linked?<>ההתקדמות מסונכרנת אוטומטית{state.cloud.at?<> · עודכן לאחרונה ב־<span className="num">{new Date(state.cloud.at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</span></>:null}.</>:'ההתקדמות של המשתמש הזה עדיין לא מחוברת לחשבון.'}</p>
+      <div className="flex gap-2 flex-wrap"><button className="btn btn-ghost px-4 text-sm" onClick={async()=>{ await SB.auth.signOut(); actions.setCloud(null); toast('התנתקת'); }}>התנתקות</button></div>
+      {!confirm ? <button className="hit text-sm underline self-start" style={{color:'var(--bad)'}} onClick={()=>setConfirm(true)}>מחק את החשבון והנתונים שלי</button>
+      : <div className="rounded-xl border p-3 flex flex-col gap-2" style={{borderColor:'var(--bad)'}} role="alertdialog" aria-label="אישור מחיקת חשבון">
+          <div className="text-sm leading-relaxed"><b>מחיקה סופית.</b> החשבון, ההתקדמות בענן והסיפורים שפרסמתם יימחקו ולא ניתן לשחזר אותם. ההתקדמות השמורה בדפדפן הזה תישאר, אלא אם תמחקו אותה בנפרד. כדי לאשר, כתבו <b>מחק</b>:</div>
+          <input id="del-confirm" className="field" value={typed} onChange={e=>setTyped(e.target.value)} aria-label="כתבו מחק לאישור" autoComplete="off"/>
+          <div className="flex gap-2"><button className="btn py-2 px-4" style={{background:'var(--bad)', color:'var(--surface)'}} disabled={typed.trim()!=='מחק'||busy} onClick={del}>{busy?'מוחק…':'מחק את הכול'}</button><button className="btn btn-ghost py-2 px-4" onClick={()=>{ setConfirm(false); setTyped(''); }}>ביטול</button></div>
+        </div>}
+    </>}
+  </div>);
+}
+
 /* ---------- library ---------- */
 function StoryCard({story, state, locked, onOpen, onLocked}){
   const st=storyStats(story, state); const mins=readMinutes(st.d.words);
@@ -565,6 +753,7 @@ function StoryCard({story, state, locked, onOpen, onLocked}){
           {st.done&&<span className="read-badge shrink-0"><IconCheck size={12}/>נקרא</span>}
         </div>
         {(story.he||story.blurb)&&<div className="text-sm text-muted leading-snug line-clamp-2">{story.he}{story.he&&story.blurb?' · ':''}{story.blurb}</div>}
+        {story.author&&<div className="meta">מאת <bdi>{story.author}</bdi></div>}
         <div className="meta">שלב <span className="num">{story.level}</span> · <span className="num">{mins}</span> דק׳ קריאה · <span className="num">{st.d.words}</span> מילים{(story.tags||[]).length?' · '+story.tags.join(' · '):''}</div>
       </div>
     </div>
@@ -572,7 +761,7 @@ function StoryCard({story, state, locked, onOpen, onLocked}){
       <div className="flex flex-wrap gap-1.5">
         {st.newW>0?<StatusPill kind="new" n={st.newW} label={st.newW===1?'מילה חדשה':'מילים חדשות'}/>:<StatusPill kind="known" label="אין מילים חדשות"/>}
         {st.learnW>0&&<StatusPill kind="learning" n={st.learnW}/>}
-        {story.real&&<span className="tag tag-real">סיפור אמיתי</span>}{story.user&&<span className="tag">שלי</span>}
+        {story.real&&<span className="tag tag-real">סיפור אמיתי</span>}{story.user&&<span className="tag">שלי</span>}{story.community&&<span className="tag">🌍 קהילה</span>}{story.hidden&&<span className="tag" style={{background:'var(--bad-soft)',color:'var(--bad)'}}>מוסתר עד בדיקה</span>}
       </div>
       <div className="h-1.5 rounded-full bg-sunk overflow-hidden flex" dir="ltr" aria-label={`${st.pct}% מהמילים מוכרות`}>
         <div className="bar" style={{width:st.pct+'%', background:'var(--known)'}}></div><div className="bar" style={{width:Math.round(st.learnW/Math.max(1,st.d.keys.length)*100)+'%', background:'var(--learn)'}}></div>
@@ -631,8 +820,21 @@ function AddStoryTile({onAdd}){
     <span className="font-bold text-lg">הוסף סיפור חדש</span><span className="text-sm text-muted">הדביקו טקסט, העלו קובץ או תמונת שער</span>
   </button>);
 }
-function Library({state, known, actions, openStory, onAdd, toast, stories}){
+function CommunityCard({story, state, session, onOpen, onReport, onEdit, onDelete}){
+  const mine=!!(session&&session.user&&story.ownerId===session.user.id); const [confirm,setConfirm]=useState(false);
+  return (<div className="flex flex-col gap-1.5">
+    <StoryCard story={story} state={state} onOpen={onOpen}/>
+    <div className="flex items-center gap-1 px-2 text-sm flex-wrap">
+      {mine ? <>
+        <button className="hit px-2 min-h-[44px] text-primary font-semibold" onClick={onEdit} aria-label={`עריכת הסיפור ${story.title}`}>עריכה</button>
+        {!confirm?<button className="hit px-2 min-h-[44px] underline" style={{color:'var(--bad)'}} onClick={()=>setConfirm(true)} aria-label={`מחיקת הסיפור ${story.title}`}>מחיקה</button>
+          :<><span className="text-muted">למחוק לצמיתות?</span><button className="btn py-1.5 px-3" style={{background:'var(--bad)',color:'var(--surface)'}} onClick={onDelete}>כן, למחוק</button><button className="btn btn-ghost py-1.5 px-3" onClick={()=>setConfirm(false)}>ביטול</button></>}
+      </> : <button className="hit px-2 min-h-[44px] text-muted underline ms-auto" onClick={onReport} aria-label={`דיווח על תוכן: ${story.title}`}>דווח על תוכן</button>}
+    </div></div>);
+}
+function Library({state, known, actions, openStory, onAdd, toast, stories, community, session, onReport, onEdit, onDeleteCommunity}){
   const lv=levelFor(known);
+  const [view,setView]=useState('mine');
   const [q,setQ]=useState(''); const [filter,setFilter]=useState('all'); const [sort,setSort]=useState('level'); const [lvF,setLvF]=useState(0);
   const recIds=useMemo(()=>new Set(recommendStories(stories, state, known).slice(0,6).map(s=>s.id)),[stories, state.words, state.storiesDone, known, state.unlocked]);
   const active=q.trim()||filter!=='all'||sort!=='level'||lvF;
@@ -644,9 +846,25 @@ function Library({state, known, actions, openStory, onAdd, toast, stories}){
     const S=x=>storyStats(x,state);
     const by={level:(a,b)=>a.level-b.level, short:(a,b)=>S(a).d.words-S(b).d.words, long:(a,b)=>S(b).d.words-S(a).d.words, mostnew:(a,b)=>S(b).newW-S(a).newW, leastnew:(a,b)=>S(a).newW-S(b).newW}[sort];
     return [...r].sort(by); },[active, q, filter, sort, lvF, stories, state.words, state.storiesDone, recIds]);
-  const card=s=>{ const open=isOpenLevel(s.level, known, state.unlocked)||s.user; const need=LEVELS[s.level-1].min-known;
+  const card=s=>{ const open=isOpenLevel(s.level, known, state.unlocked)||s.user||s.community; const need=LEVELS[s.level-1].min-known;
     return <StoryCard key={s.id} story={s} state={state} locked={!open} onOpen={()=>openStory(s.id)} onLocked={()=>toast(`הסיפור נעול. חסרות ${need} מילים מוכרות, או לחצו "בא לי אתגר, פתח עכשיו" בכותרת של שלב ${s.level}.`)}/>; };
   return (<div className="flex flex-col gap-6">
+    <div className="seg self-start" role="tablist" aria-label="תצוגת הספרייה">
+      <button role="tab" aria-selected={view==='mine'} aria-pressed={view==='mine'} onClick={()=>setView('mine')}>הספרייה שלי</button>
+      <button role="tab" aria-selected={view==='community'} aria-pressed={view==='community'} onClick={()=>{ setView('community'); loadCommunity(true); }}>סיפורי קהילה 🌍</button>
+    </div>
+    {view==='community' ? <section className="flex flex-col gap-4" aria-label="סיפורי קהילה">
+      <div className="flex items-center gap-3 flex-wrap"><h1 className="page-title me-auto">סיפורי קהילה 🌍</h1>
+        <button className="btn btn-primary px-4 text-sm" onClick={onAdd}><IconPlus size={18}/>פרסם סיפור</button></div>
+      <p className="text-sm text-muted leading-relaxed">סיפורים שמשתמשים כתבו ושיתפו עם כולם. לחצו על סיפור כדי לקרוא. מצאתם תוכן לא הולם או מוגן בזכויות יוצרים? השתמשו ב"דווח על תוכן".</p>
+      <label className="flex items-center gap-2 rounded-xl border-[1.5px] border-line bg-surface px-3 h-12 focus-within:border-primary" htmlFor="comm-search"><IconSearch size={18}/>
+        <input id="comm-search" className="flex-1 min-w-0 bg-transparent outline-none text-base h-full" placeholder="חיפוש לפי כותרת, נושא או שם הכותב" value={q} onChange={e=>setQ(e.target.value)}/></label>
+      {!SB ? <div className="card p-6 text-center text-muted">סיפורי קהילה זמינים באתר <bdi dir="ltr">lumi-english.netlify.app</bdi>.</div>
+      : COMMUNITY_ERR&&!community.length ? <div className="card p-6 text-center flex flex-col gap-3 items-center" role="alert"><span style={{color:'var(--bad)'}}>{COMMUNITY_ERR}</span><button className="btn btn-line px-4" onClick={()=>loadCommunity(true)}>ניסיון חוזר</button></div>
+      : (()=>{ const t=q.trim().toLowerCase(); const list=community.filter(s=>!t||[s.title,s.author,...(s.tags||[])].join(' ').toLowerCase().includes(t));
+          return list.length ? <div className="grid gap-4 md:grid-cols-2">{list.map(s=><CommunityCard key={s.id} story={s} state={state} session={session} onOpen={()=>openStory(s.id)} onReport={()=>onReport(s)} onEdit={()=>onEdit(s)} onDelete={()=>onDeleteCommunity(s)}/>)}</div>
+            : <div className="card p-6 text-center text-muted">{t?'לא נמצאו סיפורים.':'עוד אין סיפורי קהילה. היו הראשונים לפרסם!'}</div>; })()}
+    </section> : <>
     <HeroCard state={state} stories={stories} known={known} openStory={openStory}/>
     <LevelTracker state={state} stories={stories} known={known}/>
     <section className="flex flex-col gap-3">
@@ -694,6 +912,7 @@ function Library({state, known, actions, openStory, onAdd, toast, stories}){
           <div className="grid gap-4 md:grid-cols-2">{ls.map(card)}</div>
         </section>); })}
     </>}
+    </>}
   </div>);
 }
 
@@ -713,11 +932,14 @@ function splitParas(raw){
   }
   return out;
 }
-function AddStory({state, onClose, onSave}){
-  const [text,setText]=useState(''); const [title,setTitle]=useState(''); const [cover,setCover]=useState('📖'); const [level,setLevel]=useState(0); const [err,setErr]=useState('');
-  const [coverMode,setCoverMode]=useState('emoji'); const [image,setImage]=useState(null); const [imgBusy,setImgBusy]=useState(false); const [tags,setTags]=useState(null);
+function AddStory({state, onClose, onSave, profile, editing, onPublished, toast}){
+  const session=useSession(); const emailName=(session&&session.user&&session.user.email||'').split('@')[0];
+  const [text,setText]=useState(editing?editing.paras.map(p=>p.en).join('\n\n'):''); const [title,setTitle]=useState(editing?editing.title:''); const [cover,setCover]=useState(editing&&!editing.image?editing.cover:'📖'); const [level,setLevel]=useState(editing?editing.level:0); const [err,setErr]=useState('');
+  const [coverMode,setCoverMode]=useState(editing&&editing.image?'image':'emoji'); const [image,setImage]=useState(editing?editing.image:null); const [imgBusy,setImgBusy]=useState(false); const [tags,setTags]=useState(editing?editing.tags:null);
+  const [vis,setVis]=useState(editing?'public':'private'); const [consent,setConsent]=useState(!!editing); const [author,setAuthor]=useState(editing?editing.author:(profile&&profile.name)||''); const [publishing,setPublishing]=useState(false);
+  useEffect(()=>{ if(!editing&&!author&&emailName) setAuthor(emailName); },[emailName]);
   const [closing, close]=useClosing(onClose);
-  const paras=useMemo(()=>splitParas(text),[text]);
+  const paras=useMemo(()=>splitParas(cleanText(text)),[text]);
   const stats=useMemo(()=>{ const keys=[...new Set(paras.flatMap(p=>(p.match(WORD_RE)||[]).map(w=>w.toLowerCase())))];
     return { words:paras.reduce((a,p)=>a+countWords(p),0), unique:keys.length, known:keys.filter(k=>state.words[k]==='known').length, fresh:keys.filter(k=>!state.words[k]&&!NAMES.has(k)).length, dict:keys.filter(k=>wordInfo(k).he).length }; },[paras]);
   const autoTags=useMemo(()=>detectTopics(text),[text]); const tagList=tags||autoTags;
@@ -730,17 +952,21 @@ function AddStory({state, onClose, onSave}){
     catch(x){ setErr(x.message==='type'?'אפשר להעלות רק תמונות JPG, PNG או WEBP.':x.message==='big'?'התמונה גדולה מדי (עד 15MB).':'לא הצלחתי לקרוא את התמונה. נסו תמונה אחרת.'); }
     setImgBusy(false); };
   const toggleTag=t=>{ const cur=tagList; const n=cur.includes(t)?cur.filter(x=>x!==t):[...cur,t]; setTags(n.length?n:['יומיום']); };
-  const save=()=>{
+  const publicBlocked=vis==='public'&&(!consent||!session||!cleanText(author));
+  const save=async()=>{
     if(stats.words<5){ setErr('צריך טקסט באנגלית של לפחות כמה מילים.'); return; }
-    if(stats.words>20000){ setErr('הטקסט ארוך מדי (מעל 20,000 מילים). חלקו אותו לכמה סיפורים.'); return; }
-    const st={ id:'u_'+Date.now().toString(36), user:true, level:lvl, cover:cover||'📖', title:title.trim()||splitSentences(paras[0])[0].slice(0,48), he:'', blurb:'', tags:tagList, paras:paras.map(en=>({en})) };
+    if(stats.words>20000||(vis==='public'&&cleanText(text).length>60000)){ setErr('הטקסט ארוך מדי. חלקו אותו לכמה סיפורים.'); return; }
+    const st={ id:'u_'+Date.now().toString(36), user:true, level:lvl, cover:cover||'📖', title:cleanText(title,120)||splitSentences(paras[0])[0].slice(0,48), he:'', blurb:'', tags:tagList, paras:paras.map(en=>({en})) };
     if(coverMode==='image'&&image) st.image=image;
+    if(vis==='public'){ if(publicBlocked) return; setPublishing(true); setErr('');
+      try{ const pub=await publishStory(st, author, editing&&editing.cid); onPublished(pub, !!editing); }
+      catch(e){ setErr(/row-level|permission|policy/i.test((e&&e.message)||'')?'אין הרשאה לפרסם. התחברו מחדש ונסו שוב.':cloudMsg(e)); setPublishing(false); } return; }
     onSave(st, stats);
   };
   return (<div className={`overlay fixed inset-0 z-50 flex items-end sm:items-center justify-center ${closing?'out':''}`} style={{background:'color-mix(in srgb,var(--ink) 40%,transparent)'}} onClick={close}>
     <div role="dialog" aria-modal="true" aria-label="הוספת סיפור חדש" className={`sheet card w-full sm:max-w-2xl rounded-b-none sm:rounded-[20px] flex flex-col ${closing?'out':''}`} style={{maxHeight:'92vh'}} onClick={e=>e.stopPropagation()}>
       <div className="flex items-center gap-3 p-5 border-b border-line">
-        <h2 className="text-xl font-extrabold me-auto">הוספת סיפור חדש</h2>
+        <h2 className="text-xl font-extrabold me-auto">{editing?'עריכת סיפור קהילה':'הוספת סיפור חדש'}</h2>
         <button className="btn btn-ghost w-11 h-11" onClick={close} aria-label="סגירה"><IconX size={18}/></button>
       </div>
       <div className="p-5 flex flex-col gap-5 overflow-y-auto">
@@ -776,10 +1002,23 @@ function AddStory({state, onClose, onSave}){
               </div>
             </div>}
         </div>
+        <fieldset className="flex flex-col gap-2"><legend className="font-bold mb-1">4. מי יכול לראות את הסיפור?</legend>
+          {[['private','פרטי (רק עבורי)','נשמר בספרייה האישית שלכם בלבד.'],['public','ציבורי (שתף עם כל משתמשי האתר)','מתפרסם בספריית הקהילה ונראה לכולם.']].map(([k,l,d])=>(
+            <label key={k} className="flex items-start gap-3 rounded-xl p-3 cursor-pointer" style={{background:vis===k?'var(--primary-soft)':'var(--sunk)', boxShadow:vis===k?'0 0 0 1.5px var(--primary) inset':'none'}}>
+              <input type="radio" name="story-vis" className="mt-1 w-5 h-5 shrink-0" value={k} checked={vis===k} disabled={!!editing&&k==='private'} onChange={()=>setVis(k)}/><span><span className="font-semibold block">{l}</span><span className="text-sm text-muted">{d}</span></span></label>))}
+          {vis==='public'&&<div className="flex flex-col gap-3 rise rounded-xl border border-line p-3">
+            {!session ? <AuthForm intro="כדי לפרסם סיפור צריך להתחבר או להירשם. זה לוקח חצי דקה." onDone={()=>{}}/> : <>
+              <label className="flex flex-col gap-1"><span className="text-sm font-semibold">שם הכותב לתצוגה</span>
+                <input id="add-author" dir="auto" className="field" maxLength={40} value={author} onChange={e=>setAuthor(e.target.value)} placeholder={emailName||'השם שיוצג ליד הסיפור'}/>
+                <span className="text-xs text-muted">השם הזה יוצג לכולם. כתובת המייל שלכם לא תוצג.</span></label>
+              <label className="flex items-start gap-3 cursor-pointer"><input id="add-consent" type="checkbox" className="mt-1.5 w-5 h-5" checked={consent} onChange={e=>setConsent(e.target.checked)}/>
+                <span className="text-sm leading-relaxed">אני מצהיר/ה שסיפור זה נכתב על ידי או שאינו מוגן בזכויות יוצרים, ושאני מסכים/ה לפרסומו לכלל המשתמשים באתר.</span></label></>}
+          </div>}
+        </fieldset>
         {err&&<div className="rounded-xl p-3 text-sm" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{err}</Bi></div>}
       </div>
       <div className="p-5 border-t border-line flex gap-2 flex-wrap" style={{paddingBottom:'max(20px, env(safe-area-inset-bottom,0px))'}}>
-        <button className="btn btn-go py-3 px-6" onClick={save} disabled={stats.words<5||imgBusy}><IconCheck size={18}/>שמור סיפור</button>
+        <button className="btn btn-go py-3 px-6" onClick={save} disabled={stats.words<5||imgBusy||publishing||publicBlocked}><IconCheck size={18}/>{publishing?'מפרסם…':vis==='public'?(editing?'עדכון הסיפור':'פרסם לכולם'):'שמור סיפור'}</button>
         <button className="btn btn-ghost py-3 px-5" onClick={close}>ביטול</button>
       </div>
     </div>
@@ -1155,7 +1394,7 @@ function SummaryModal({story, snap, state, actions, voice, onClose, onPractice})
 /* ---------- reader ---------- */
 const FONT_SIZES=['1.15rem','1.32rem','1.5rem','1.72rem'];
 const READ_SNAPS={};
-function Reader({story, stories, state, actions, voice, voices, back, toast, onWord, onPractice}){
+function Reader({story, stories, state, actions, voice, voices, back, toast, onWord, onPractice, session, onReport, onEdit, onDeleteCommunity}){
   const {settings}=state; const d=storyData(story);
   const [summary,setSummary]=useState(false);
   // word statuses when this reading began; kept across leaving and reopening the story until "finished"
@@ -1195,7 +1434,7 @@ function Reader({story, stories, state, actions, voice, voices, back, toast, onW
     <div className="flex items-center gap-3 flex-wrap">
       <button className="btn btn-ghost px-3 py-2 text-sm" onClick={()=>{ player.stop(); back(); }}><IconChevR size={18}/>הספרייה</button>
       <span className="tag tag-level">שלב <span className="num">{story.level}</span></span>
-      {story.real&&<span className="tag tag-real">סיפור אמיתי</span>}{story.user&&<span className="tag">שלי</span>}
+      {story.real&&<span className="tag tag-real">סיפור אמיתי</span>}{story.user&&<span className="tag">שלי</span>}{story.community&&<span className="tag">🌍 קהילה · מאת <bdi>{story.author}</bdi></span>}
       <span className="tag"><IconClock size={11}/>כ־<span className="num">{readMinutes(d.words)}</span> דק׳ · <span className="num">{d.words}</span> מילים</span>
       <span className="text-sm text-muted num ms-auto">{knownCount}/{d.keys.length} מילים מוכרות</span>
     </div>
@@ -1258,6 +1497,13 @@ function Reader({story, stories, state, actions, voice, voices, back, toast, onW
             <div className="text-sm text-muted">{doneToday?'אפשר לראות שוב את הסיכום ולתרגל את המילים הקשות.':'לחצו כדי לראות מה למדת ולתרגל את המילים הקשות.'}</div></div>
           <button className="btn btn-go px-6 py-3 text-lg" onClick={()=>{ if(!doneToday){ player.stop(); actions.finishStory(story,false); } setSummary(true); }}><IconCheck/>סיימתי לקרוא</button>
         </div>
+        {story.community&&<div className="mt-5 flex items-center gap-3 flex-wrap text-sm">
+          {session&&session.user&&story.ownerId===session.user.id
+            ? <><button className="hit text-primary font-semibold" onClick={()=>onEdit(story)}>עריכת הסיפור</button>
+                {!confirmDel?<button className="hit underline" style={{color:'var(--bad)'}} onClick={()=>setConfirmDel(true)}>מחיקת הסיפור</button>
+                  :<><span>למחוק את הסיפור לצמיתות?</span><button className="btn py-2 px-3" style={{background:'var(--bad)', color:'var(--surface)'}} onClick={async()=>{ player.stop(); await onDeleteCommunity(story); back(); }}>כן, למחוק</button><button className="btn btn-ghost py-2 px-3" onClick={()=>setConfirmDel(false)}>ביטול</button></>}</>
+            : <button className="hit text-muted underline" onClick={()=>onReport(story)} aria-label={`דיווח על תוכן: ${story.title}`}>דווח על תוכן</button>}
+        </div>}
         {story.user&&<div className="mt-5 flex items-center gap-3 flex-wrap text-sm">
           {!confirmDel ? <button className="hit text-muted underline flex items-center gap-1" onClick={()=>setConfirmDel(true)}><IconTrash size={15}/>מחיקת הסיפור הזה</button>
           : <><span>למחוק את הסיפור? המילים שלמדת ממנו יישמרו.</span><button className="btn py-2 px-3" style={{background:'var(--bad)', color:'var(--surface)'}} onClick={()=>{ player.stop(); actions.deleteStory(story.id); back(); }}>כן, למחוק</button><button className="btn btn-ghost py-2 px-3" onClick={()=>setConfirmDel(false)}>ביטול</button></>}
@@ -1293,6 +1539,62 @@ function Reader({story, stories, state, actions, voice, voices, back, toast, onW
       </div></div>
     </div>
 
+  </div>);
+}
+
+/* ---------- speaking game: the word is shown, the learner says it ---------- */
+function levenshtein(a,b){ const m=a.length,n=b.length; if(!m) return n; if(!n) return m; let prev=Array.from({length:n+1},(_,j)=>j);
+  for(let i=1;i<=m;i++){ const cur=[i]; for(let j=1;j<=n;j++) cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+(a[i-1]===b[j-1]?0:1)); prev=cur; } return prev[n]; }
+function saidIt(target, heard){
+  const t=target.toLowerCase(); const pr=wordInfo(t).pron;
+  const toks=String(heard||'').toLowerCase().replace(/[’`]/g,"'").replace(/[^a-z' ]+/g,' ').split(/\s+/).filter(Boolean);
+  return toks.some(w=> w===t || w.replace(/'/g,'')===t.replace(/'/g,'') || (t.length>=6 && levenshtein(w,t)<=1) || (wordInfo(w).pron===pr && pr));
+}
+const SPEAK_LEN=10;
+function SpeakGame({pool, state, actions, voice, celebrate, onDone}){
+  const words=useMemo(()=>shuffle(pool.filter(k=>k.length>=3&&!NAMES.has(k)&&!k.includes("'"))).slice(0,SPEAK_LEN),[]);
+  const [i,setI]=useState(0); const [tries,setTries]=useState(0); const [heard,setHeard]=useState(''); const [result,setResult]=useState(null);
+  const [listening,setListening]=useState(false); const [err,setErr]=useState(''); const [score,setScore]=useState(0); const stopRef=useRef(null);
+  const k=words[i]; const info=k?wordInfo(k):null;
+  useEffect(()=>()=>{ stopRef.current&&stopRef.current(); },[]);
+  const judge=(text)=>{ setHeard(text); const ok=saidIt(k,text);
+    if(ok){ setResult('ok'); setScore(s=>s+1); if(state.words[k]==='learning') actions.recordAnswer(k,true); else actions.addXP(2); if((score+1)%3===0) celebrate(false); }
+    else { const n=tries+1; setTries(n); setResult(n>=3?'fail':'retry'); if(n>=3&&state.words[k]==='learning') actions.recordAnswer(k,false); } };
+  const mic=()=>{ setErr(''); if(listening){ stopRef.current&&stopRef.current(); return; }
+    setHeard(''); stopRef.current=listenOnce({lang:'en', onPartial:t=>setHeard(t), onText:judge, onError:m=>setErr(m), onState:setListening}); };
+  const next=()=>{ setI(x=>x+1); setTries(0); setHeard(''); setResult(null); setErr(''); };
+  if(!words.length) return (<section className="card p-6 flex flex-col gap-3 items-start"><h2 className="text-2xl font-extrabold">אין מספיק מילים למשחק</h2><p className="text-muted">קראו סיפור קצר ולחצו על כמה מילים, ואז נסו שוב.</p><button className="btn btn-primary px-5" onClick={onDone}>חזרה</button></section>);
+  if(!k) return (<section className="card p-6 sm:p-8 flex flex-col gap-4 items-start rise" role="status">
+    <div className="eyebrow">תגיד את המילה</div><h2 className="text-3xl font-extrabold">{score>=8?'הגייה מצוינת!':score>=5?'יפה מאוד!':'כל ניסיון משפר את ההגייה'}</h2>
+    <div className="num text-2xl font-extrabold">{score}/{words.length} <span className="text-base text-muted font-semibold">מילים נאמרו נכון</span></div>
+    <p className="text-muted text-sm">טיפ: לפני שאומרים, אפשר ללחוץ על הרמקול ולחזור אחרי הקול.</p>
+    <button className="btn btn-primary px-6" onClick={onDone}>סיום</button></section>);
+  return (<div className="flex flex-col gap-4 pb-28 sm:pb-0">
+    <div className="flex items-center gap-3">
+      <button className="btn btn-ghost px-3 text-sm" onClick={()=>{ stopRef.current&&stopRef.current(); onDone(); }}><IconX size={16}/>יציאה</button>
+      <div className="flex-1 h-2.5 rounded-full bg-sunk overflow-hidden" dir="ltr"><div className="h-full bar" style={{width:(i/words.length*100)+'%', background:'var(--primary)'}}></div></div>
+      <span className="num text-sm text-muted">{i+1}/{words.length}</span>
+    </div>
+    <div className="eyebrow">תגיד את המילה בקול</div>
+    <section className={`card p-6 sm:p-8 flex flex-col items-center gap-3 text-center ${result==='retry'?'shake':''}`} key={k}>
+      <div dir="ltr" className="book text-5xl sm:text-6xl font-bold">{k}</div>
+      <div className="text-lg text-muted"><Bi>{info.he||''}</Bi></div>
+      <div className="flex gap-2"><button className="btn btn-ghost px-4" onClick={()=>speakText(k,.9,voice)}><IconSpeaker size={18}/>איך אומרים?</button>
+        <button className="btn btn-ghost px-4" onClick={()=>speakText(k,.45,voice)}><span aria-hidden="true">🐢</span>לאט</button></div>
+      {(tries>0||result==='fail')&&<div className="text-xl font-semibold" style={{color:'var(--primary)'}}>{info.pron}</div>}
+      {heard&&<div className="text-sm text-muted">שמעתי: <bdi dir="ltr" className="book text-base text-ink">{heard}</bdi></div>}
+      {result==='ok'&&<div className="rise text-2xl font-extrabold" style={{color:'var(--known)'}} role="status">{pick(CHEERS)} +2</div>}
+      {result==='retry'&&<div className="rise font-bold" style={{color:'var(--bad)'}} role="status">כמעט! הקשיבו לדוגמה ונסו שוב ({3-tries} ניסיונות נשארו)</div>}
+      {result==='fail'&&<div className="rise font-bold" role="status">לא נורא. ככה אומרים את זה: <span style={{color:'var(--primary)'}}>{info.pron}</span></div>}
+    </section>
+    {err&&<div className="rounded-xl p-3 text-sm" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{err}</Bi></div>}
+    {result==='ok'||result==='fail'
+      ? <button className="btn btn-primary py-3 px-6 self-center dock-mobile" onClick={next} autoFocus>{i+1>=words.length?'לסיכום':'המילה הבאה'}</button>
+      : <div className="flex flex-col items-center gap-2">
+          <button className={`btn w-20 h-20 ${listening?'pop':''}`} style={{borderRadius:'50%', background:listening?'var(--bad)':'var(--primary)', color:'var(--primary-ink)'}} onClick={mic} aria-label={listening?'עצירת ההקשבה':`הקליטו את עצמכם אומרים ${k}`} aria-pressed={listening}><IconMic size={34}/></button>
+          <span className="text-sm text-muted">{listening?'מקשיב… אמרו את המילה':'לחצו ואמרו את המילה'}</span>
+          <button className="hit text-sm text-muted underline" onClick={()=>{ setResult('fail'); }}>דלג</button>
+        </div>}
   </div>);
 }
 
@@ -1371,13 +1673,15 @@ function Practice({state, stories, known, actions, voice, celebrate, goRead, onW
       else if(picked!==null && e.key==='Enter'){ e.preventDefault(); next(); } };
     window.addEventListener('keydown',h); return ()=>window.removeEventListener('keydown',h); });
 
+  if(phase==='speak') return <SpeakGame pool={pool} state={state} actions={actions} voice={voice} celebrate={celebrate} onDone={()=>setPhase('intro')}/>;
   if(phase==='intro') return (<div className="flex flex-col gap-4"><SrsCard state={state} onStart={onSrs}/><section className="card p-6 sm:p-8 flex flex-col gap-5">
     <div className="flex items-center gap-4 flex-wrap">
       <div className="w-14 h-14 rounded-xl grid place-items-center" style={{background:'var(--learn-bg)'}}><IconBolt size={28}/></div>
       <div className="flex-1 min-w-0"><h1 className="text-2xl sm:text-3xl font-bold">חזרה מהירה של 2 דקות</h1>
         <p className="text-muted mt-1">שאלות קצרות על המילים הצהובות, אלה ששמרת לתרגול.</p></div>
     </div>
-    <div className="grid sm:grid-cols-2 gap-3">
+    <div className="grid sm:grid-cols-3 gap-3">
+      <button className="btn-line rounded-xl p-4 flex gap-3 items-start text-start cursor-pointer" onClick={()=>pool.length&&setPhase('speak')} disabled={!pool.length}><IconMic size={22}/><span className="flex-1"><span className="font-semibold block">תגיד את המילה</span><span className="text-sm text-muted block">רואים מילה ואומרים אותה בקול. האפליקציה בודקת אם אמרתם נכון.</span><span className="text-sm font-semibold text-primary block mt-1">למשחק הדיבור ←</span></span></button>
       <button className="btn-line rounded-xl p-4 flex gap-3 items-start text-start cursor-pointer" onClick={()=>start('meaning')} disabled={!pool.length}><IconBook size={22}/><span className="flex-1"><span className="font-semibold block">מה הפירוש?</span><span className="text-sm text-muted block">רואים מילה באנגלית ובוחרים את התרגום מתוך 4.</span><span className="text-sm font-semibold text-primary block mt-1">תרגול רק מהסוג הזה ←</span></span></button>
       <button className="btn-line rounded-xl p-4 flex gap-3 items-start text-start cursor-pointer" onClick={()=>start('listen')} disabled={!pool.length}><IconEar size={22}/><span className="flex-1"><span className="font-semibold block">אתגר שמיעה</span><span className="text-sm text-muted block">שומעים מילה בלי לראות אותה ובוחרים מה נאמר.</span><span className="text-sm font-semibold text-primary block mt-1">תרגול רק מהסוג הזה ←</span></span></button>
     </div>
@@ -1976,7 +2280,7 @@ function ProfilePicker({list, onPick, onAdd, onForget}){
     </div>
   </div>);
 }
-function ProfileSheet({profile, count, onClose, onRename, onSwitch, onAdd, onDelete, onSetPin, toast}){
+function ProfileSheet({profile, count, onClose, onRename, onSwitch, onAdd, onDelete, onSetPin, toast, state, actions}){
   const [closing, close]=useClosing(onClose);
   const [name,setName]=useState(profile.name); const [avatar,setAvatar]=useState(profile.avatar); const [confirm,setConfirm]=useState(false);
   useEffect(()=>{ const k=e=>{ if(e.key==='Escape') close(); }; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[]);
@@ -1996,6 +2300,7 @@ function ProfileSheet({profile, count, onClose, onRename, onSwitch, onAdd, onDel
         <div className="flex flex-wrap gap-1.5">{AVATARS.map(e=><button type="button" key={e} aria-pressed={avatar===e} aria-label={'דמות '+e} onClick={()=>setAvatar(e)} className="w-11 h-11 rounded-xl text-2xl grid place-items-center" style={{background:avatar===e?'var(--primary-soft)':'var(--sunk)', boxShadow:avatar===e?'0 0 0 2px var(--primary) inset':'none'}}>{e}</button>)}</div>
         <button className="btn btn-primary py-2.5 px-5 self-start" disabled={!changed}>שמירה</button>
       </form>
+      <CloudCard state={state} actions={actions} toast={toast} onClose={close}/>
       <form className="border-t border-line pt-4 flex flex-col gap-3" onSubmit={e=>{ e.preventDefault(); savePin(false); }}>
         <div className="font-semibold flex items-center gap-2"><IconLock size={16}/>סיסמה<span className="tag" style={profile.pin?{background:'var(--good-soft)', color:'var(--good)'}:{}}>{profile.pin?'מוגן בסיסמה':'בלי סיסמה'}</span></div>
         {profile.pin&&<input id="pf-pin-cur" type="password" dir="ltr" className="field text-left" autoComplete="current-password" maxLength={32} placeholder="הסיסמה הנוכחית" aria-label="הסיסמה הנוכחית" value={cur} onChange={e=>{ setCur(e.target.value); setPinErr(''); }}/>}
@@ -2057,7 +2362,11 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
   const [flash,setFlash]=useState(null);
   const [card,setCard]=useState(null);
   const openCard=useCallback((key, display)=>{ const k=String(key).toLowerCase(); if(k) setCard({key:k, display:display||k}); },[]);
-  const stories=useMemo(()=>[...STORIES, ...state.userStories],[state.userStories]);
+  const session=useSession();
+  const community=useCommunity();
+  const [legal,setLegal]=useState(null); const [reporting,setReporting]=useState(null); const [recovery,setRecovery]=useState(RECOVERY);
+  useEffect(()=>{ const f=()=>{ if(RECOVERY) setRecovery(true); }; SESSION_SUBS.add(f); return ()=>SESSION_SUBS.delete(f); },[]);
+  const stories=useMemo(()=>[...STORIES, ...state.userStories, ...community],[state.userStories, community]);
 
   const toast=useCallback((m)=>{ const id=Math.random(); setToastMsg({m,id});
     setTimeout(()=>setToastMsg(t=>t&&t.id===id?{...t,out:true}:t),3600); setTimeout(()=>setToastMsg(t=>t&&t.id===id?null:t),3850); },[]);
@@ -2111,6 +2420,7 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
     noteCombo:(n)=>setState(s=>n>s.bestCombo?{...s, bestCombo:n}:s),
     setNote:(id,t)=>setState(s=>({...s, notes:{...(s.notes||{}),[id]:t}})),
     setGroup:(g)=>setState(s=>({...s, group:g})),
+    setCloud:(c)=>setState(s=>{ const n={...s}; if(c) n.cloud=c; else delete n.cloud; return n; }),
     unlock:(n)=>setState(s=>({...s, unlocked:{...s.unlocked,[n]:true}})),
     lock:(n)=>setState(s=>{ const u={...s.unlocked}; for(const k in u) if(+k>=n) delete u[k]; return {...s, unlocked:u}; }),
     addStory:(story)=>setState(s=>({...s, userStories:[story, ...s.userStories]})),
@@ -2130,23 +2440,29 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
     <DictBar state={state} onOpen={openCard} onAdd={()=>setAdding(true)} onHome={()=>{ setStoryId(null); changeTab('read'); }} voiceRef={voiceRef} onListening={setListening}/>
     <Header known={known} streak={streak} todayXP={todayH.xp} goal={state.goal} unlocked={state.unlocked} onNav={changeTab} profile={profile} onProfile={()=>setProfileOpen(true)}/>
     <Tabs tab={tab} setTab={changeTab} learning={learning}/>
-    <main className="gutter" style={{paddingBlock:'24px 56px'}}>
+    <a href="#main" className="skip-link">דילוג לתוכן הראשי</a>
+    <main id="main" tabIndex={-1} className="gutter" style={{paddingBlock:'24px 24px'}}>
       <div className="mx-auto" style={{maxWidth:tab==='read'&&story&&state.settings.pane!==false?'1240px':'860px', transition:'max-width .3s ease'}}>
         {tab==='read' && (story
-          ? <Reader key={story.id} story={story} stories={stories} state={state} actions={actions} voice={voice} voices={voices} back={()=>{ setStoryId(null); window.scrollTo({top:0}); }} toast={toast} onWord={openCard} onPractice={(keys,title)=>{ setFlash({keys,title:'מילים קשות מ־'+title,id:Math.random()}); setStoryId(null); changeTab('practice'); }}/>
-          : <Library state={state} known={known} actions={actions} openStory={openStory} onAdd={()=>setAdding(true)} toast={toast} stories={stories}/>)}
+          ? <Reader key={story.id} story={story} stories={stories} state={state} actions={actions} voice={voice} voices={voices} back={()=>{ setStoryId(null); window.scrollTo({top:0}); }} toast={toast} session={session} onReport={setReporting} onEdit={s=>setAdding({edit:s})} onDeleteCommunity={async s=>{ try{ await deleteCommunityStory(s.cid); toast('הסיפור נמחק'); }catch(e){ toast(cloudMsg(e)); } }} onWord={openCard} onPractice={(keys,title)=>{ setFlash({keys,title:'מילים קשות מ־'+title,id:Math.random()}); setStoryId(null); changeTab('practice'); }}/>
+          : <Library state={state} known={known} actions={actions} openStory={openStory} onAdd={()=>setAdding(true)} toast={toast} stories={stories} community={community} session={session} onReport={setReporting} onEdit={s=>setAdding({edit:s})} onDeleteCommunity={async s=>{ try{ await deleteCommunityStory(s.cid); toast('הסיפור נמחק'); }catch(e){ toast(cloudMsg(e)); } }}/>)}
         {tab==='sounds' && <Sounds state={state} actions={actions} voice={voice} celebrate={celebrate} onWord={openCard}/>}
         {tab==='talk' && <Talk state={state} actions={actions} voice={voice} profileName={profile.name}/>}
         {tab==='practice' && (flash ? <FlashSession key={flash.id} keys={flash.keys} title={flash.title} state={state} actions={actions} voice={voice} celebrate={celebrate} onDone={()=>setFlash(null)}/>
           : <Practice state={state} stories={stories} known={known} actions={actions} voice={voice} celebrate={celebrate} goRead={()=>changeTab('read')} onWord={openCard} onSrs={(keys,title)=>setFlash({keys,title,id:Math.random()})}/>)}
-        {tab==='progress' && <Progress state={state} stories={stories} actions={actions} streak={streak} known={known} profile={profile} toast={toast} voice={voice} onWord={openCard}/>}
+        {tab==='progress' && <Progress state={state} stories={stories.filter(s=>!s.community)} actions={actions} streak={streak} known={known} profile={profile} toast={toast} voice={voice} onWord={openCard}/>}
       </div>
     </main>
-    {adding&&<AddStory state={state} onClose={()=>setAdding(false)} onSave={(st, stats)=>{ actions.addStory(st); setAdding(false); try{ synth&&synth.cancel(); }catch(e){} openStory(st.id);
+    <Footer onOpen={setLegal}/>
+    <CloudSync state={state} actions={actions} toast={toast}/>
+    {legal&&<LegalModal page={legal} onClose={()=>setLegal(null)}/>}
+    {reporting&&SB&&<ReportDialog story={reporting} toast={toast} onClose={()=>setReporting(null)}/>}
+    {recovery&&SB&&<RecoveryDialog onClose={()=>setRecovery(false)}/>}
+    {adding&&<AddStory state={state} profile={profile} editing={adding.edit} toast={toast} onClose={()=>setAdding(false)} onPublished={(pub,wasEdit)=>{ setAdding(false); toast(wasEdit?'הסיפור עודכן':'הסיפור פורסם בספריית הקהילה'); if(!wasEdit){ setTab('read'); setStoryId(pub.id); window.scrollTo({top:0}); } }} onSave={(st, stats)=>{ actions.addStory(st); setAdding(false); try{ synth&&synth.cancel(); }catch(e){} openStory(st.id);
       toast(`הסיפור נשמר: ${stats.words} מילים, ${stats.known} מהן כבר מוכרות לך`); }}/>}
     {tab!=='practice'&&tab!=='talk'&&!card&&!adding&&!profileOpen&&<button className="fab sm:hidden" style={{bottom:`calc(${reading.current?104:20}px + env(safe-area-inset-bottom,0px))`, background:listening?'var(--bad)':'var(--primary)', color:listening?'var(--surface)':'var(--primary-ink)'}} onClick={()=>voiceRef.current()} aria-label={listening?'עצירת ההקשבה':'חיפוש קולי במילון: אמרו מילה באנגלית'} aria-pressed={listening}><IconMic size={24}/></button>}
     {card&&<DictCard wordKey={card.key} display={card.display} state={state} stories={stories} voice={voice} actions={actions} onClose={()=>setCard(null)} onOpenWord={openCard}/>}
-    {profileOpen&&<ProfileSheet profile={profile} count={count} onClose={()=>setProfileOpen(false)} onRename={onRename} onSwitch={onSwitch} onAdd={onAddProfile} onDelete={onDelete} onSetPin={onSetPin} toast={toast}/>}
+    {profileOpen&&<ProfileSheet profile={profile} count={count} onClose={()=>setProfileOpen(false)} onRename={onRename} onSwitch={onSwitch} onAdd={onAddProfile} onDelete={onDelete} onSetPin={onSetPin} toast={toast} state={state} actions={actions}/>}
     {burst&&<Confetti key={burst.id} big={burst.big}/>}
     {toastMsg&&<div role="status" className={`toast fixed z-[70] rounded-xl px-5 py-3 ${toastMsg.out?'out':''}`+" font-semibold flex items-center gap-2 text-sm"} style={{background:'var(--ink)', color:'var(--bg)', width:'max-content', maxWidth:'calc(100vw - 32px)'}}><IconCheck size={18} className="shrink-0"/><span><Bi>{toastMsg.m}</Bi></span></div>}
   </div>);
