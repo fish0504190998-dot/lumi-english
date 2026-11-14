@@ -592,6 +592,10 @@ video {
   border-width: 0;
 }
 
+.visible {
+  visibility: visible;
+}
+
 .invisible {
   visibility: hidden;
 }
@@ -1729,6 +1733,11 @@ video {
 
   .sm\:pb-4 {
     padding-bottom: 1rem;
+  }
+
+  .sm\:text-2xl {
+    font-size: 1.5rem;
+    line-height: 2rem;
   }
 
   .sm\:text-3xl {
@@ -3784,7 +3793,7 @@ function badgeStats(s) {
     known: Object.keys(s.words).filter(k => s.words[k] === 'known' && !NAMES.has(k)).length,
     streak: best,
     reviews: s.totals && s.totals.reviews || 0,
-    talks: Object.keys(s.talkDone || {}).length,
+    talks: Object.keys(s.talkDone || {}).filter(id => TALKS.some(t => t.id === id)).length,
     sounds: Object.values(s.phon || {}).filter(x => x.c >= 2).length,
     mine: (s.userStories || []).length,
     group: s.group ? 1 : 0
@@ -4757,17 +4766,19 @@ function LogoMark({
   size = 44,
   radius = 12
 }) {
+  const u = React.useId().replace(/[^a-zA-Z0-9]/g, ''); // unique gradient ids: a hidden copy must not break the visible ones
   return /*#__PURE__*/React.createElement("svg", {
     width: size,
     height: size,
     viewBox: "0 0 64 64",
-    "aria-hidden": "true",
+    role: "img",
+    "aria-label": "Lumi English",
     style: {
       display: 'block',
       borderRadius: radius
     }
   }, /*#__PURE__*/React.createElement("defs", null, /*#__PURE__*/React.createElement("linearGradient", {
-    id: "lg-bg",
+    id: 'lb' + u,
     x1: "0",
     y1: "0",
     x2: "1",
@@ -4779,7 +4790,7 @@ function LogoMark({
     offset: "1",
     stopColor: "#1F5F57"
   })), /*#__PURE__*/React.createElement("radialGradient", {
-    id: "lg-glow"
+    id: 'lg' + u
   }, /*#__PURE__*/React.createElement("stop", {
     offset: "0",
     stopColor: "#FFE7A3",
@@ -4792,12 +4803,12 @@ function LogoMark({
     width: "64",
     height: "64",
     rx: "16",
-    fill: "url(#lg-bg)"
+    fill: `url(#lb${u})`
   }), /*#__PURE__*/React.createElement("circle", {
     cx: "44.5",
     cy: "19.5",
     r: "14",
-    fill: "url(#lg-glow)"
+    fill: `url(#lg${u})`
   }), /*#__PURE__*/React.createElement("path", {
     d: "M18 13h9.5v28.5H46V50H18z",
     fill: "#FFFEFB"
@@ -5951,6 +5962,385 @@ function CloudCard({
       setTyped('');
     }
   }, "\u05D1\u05D9\u05D8\u05D5\u05DC")))));
+}
+
+/* ---------- free conversation with AI (Gemini through the site's /api/talk function) ---------- */
+const AI_OK = !/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname);
+const aiApi = () => ON_SITE ? '/api/talk' : SITE_URL + '/api/talk'; // evaluated lazily: ON_SITE and SITE_URL are defined further down
+const AI_SCEN = [['free', '💬', 'שיחה חופשית'], ['smalltalk', '👋', 'מה נשמע?'], ['cafe', '☕', 'בבית קפה'], ['travel', '🗺️', 'טיולים'], ['shop', '👕', 'בחנות'], ['job', '💼', 'ראיון עבודה'], ['doctor', '🩺', 'אצל הרופא']];
+const AI_ERR = {
+  not_configured: 'ה־AI עוד לא הופעל באתר. בעל האתר צריך להוסיף מפתח Gemini.',
+  anon_limit: 'הגעתם למגבלה היומית של אורחים. התחברו לחשבון כדי להמשיך (למשתמשים רשומים יש יותר הודעות).',
+  user_limit: 'הגעתם למגבלה היומית. נמשיך מחר!',
+  site_limit: 'השיחה עם ה־AI עמוסה היום. נסו שוב מחר.',
+  busy: 'ה־AI עמוס כרגע. נסו שוב בעוד רגע.',
+  bad_key: 'יש בעיה בהגדרת ה־AI באתר. נסו שוב מאוחר יותר.',
+  no_model: 'ה־AI לא זמין כרגע. נסו שוב מאוחר יותר.',
+  upstream: 'ה־AI לא הגיב. נסו שוב.',
+  empty: 'ה־AI לא הגיב. נסו שוב.',
+  bad_messages: 'משהו השתבש בשיחה. התחילו שיחה חדשה.',
+  net: 'אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.'
+};
+async function aiCall(body) {
+  const headers = {
+    'content-type': 'application/json'
+  };
+  const tok = SESSION && SESSION.access_token;
+  if (tok) headers.authorization = 'Bearer ' + tok;
+  let r;
+  try {
+    r = await fetch(aiApi(), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body)
+    });
+  } catch (e) {
+    throw new Error('net');
+  }
+  let j = null;
+  try {
+    j = await r.json();
+  } catch (e) {}
+  if (!r.ok || !j || j.error) throw new Error(j && j.error || 'net');
+  return j;
+}
+function AiChat({
+  scenario,
+  level,
+  name,
+  voice,
+  actions,
+  settings,
+  onBack
+}) {
+  const [msgs, setMsgs] = useState([]);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(true);
+  const [err, setErr] = useState('');
+  const [listening, setListening] = useState(false);
+  const [sent, setSent] = useState(0);
+  const endRef = useRef(null),
+    stopRef = useRef(null),
+    started = useRef(false);
+  const showHe = settings.talkHe !== false;
+  const scen = AI_SCEN.find(x => x[0] === scenario) || AI_SCEN[0];
+  const hist = m => m.filter(x => x.from === 'bot' || x.from === 'me').map(x => x.from === 'bot' ? {
+    role: 'model',
+    text: x.en
+  } : {
+    role: 'user',
+    text: x.text
+  });
+  const ask = async list => {
+    setBusy(true);
+    setErr('');
+    try {
+      const r = await aiCall({
+        messages: hist(list),
+        scenario,
+        level,
+        name
+      });
+      setMsgs(m => {
+        const n = [...m];
+        if (r.correction && n.length && n[n.length - 1].from === 'me') n[n.length - 1] = {
+          ...n[n.length - 1],
+          correction: r.correction,
+          tip: r.tip_he
+        };
+        n.push({
+          from: 'bot',
+          en: r.reply,
+          he: r.reply_he
+        });
+        return n;
+      });
+      speakText(r.reply, .9, voice);
+    } catch (e) {
+      setErr(AI_ERR[e.message] || AI_ERR.net);
+    }
+    setBusy(false);
+  };
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    ask([]);
+    return () => {
+      stopRef.current && stopRef.current();
+    };
+  }, []);
+  useEffect(() => {
+    endRef.current && endRef.current.scrollIntoView && endRef.current.scrollIntoView({
+      block: 'end',
+      behavior: 'smooth'
+    });
+  }, [msgs.length, busy, err]);
+  const submit = (raw, spoken) => {
+    const t = String(raw || '').trim().slice(0, 400);
+    if (!t || busy) return;
+    setText('');
+    const next = [...msgs, {
+      from: 'me',
+      text: t,
+      spoken
+    }];
+    setMsgs(next);
+    setSent(n => n + 1);
+    if (sent < 12) actions.addXP(1);
+    ask(next);
+  };
+  const mic = () => {
+    setErr('');
+    if (listening) {
+      stopRef.current && stopRef.current();
+      return;
+    }
+    stopRef.current = listenOnce({
+      lang: 'en',
+      onPartial: t => setText(t),
+      onText: t => submit(t, true),
+      onError: m => setErr(m),
+      onState: setListening
+    });
+  };
+  const finish = () => {
+    stopRef.current && stopRef.current();
+    if (sent >= 3) actions.finishTalk('ai');
+    onBack();
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2 flex-wrap"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-3 text-sm",
+    onClick: finish
+  }, /*#__PURE__*/React.createElement(IconChevR, {
+    size: 18
+  }), "\u05E1\u05D9\u05D5\u05DD \u05D4\u05E9\u05D9\u05D7\u05D4"), /*#__PURE__*/React.createElement("span", {
+    className: "text-2xl",
+    "aria-hidden": "true"
+  }, scen[1]), /*#__PURE__*/React.createElement("div", {
+    className: "leading-tight me-auto"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-extrabold"
+  }, "\u05E9\u05D9\u05D7\u05D4 \u05E2\u05DD \u05DC\u05D5\u05DE\u05D9 \uD83E\uDD16"), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs text-muted"
+  }, scen[2], " \xB7 \u05E9\u05DC\u05D1 ", /*#__PURE__*/React.createElement("span", {
+    className: "num"
+  }, level))), /*#__PURE__*/React.createElement(Toggle, {
+    id: "tg-aihe",
+    checked: showHe,
+    onChange: v => actions.setSetting('talkHe', v),
+    label: "\u05EA\u05E8\u05D2\u05D5\u05DD"
+  })), /*#__PURE__*/React.createElement("section", {
+    className: "card p-3 sm:p-5 flex flex-col gap-3",
+    style: {
+      minHeight: '50vh'
+    },
+    "aria-live": "polite"
+  }, msgs.map((m, i) => m.from === 'bot' ? /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "flex gap-2 items-start rise",
+    dir: "ltr"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "shrink-0 mt-1"
+  }, /*#__PURE__*/React.createElement(LogoMark, {
+    size: 34,
+    radius: 10
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "rounded-2xl rounded-tl-md px-4 py-3 max-w-[85%]",
+    style: {
+      background: 'var(--sunk)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "book text-lg leading-relaxed text-left"
+  }, m.en), showHe && m.he && /*#__PURE__*/React.createElement("div", {
+    dir: "rtl",
+    className: "text-sm text-muted mt-1 text-right"
+  }, m.he)), /*#__PURE__*/React.createElement("button", {
+    className: "hit w-9 h-9 rounded-full grid place-items-center shrink-0 mt-1",
+    style: {
+      background: 'var(--sunk)',
+      color: 'var(--muted)'
+    },
+    onClick: () => speakText(m.en, .9, voice),
+    "aria-label": "\u05D4\u05E9\u05DE\u05E2 \u05E9\u05D5\u05D1"
+  }, /*#__PURE__*/React.createElement(IconSpeaker, {
+    size: 15
+  })), /*#__PURE__*/React.createElement("button", {
+    className: "hit w-9 h-9 rounded-full grid place-items-center shrink-0 mt-1 text-sm",
+    style: {
+      background: 'var(--sunk)'
+    },
+    onClick: () => speakText(m.en, .55, voice),
+    "aria-label": "\u05D4\u05E9\u05DE\u05E2\u05D4 \u05D0\u05D9\u05D8\u05D9\u05EA"
+  }, /*#__PURE__*/React.createElement("span", {
+    "aria-hidden": "true"
+  }, "\uD83D\uDC22"))) : /*#__PURE__*/React.createElement("div", {
+    key: i,
+    className: "flex flex-col items-end gap-1.5 rise",
+    dir: "ltr"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "rounded-2xl rounded-tr-md px-4 py-3 max-w-[85%]",
+    style: {
+      background: 'var(--primary)',
+      color: 'var(--primary-ink)'
+    }
+  }, m.spoken && /*#__PURE__*/React.createElement("div", {
+    dir: "rtl",
+    className: "text-xs opacity-80 mb-0.5 text-right flex items-center gap-1"
+  }, /*#__PURE__*/React.createElement(IconMic, {
+    size: 12
+  }), "\u05E9\u05DE\u05E2\u05EA\u05D9:"), /*#__PURE__*/React.createElement("div", {
+    dir: "auto",
+    className: "book text-lg leading-relaxed"
+  }, m.text)), m.correction && /*#__PURE__*/React.createElement("div", {
+    className: "rounded-xl px-3 py-2 max-w-[85%] text-sm flex flex-col gap-1",
+    style: {
+      background: 'var(--known-bg)',
+      color: 'var(--ink)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "font-bold",
+    style: {
+      color: 'var(--known)'
+    },
+    dir: "rtl"
+  }, "\u05E0\u05D9\u05E1\u05D5\u05D7 \u05D8\u05D5\u05D1 \u05D9\u05D5\u05EA\u05E8:"), /*#__PURE__*/React.createElement("button", {
+    className: "hit w-8 h-8 rounded-full grid place-items-center",
+    onClick: () => speakText(m.correction, .85, voice),
+    "aria-label": "\u05D4\u05E9\u05DE\u05E2\u05EA \u05D4\u05E0\u05D5\u05E1\u05D7 \u05D4\u05DE\u05EA\u05D5\u05E7\u05DF"
+  }, /*#__PURE__*/React.createElement(IconSpeaker, {
+    size: 14
+  }))), /*#__PURE__*/React.createElement("div", {
+    dir: "ltr",
+    className: "book text-base text-left"
+  }, m.correction), m.tip && /*#__PURE__*/React.createElement("div", {
+    dir: "rtl",
+    className: "text-xs text-muted text-right"
+  }, m.tip)))), busy && /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 items-center text-muted text-sm",
+    dir: "rtl",
+    role: "status"
+  }, /*#__PURE__*/React.createElement(LogoMark, {
+    size: 28,
+    radius: 8
+  }), "\u05DC\u05D5\u05DE\u05D9 \u05D7\u05D5\u05E9\u05D1\u05EA\u2026"), /*#__PURE__*/React.createElement("div", {
+    ref: endRef
+  })), err && /*#__PURE__*/React.createElement("div", {
+    className: "rounded-xl p-3 text-sm flex items-center gap-3 flex-wrap",
+    role: "alert",
+    style: {
+      background: 'var(--bad-soft)',
+      color: 'var(--bad)'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "flex-1"
+  }, /*#__PURE__*/React.createElement(Bi, null, err)), msgs.length === 0 && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-line px-3 py-1.5 text-sm",
+    onClick: () => ask([])
+  }, "\u05E0\u05D9\u05E1\u05D9\u05D5\u05DF \u05D7\u05D5\u05D6\u05E8"), msgs.length > 0 && msgs[msgs.length - 1].from === 'me' && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-line px-3 py-1.5 text-sm",
+    onClick: () => ask(msgs)
+  }, "\u05E9\u05DC\u05D9\u05D7\u05D4 \u05DE\u05D7\u05D3\u05E9")), /*#__PURE__*/React.createElement("div", {
+    className: "talk-composer card p-2 flex items-center gap-2",
+    dir: "ltr"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: `btn w-14 h-14 shrink-0 ${listening ? 'pop' : ''}`,
+    style: {
+      borderRadius: '50%',
+      background: listening ? 'var(--bad)' : 'var(--primary)',
+      color: 'var(--primary-ink)'
+    },
+    onClick: mic,
+    disabled: busy && !listening,
+    "aria-label": listening ? 'עצירת ההקשבה' : 'דברו באנגלית',
+    "aria-pressed": listening
+  }, /*#__PURE__*/React.createElement(IconMic, {
+    size: 24
+  })), /*#__PURE__*/React.createElement("form", {
+    className: "flex-1 min-w-0 flex items-center gap-2",
+    onSubmit: e => {
+      e.preventDefault();
+      submit(text, false);
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    id: "ai-input",
+    dir: "ltr",
+    className: "field book text-lg flex-1 min-w-0",
+    style: {
+      minHeight: '48px'
+    },
+    autoComplete: "off",
+    maxLength: 400,
+    placeholder: listening ? 'Listening…' : 'Speak or type in English',
+    value: text,
+    onChange: e => setText(e.target.value)
+  }), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary h-12 px-4 shrink-0",
+    disabled: !text.trim() || busy,
+    "aria-label": "\u05E9\u05DC\u05D9\u05D7\u05D4"
+  }, /*#__PURE__*/React.createElement("span", {
+    dir: "rtl"
+  }, "\u05E9\u05DC\u05D7")))));
+}
+function AiTalkCard({
+  known,
+  onStart
+}) {
+  const [lv, setLv] = useState(levelFor(known));
+  const session = useSession();
+  return /*#__PURE__*/React.createElement("section", {
+    className: "card ai-card p-5 sm:p-6 flex flex-col gap-4"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "w-12 h-12 rounded-2xl grid place-items-center text-2xl shrink-0",
+    style: {
+      background: 'var(--primary-soft)'
+    },
+    "aria-hidden": "true"
+  }, "\uD83E\uDD16"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, "\u05D7\u05D3\u05E9"), /*#__PURE__*/React.createElement("h2", {
+    className: "text-xl sm:text-2xl font-extrabold"
+  }, "\u05E9\u05D9\u05D7\u05D4 \u05D7\u05D5\u05E4\u05E9\u05D9\u05EA \u05E2\u05DD \u05DC\u05D5\u05DE\u05D9 (AI)"))), /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-muted leading-relaxed"
+  }, "\u05D0\u05E4\u05E9\u05E8 \u05DC\u05D3\u05D1\u05E8 \u05D0\u05D5 \u05DC\u05D4\u05E7\u05DC\u05D9\u05D3 \u05DB\u05DC \u05D3\u05D1\u05E8, \u05D5\u05DC\u05D5\u05DE\u05D9 \u05E2\u05D5\u05E0\u05D4, \u05E9\u05D5\u05D0\u05DC\u05EA \u05D5\u05DE\u05EA\u05E7\u05E0\u05EA \u05D1\u05E2\u05D3\u05D9\u05E0\u05D5\u05EA. \u05D4\u05D9\u05D0 \u05DE\u05EA\u05D0\u05D9\u05DE\u05D4 \u05D0\u05EA \u05D4\u05D0\u05E0\u05D2\u05DC\u05D9\u05EA \u05DC\u05E8\u05DE\u05D4 \u05E9\u05DC\u05DB\u05DD."), !AI_OK ? /*#__PURE__*/React.createElement("p", {
+    className: "text-sm rounded-xl p-3",
+    style: {
+      background: 'var(--sun-soft)'
+    }
+  }, "\u05D4\u05E9\u05D9\u05D7\u05D4 \u05E2\u05DD \u05D4\u05BEAI \u05D6\u05DE\u05D9\u05E0\u05D4 \u05D1\u05D0\u05EA\u05E8 ", /*#__PURE__*/React.createElement("bdi", {
+    dir: "ltr"
+  }, "lumi-english.netlify.app"), ".") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-wrap gap-2",
+    role: "group",
+    "aria-label": "\u05D1\u05D7\u05D9\u05E8\u05EA \u05E0\u05D5\u05E9\u05D0 \u05DC\u05E9\u05D9\u05D7\u05D4"
+  }, AI_SCEN.map(([k, e, l]) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    className: "filter-pill flex items-center gap-1.5",
+    onClick: () => onStart(k, lv)
+  }, /*#__PURE__*/React.createElement("span", {
+    "aria-hidden": "true"
+  }, e), l))), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2 flex-wrap text-sm"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-muted"
+  }, "\u05E8\u05DE\u05EA \u05D4\u05D0\u05E0\u05D2\u05DC\u05D9\u05EA:"), /*#__PURE__*/React.createElement("div", {
+    className: "seg",
+    role: "group",
+    "aria-label": "\u05E8\u05DE\u05EA \u05D4\u05D0\u05E0\u05D2\u05DC\u05D9\u05EA"
+  }, LEVELS.map(L => /*#__PURE__*/React.createElement("button", {
+    key: L.n,
+    "aria-pressed": lv === L.n,
+    onClick: () => setLv(L.n)
+  }, "\u05E9\u05DC\u05D1 ", L.n)))), /*#__PURE__*/React.createElement("p", {
+    className: "text-xs text-muted"
+  }, session ? 'מחוברים: עד 80 הודעות ביום.' : 'כאורחים אפשר עד 15 הודעות ביום. עם חשבון יש עד 80.', " \u05D4\u05D4\u05D5\u05D3\u05E2\u05D5\u05EA \u05E0\u05E9\u05DC\u05D7\u05D5\u05EA \u05DC\u05E9\u05D9\u05E8\u05D5\u05EA Gemini \u05E9\u05DC \u05D2\u05D5\u05D2\u05DC \u05DB\u05D3\u05D9 \u05DC\u05E7\u05D1\u05DC \u05EA\u05E9\u05D5\u05D1\u05D4, \u05D5\u05D0\u05D9\u05E0\u05DF \u05E0\u05E9\u05DE\u05E8\u05D5\u05EA \u05D0\u05E6\u05DC\u05E0\u05D5.")));
 }
 
 /* ---------- library ---------- */
@@ -10229,10 +10619,22 @@ function Talk({
   state,
   actions,
   voice,
-  profileName
+  profileName,
+  known
 }) {
   const [id, setId] = useState(null);
   const [run, setRun] = useState(0);
+  const [ai, setAi] = useState(null);
+  if (ai) return /*#__PURE__*/React.createElement(AiChat, {
+    key: ai.id,
+    scenario: ai.scen,
+    level: ai.lv,
+    name: profileName,
+    voice: voice,
+    actions: actions,
+    settings: state.settings,
+    onBack: () => setAi(null)
+  });
   const t = TALKS.find(x => x.id === id);
   const done = state.talkDone || {};
   if (t) return /*#__PURE__*/React.createElement(TalkChat, {
@@ -10262,7 +10664,21 @@ function Talk({
     className: "text-muted leading-relaxed"
   }, "\u05E9\u05D9\u05D7\u05D5\u05EA \u05E7\u05E6\u05E8\u05D5\u05EA \u05DE\u05D4\u05D7\u05D9\u05D9\u05DD. \u05DC\u05D5\u05DE\u05D9 \u05D0\u05D5\u05DE\u05E8\u05EA \u05DE\u05E9\u05E4\u05D8, \u05D5\u05D0\u05EA\u05DD \u05E2\u05D5\u05E0\u05D9\u05DD \u05D1\u05E7\u05D5\u05DC (\u05DB\u05E4\u05EA\u05D5\u05E8 \u05D4\u05DE\u05D9\u05E7\u05E8\u05D5\u05E4\u05D5\u05DF) \u05D0\u05D5 \u05D1\u05D4\u05E7\u05DC\u05D3\u05D4. \u05D0\u05DD \u05EA\u05E9\u05D5\u05D1\u05D4 \u05DC\u05D0 \u05DE\u05EA\u05D0\u05D9\u05DE\u05D4, \u05EA\u05E7\u05D1\u05DC\u05D5 \u05D3\u05D5\u05D2\u05DE\u05D0\u05D5\u05EA \u05DC\u05EA\u05E9\u05D5\u05D1\u05D5\u05EA \u05D8\u05D5\u05D1\u05D5\u05EA."), /*#__PURE__*/React.createElement("p", {
     className: "text-xs text-muted"
-  }, "\u05D4\u05DE\u05D9\u05E7\u05E8\u05D5\u05E4\u05D5\u05DF \u05E2\u05D5\u05D1\u05D3 \u05D1\u05BEChrome \u05D5\u05D1\u05BEEdge. \u05D1\u05E4\u05E2\u05DD \u05D4\u05E8\u05D0\u05E9\u05D5\u05E0\u05D4 \u05D4\u05D3\u05E4\u05D3\u05E4\u05DF \u05D9\u05D1\u05E7\u05E9 \u05D4\u05E8\u05E9\u05D0\u05D4.")), /*#__PURE__*/React.createElement("div", {
+  }, "\u05D4\u05DE\u05D9\u05E7\u05E8\u05D5\u05E4\u05D5\u05DF \u05E2\u05D5\u05D1\u05D3 \u05D1\u05BEChrome \u05D5\u05D1\u05BEEdge. \u05D1\u05E4\u05E2\u05DD \u05D4\u05E8\u05D0\u05E9\u05D5\u05E0\u05D4 \u05D4\u05D3\u05E4\u05D3\u05E4\u05DF \u05D9\u05D1\u05E7\u05E9 \u05D4\u05E8\u05E9\u05D0\u05D4.")), /*#__PURE__*/React.createElement(AiTalkCard, {
+    known: known,
+    onStart: (scen, lv) => {
+      setAi({
+        scen,
+        lv,
+        id: Math.random()
+      });
+      window.scrollTo({
+        top: 0
+      });
+    }
+  }), /*#__PURE__*/React.createElement("h2", {
+    className: "section-title"
+  }, "\u05E9\u05D9\u05D7\u05D5\u05EA \u05DE\u05D5\u05DB\u05E0\u05D5\u05EA"), /*#__PURE__*/React.createElement("div", {
     className: "grid gap-3 sm:grid-cols-2"
   }, TALKS.map(x => /*#__PURE__*/React.createElement("button", {
     key: x.id,
@@ -12365,7 +12781,8 @@ function App({
     state: state,
     actions: actions,
     voice: voice,
-    profileName: profile.name
+    profileName: profile.name,
+    known: known
   }), tab === 'practice' && (flash ? /*#__PURE__*/React.createElement(FlashSession, {
     key: flash.id,
     keys: flash.keys,

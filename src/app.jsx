@@ -149,7 +149,7 @@ const BADGES=[
 ];
 function badgeStats(s){ const st=computeStreak(s.history), best=Math.max(st, bestStreak(s.history));
   return { stories:Object.keys(s.storiesDone||{}).length, known:Object.keys(s.words).filter(k=>s.words[k]==='known'&&!NAMES.has(k)).length, streak:best,
-    reviews:(s.totals&&s.totals.reviews)||0, talks:Object.keys(s.talkDone||{}).length, sounds:Object.values(s.phon||{}).filter(x=>x.c>=2).length,
+    reviews:(s.totals&&s.totals.reviews)||0, talks:Object.keys(s.talkDone||{}).filter(id=>TALKS.some(t=>t.id===id)).length, sounds:Object.values(s.phon||{}).filter(x=>x.c>=2).length,
     mine:(s.userStories||[]).length, group:s.group?1:0 }; }
 
 /* ---------- story helpers ---------- */
@@ -459,11 +459,12 @@ const IconUsers=p=><Svg {...p}><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3
 const IconTrophy=p=><Svg {...p}><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H4.5a3 3 0 0 0 3.5 4M16 6h3.5a3 3 0 0 1-3.5 4M12 13v4M8.5 20h7"/></Svg>;
 /* brand mark: a white "L" with a warm light dot (Lumi = light) on a sage tile */
 function LogoMark({size=44, radius=12}){
-  return (<svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" style={{display:'block', borderRadius:radius}}>
-    <defs><linearGradient id="lg-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#3A9486"/><stop offset="1" stopColor="#1F5F57"/></linearGradient>
-      <radialGradient id="lg-glow"><stop offset="0" stopColor="#FFE7A3" stopOpacity=".95"/><stop offset="1" stopColor="#FFE7A3" stopOpacity="0"/></radialGradient></defs>
-    <rect width="64" height="64" rx="16" fill="url(#lg-bg)"/>
-    <circle cx="44.5" cy="19.5" r="14" fill="url(#lg-glow)"/>
+  const u=React.useId().replace(/[^a-zA-Z0-9]/g,'');   // unique gradient ids: a hidden copy must not break the visible ones
+  return (<svg width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="Lumi English" style={{display:'block', borderRadius:radius}}>
+    <defs><linearGradient id={'lb'+u} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#3A9486"/><stop offset="1" stopColor="#1F5F57"/></linearGradient>
+      <radialGradient id={'lg'+u}><stop offset="0" stopColor="#FFE7A3" stopOpacity=".95"/><stop offset="1" stopColor="#FFE7A3" stopOpacity="0"/></radialGradient></defs>
+    <rect width="64" height="64" rx="16" fill={`url(#lb${u})`}/>
+    <circle cx="44.5" cy="19.5" r="14" fill={`url(#lg${u})`}/>
     <path d="M18 13h9.5v28.5H46V50H18z" fill="#FFFEFB"/>
     <circle cx="44.5" cy="19.5" r="6.2" fill="#F4C55B"/>
   </svg>);
@@ -737,6 +738,80 @@ function CloudCard({state, actions, toast, onClose}){
         </div>}
     </>}
   </div>);
+}
+
+/* ---------- free conversation with AI (Gemini through the site's /api/talk function) ---------- */
+const AI_OK=!/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname);
+const aiApi=()=>ON_SITE?'/api/talk':SITE_URL+'/api/talk';   // evaluated lazily: ON_SITE and SITE_URL are defined further down
+const AI_SCEN=[['free','💬','שיחה חופשית'],['smalltalk','👋','מה נשמע?'],['cafe','☕','בבית קפה'],['travel','🗺️','טיולים'],['shop','👕','בחנות'],['job','💼','ראיון עבודה'],['doctor','🩺','אצל הרופא']];
+const AI_ERR={ not_configured:'ה־AI עוד לא הופעל באתר. בעל האתר צריך להוסיף מפתח Gemini.', anon_limit:'הגעתם למגבלה היומית של אורחים. התחברו לחשבון כדי להמשיך (למשתמשים רשומים יש יותר הודעות).', user_limit:'הגעתם למגבלה היומית. נמשיך מחר!',
+  site_limit:'השיחה עם ה־AI עמוסה היום. נסו שוב מחר.', busy:'ה־AI עמוס כרגע. נסו שוב בעוד רגע.', bad_key:'יש בעיה בהגדרת ה־AI באתר. נסו שוב מאוחר יותר.', no_model:'ה־AI לא זמין כרגע. נסו שוב מאוחר יותר.', upstream:'ה־AI לא הגיב. נסו שוב.', empty:'ה־AI לא הגיב. נסו שוב.', bad_messages:'משהו השתבש בשיחה. התחילו שיחה חדשה.', net:'אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.' };
+async function aiCall(body){
+  const headers={'content-type':'application/json'}; const tok=SESSION&&SESSION.access_token; if(tok) headers.authorization='Bearer '+tok;
+  let r; try{ r=await fetch(aiApi(),{method:'POST', headers, body:JSON.stringify(body)}); }catch(e){ throw new Error('net'); }
+  let j=null; try{ j=await r.json(); }catch(e){} if(!r.ok||!j||j.error) throw new Error((j&&j.error)||'net'); return j;
+}
+function AiChat({scenario, level, name, voice, actions, settings, onBack}){
+  const [msgs,setMsgs]=useState([]); const [text,setText]=useState(''); const [busy,setBusy]=useState(true); const [err,setErr]=useState(''); const [listening,setListening]=useState(false); const [sent,setSent]=useState(0);
+  const endRef=useRef(null), stopRef=useRef(null), started=useRef(false); const showHe=settings.talkHe!==false; const scen=AI_SCEN.find(x=>x[0]===scenario)||AI_SCEN[0];
+  const hist=m=>m.filter(x=>x.from==='bot'||x.from==='me').map(x=>x.from==='bot'?{role:'model',text:x.en}:{role:'user',text:x.text});
+  const ask=async(list)=>{ setBusy(true); setErr('');
+    try{ const r=await aiCall({messages:hist(list), scenario, level, name});
+      setMsgs(m=>{ const n=[...m]; if(r.correction&&n.length&&n[n.length-1].from==='me') n[n.length-1]={...n[n.length-1], correction:r.correction, tip:r.tip_he}; n.push({from:'bot', en:r.reply, he:r.reply_he}); return n; });
+      speakText(r.reply,.9,voice); }
+    catch(e){ setErr(AI_ERR[e.message]||AI_ERR.net); }
+    setBusy(false); };
+  useEffect(()=>{ if(started.current) return; started.current=true; ask([]); return ()=>{ stopRef.current&&stopRef.current(); }; },[]);
+  useEffect(()=>{ endRef.current&&endRef.current.scrollIntoView&&endRef.current.scrollIntoView({block:'end', behavior:'smooth'}); },[msgs.length, busy, err]);
+  const submit=(raw,spoken)=>{ const t=String(raw||'').trim().slice(0,400); if(!t||busy) return; setText(''); const next=[...msgs,{from:'me', text:t, spoken}]; setMsgs(next); setSent(n=>n+1); if(sent<12) actions.addXP(1); ask(next); };
+  const mic=()=>{ setErr(''); if(listening){ stopRef.current&&stopRef.current(); return; } stopRef.current=listenOnce({lang:'en', onPartial:t=>setText(t), onText:t=>submit(t,true), onError:m=>setErr(m), onState:setListening}); };
+  const finish=()=>{ stopRef.current&&stopRef.current(); if(sent>=3) actions.finishTalk('ai'); onBack(); };
+  return (<div className="flex flex-col gap-3">
+    <div className="flex items-center gap-2 flex-wrap">
+      <button className="btn btn-ghost px-3 text-sm" onClick={finish}><IconChevR size={18}/>סיום השיחה</button>
+      <span className="text-2xl" aria-hidden="true">{scen[1]}</span><div className="leading-tight me-auto"><div className="font-extrabold">שיחה עם לומי 🤖</div><div className="text-xs text-muted">{scen[2]} · שלב <span className="num">{level}</span></div></div>
+      <Toggle id="tg-aihe" checked={showHe} onChange={v=>actions.setSetting('talkHe',v)} label="תרגום"/>
+    </div>
+    <section className="card p-3 sm:p-5 flex flex-col gap-3" style={{minHeight:'50vh'}} aria-live="polite">
+      {msgs.map((m,i)=> m.from==='bot' ? (<div key={i} className="flex gap-2 items-start rise" dir="ltr">
+          <div className="shrink-0 mt-1"><LogoMark size={34} radius={10}/></div>
+          <div className="rounded-2xl rounded-tl-md px-4 py-3 max-w-[85%]" style={{background:'var(--sunk)'}}>
+            <div className="book text-lg leading-relaxed text-left">{m.en}</div>{showHe&&m.he&&<div dir="rtl" className="text-sm text-muted mt-1 text-right">{m.he}</div>}</div>
+          <button className="hit w-9 h-9 rounded-full grid place-items-center shrink-0 mt-1" style={{background:'var(--sunk)', color:'var(--muted)'}} onClick={()=>speakText(m.en,.9,voice)} aria-label="השמע שוב"><IconSpeaker size={15}/></button>
+          <button className="hit w-9 h-9 rounded-full grid place-items-center shrink-0 mt-1 text-sm" style={{background:'var(--sunk)'}} onClick={()=>speakText(m.en,.55,voice)} aria-label="השמעה איטית"><span aria-hidden="true">🐢</span></button></div>)
+        : (<div key={i} className="flex flex-col items-end gap-1.5 rise" dir="ltr">
+          <div className="rounded-2xl rounded-tr-md px-4 py-3 max-w-[85%]" style={{background:'var(--primary)', color:'var(--primary-ink)'}}>
+            {m.spoken&&<div dir="rtl" className="text-xs opacity-80 mb-0.5 text-right flex items-center gap-1"><IconMic size={12}/>שמעתי:</div>}<div dir="auto" className="book text-lg leading-relaxed">{m.text}</div></div>
+          {m.correction&&<div className="rounded-xl px-3 py-2 max-w-[85%] text-sm flex flex-col gap-1" style={{background:'var(--known-bg)', color:'var(--ink)'}}>
+            <div className="flex items-center gap-2"><span className="font-bold" style={{color:'var(--known)'}} dir="rtl">ניסוח טוב יותר:</span>
+              <button className="hit w-8 h-8 rounded-full grid place-items-center" onClick={()=>speakText(m.correction,.85,voice)} aria-label="השמעת הנוסח המתוקן"><IconSpeaker size={14}/></button></div>
+            <div dir="ltr" className="book text-base text-left">{m.correction}</div>{m.tip&&<div dir="rtl" className="text-xs text-muted text-right">{m.tip}</div>}</div>}
+        </div>))}
+      {busy&&<div className="flex gap-2 items-center text-muted text-sm" dir="rtl" role="status"><LogoMark size={28} radius={8}/>לומי חושבת…</div>}
+      <div ref={endRef}></div>
+    </section>
+    {err&&<div className="rounded-xl p-3 text-sm flex items-center gap-3 flex-wrap" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><span className="flex-1"><Bi>{err}</Bi></span>
+      {msgs.length===0&&<button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>ask([])}>ניסיון חוזר</button>}{msgs.length>0&&msgs[msgs.length-1].from==='me'&&<button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>ask(msgs)}>שליחה מחדש</button>}</div>}
+    <div className="talk-composer card p-2 flex items-center gap-2" dir="ltr">
+      <button className={`btn w-14 h-14 shrink-0 ${listening?'pop':''}`} style={{borderRadius:'50%', background:listening?'var(--bad)':'var(--primary)', color:'var(--primary-ink)'}} onClick={mic} disabled={busy&&!listening} aria-label={listening?'עצירת ההקשבה':'דברו באנגלית'} aria-pressed={listening}><IconMic size={24}/></button>
+      <form className="flex-1 min-w-0 flex items-center gap-2" onSubmit={e=>{ e.preventDefault(); submit(text,false); }}>
+        <input id="ai-input" dir="ltr" className="field book text-lg flex-1 min-w-0" style={{minHeight:'48px'}} autoComplete="off" maxLength={400} placeholder={listening?'Listening…':'Speak or type in English'} value={text} onChange={e=>setText(e.target.value)}/>
+        <button className="btn btn-primary h-12 px-4 shrink-0" disabled={!text.trim()||busy} aria-label="שליחה"><span dir="rtl">שלח</span></button></form>
+    </div>
+  </div>);
+}
+function AiTalkCard({known, onStart}){
+  const [lv,setLv]=useState(levelFor(known)); const session=useSession();
+  return (<section className="card ai-card p-5 sm:p-6 flex flex-col gap-4">
+    <div className="flex items-center gap-3"><span className="w-12 h-12 rounded-2xl grid place-items-center text-2xl shrink-0" style={{background:'var(--primary-soft)'}} aria-hidden="true">🤖</span>
+      <div><div className="eyebrow">חדש</div><h2 className="text-xl sm:text-2xl font-extrabold">שיחה חופשית עם לומי (AI)</h2></div></div>
+    <p className="text-sm text-muted leading-relaxed">אפשר לדבר או להקליד כל דבר, ולומי עונה, שואלת ומתקנת בעדינות. היא מתאימה את האנגלית לרמה שלכם.</p>
+    {!AI_OK ? <p className="text-sm rounded-xl p-3" style={{background:'var(--sun-soft)'}}>השיחה עם ה־AI זמינה באתר <bdi dir="ltr">lumi-english.netlify.app</bdi>.</p> : <>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="בחירת נושא לשיחה">{AI_SCEN.map(([k,e,l])=><button key={k} className="filter-pill flex items-center gap-1.5" onClick={()=>onStart(k,lv)}><span aria-hidden="true">{e}</span>{l}</button>)}</div>
+      <div className="flex items-center gap-2 flex-wrap text-sm"><span className="text-muted">רמת האנגלית:</span>
+        <div className="seg" role="group" aria-label="רמת האנגלית">{LEVELS.map(L=><button key={L.n} aria-pressed={lv===L.n} onClick={()=>setLv(L.n)}>שלב {L.n}</button>)}</div></div>
+      <p className="text-xs text-muted">{session?'מחוברים: עד 80 הודעות ביום.':'כאורחים אפשר עד 15 הודעות ביום. עם חשבון יש עד 80.'} ההודעות נשלחות לשירות Gemini של גוגל כדי לקבל תשובה, ואינן נשמרות אצלנו.</p></>}
+  </section>);
 }
 
 /* ---------- library ---------- */
@@ -1954,8 +2029,9 @@ function TalkChat({talk, voice, actions, onBack, onNext, settings, defaultName})
     {err&&<div className="rounded-xl p-3 text-sm" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{err}</Bi></div>}
   </div>);
 }
-function Talk({state, actions, voice, profileName}){
-  const [id,setId]=useState(null); const [run,setRun]=useState(0);
+function Talk({state, actions, voice, profileName, known}){
+  const [id,setId]=useState(null); const [run,setRun]=useState(0); const [ai,setAi]=useState(null);
+  if(ai) return <AiChat key={ai.id} scenario={ai.scen} level={ai.lv} name={profileName} voice={voice} actions={actions} settings={state.settings} onBack={()=>setAi(null)}/>;
   const t=TALKS.find(x=>x.id===id); const done=state.talkDone||{};
   if(t) return <TalkChat key={t.id+':'+run} talk={t} voice={voice} actions={actions} settings={state.settings} defaultName={profileName}
     onBack={()=>setId(null)} onNext={()=>{ const i=TALKS.indexOf(t); setId(TALKS[(i+1)%TALKS.length].id); setRun(r=>r+1); window.scrollTo({top:0}); }}/>;
@@ -1965,6 +2041,8 @@ function Talk({state, actions, voice, profileName}){
       <p className="text-muted leading-relaxed">שיחות קצרות מהחיים. לומי אומרת משפט, ואתם עונים בקול (כפתור המיקרופון) או בהקלדה. אם תשובה לא מתאימה, תקבלו דוגמאות לתשובות טובות.</p>
       <p className="text-xs text-muted">המיקרופון עובד ב־Chrome וב־Edge. בפעם הראשונה הדפדפן יבקש הרשאה.</p>
     </section>
+    <AiTalkCard known={known} onStart={(scen,lv)=>{ setAi({scen,lv,id:Math.random()}); window.scrollTo({top:0}); }}/>
+    <h2 className="section-title">שיחות מוכנות</h2>
     <div className="grid gap-3 sm:grid-cols-2">{TALKS.map(x=>(<button key={x.id} onClick={()=>{ setId(x.id); window.scrollTo({top:0}); }} className="card card-btn card-lift p-4 flex items-center gap-4 text-start">
       <span className="w-14 h-14 rounded-xl grid place-items-center text-3xl bg-sunk shrink-0" aria-hidden="true">{x.cover}</span>
       <span className="flex-1 min-w-0"><span dir="ltr" className="book font-bold text-lg block text-left">{x.title}</span><span className="text-sm text-muted block">{x.he} · <span className="num">{x.steps.length}</span> שאלות · שלב <span className="num">{x.level}</span></span></span>
@@ -2447,7 +2525,7 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
           ? <Reader key={story.id} story={story} stories={stories} state={state} actions={actions} voice={voice} voices={voices} back={()=>{ setStoryId(null); window.scrollTo({top:0}); }} toast={toast} session={session} onReport={setReporting} onEdit={s=>setAdding({edit:s})} onDeleteCommunity={async s=>{ try{ await deleteCommunityStory(s.cid); toast('הסיפור נמחק'); }catch(e){ toast(cloudMsg(e)); } }} onWord={openCard} onPractice={(keys,title)=>{ setFlash({keys,title:'מילים קשות מ־'+title,id:Math.random()}); setStoryId(null); changeTab('practice'); }}/>
           : <Library state={state} known={known} actions={actions} openStory={openStory} onAdd={()=>setAdding(true)} toast={toast} stories={stories} community={community} session={session} onReport={setReporting} onEdit={s=>setAdding({edit:s})} onDeleteCommunity={async s=>{ try{ await deleteCommunityStory(s.cid); toast('הסיפור נמחק'); }catch(e){ toast(cloudMsg(e)); } }}/>)}
         {tab==='sounds' && <Sounds state={state} actions={actions} voice={voice} celebrate={celebrate} onWord={openCard}/>}
-        {tab==='talk' && <Talk state={state} actions={actions} voice={voice} profileName={profile.name}/>}
+        {tab==='talk' && <Talk state={state} actions={actions} voice={voice} profileName={profile.name} known={known}/>}
         {tab==='practice' && (flash ? <FlashSession key={flash.id} keys={flash.keys} title={flash.title} state={state} actions={actions} voice={voice} celebrate={celebrate} onDone={()=>setFlash(null)}/>
           : <Practice state={state} stories={stories} known={known} actions={actions} voice={voice} celebrate={celebrate} goRead={()=>changeTab('read')} onWord={openCard} onSrs={(keys,title)=>setFlash({keys,title,id:Math.random()})}/>)}
         {tab==='progress' && <Progress state={state} stories={stories.filter(s=>!s.community)} actions={actions} streak={streak} known={known} profile={profile} toast={toast} voice={voice} onWord={openCard}/>}
