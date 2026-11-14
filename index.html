@@ -5974,9 +5974,9 @@ const AI_ERR = {
   user_limit: 'הגעתם למגבלה היומית. נמשיך מחר!',
   site_limit: 'השיחה עם ה־AI עמוסה היום. נסו שוב מחר.',
   busy: 'ה־AI עמוס כרגע. נסו שוב בעוד רגע.',
-  bad_key: 'יש בעיה בהגדרת ה־AI באתר. נסו שוב מאוחר יותר.',
+  bad_key: 'המפתח של Gemini לא תקין. בעל האתר צריך ליצור מפתח חדש ב־Google AI Studio ולהדביק אותו ב־Netlify.',
   no_model: 'ה־AI לא זמין כרגע. נסו שוב מאוחר יותר.',
-  upstream: 'ה־AI לא הגיב. נסו שוב.',
+  upstream: 'ה־AI לא הגיב. נסו שוב בעוד רגע.',
   empty: 'ה־AI לא הגיב. נסו שוב.',
   bad_messages: 'משהו השתבש בשיחה. התחילו שיחה חדשה.',
   net: 'אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.'
@@ -6001,7 +6001,11 @@ async function aiCall(body) {
   try {
     j = await r.json();
   } catch (e) {}
-  if (!r.ok || !j || j.error) throw new Error(j && j.error || 'net');
+  if (!r.ok || !j || j.error) {
+    const er = new Error(j && j.error || 'net');
+    er.detail = j && j.detail || String(r.status);
+    throw er;
+  }
   return j;
 }
 function AiChat({
@@ -6019,6 +6023,7 @@ function AiChat({
   const [err, setErr] = useState('');
   const [listening, setListening] = useState(false);
   const [sent, setSent] = useState(0);
+  const [detail, setDetail] = useState('');
   const endRef = useRef(null),
     stopRef = useRef(null),
     started = useRef(false);
@@ -6058,6 +6063,7 @@ function AiChat({
       speakText(r.reply, .9, voice);
     } catch (e) {
       setErr(AI_ERR[e.message] || AI_ERR.net);
+      setDetail(e.detail || '');
     }
     setBusy(false);
   };
@@ -6239,7 +6245,14 @@ function AiChat({
     }
   }, /*#__PURE__*/React.createElement("span", {
     className: "flex-1"
-  }, /*#__PURE__*/React.createElement(Bi, null, err)), msgs.length === 0 && /*#__PURE__*/React.createElement("button", {
+  }, /*#__PURE__*/React.createElement(Bi, null, err), detail && /*#__PURE__*/React.createElement("details", {
+    className: "mt-1 text-xs opacity-80"
+  }, /*#__PURE__*/React.createElement("summary", {
+    className: "cursor-pointer"
+  }, "\u05E4\u05E8\u05D8\u05D9\u05DD \u05D8\u05DB\u05E0\u05D9\u05D9\u05DD"), /*#__PURE__*/React.createElement("bdi", {
+    dir: "ltr",
+    className: "block text-left break-words select-all"
+  }, detail))), msgs.length === 0 && /*#__PURE__*/React.createElement("button", {
     className: "btn btn-line px-3 py-1.5 text-sm",
     onClick: () => ask([])
   }, "\u05E0\u05D9\u05E1\u05D9\u05D5\u05DF \u05D7\u05D5\u05D6\u05E8"), msgs.length > 0 && msgs[msgs.length - 1].from === 'me' && /*#__PURE__*/React.createElement("button", {

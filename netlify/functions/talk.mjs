@@ -57,11 +57,27 @@ async function bump(store, key, limit) {          // best-effort daily counter
   await store.set(key, String(cur + 1)); return true;
 }
 
+const cleanKey = (k) => String(k || "").trim().replace(/^["'`]+|["'`]+$/g, "").replace(/\s+/g, "");
+const redact = (t, key) => String(t || "").split(key && key.length >= 12 ? key : "\u0000").join("[key]").replace(/AIza[0-9A-Za-z_-]{20,}/g, "[key]").replace(/\s+/g, " ").slice(0, 220);
+async function listModels(f, apiKey) {            // models this key can really use for generateContent
+  const r = await f("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", { headers: { "x-goog-api-key": apiKey } });
+  if (!r.ok) return { status: r.status, text: await r.text().catch(() => ""), models: [] };
+  const d = await r.json(); const all = (d.models || []).filter((m) => (m.supportedGenerationMethods || []).includes("generateContent")).map((m) => String(m.name).replace(/^models\//, ""));
+  return { status: 200, models: all.filter((n) => /flash/i.test(n) && !/(image|tts|audio|live|embed|thinking-exp|vision|robotics|computer)/i.test(n)).sort((a, b) => (/lite/i.test(b) - /lite/i.test(a)) || b.localeCompare(a)) };
+}
+
 export async function handle(req, ctx) {
   const { store, env, fetch: f } = ctx;
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: HEADERS });
+  const apiKey = cleanKey(env.GEMINI_API_KEY);
+  if (req.method === "GET") {                       // /api/talk?check=1 : what is wrong with the setup? (never shows the key)
+    const info = { hasKey: !!apiKey, keyLength: apiKey.length, startsWithAIza: apiKey.startsWith("AIza"), preferredModel: env.GEMINI_MODEL || null };
+    if (!apiKey) return json({ ...info, problem: "GEMINI_API_KEY is not set in Netlify, or the site was not redeployed after adding it." });
+    try { const l = await listModels(f, apiKey); return json({ ...info, googleStatus: l.status, googleMessage: l.status === 200 ? "ok" : redact(l.text, apiKey), usableFlashModels: l.models.slice(0, 8) }); }
+    catch (e) { return json({ ...info, problem: "could not reach Google: " + redact(e && e.message, apiKey) }); }
+  }
   if (req.method !== "POST") return json({ error: "method" }, 405);
-  const apiKey = env.GEMINI_API_KEY; if (!apiKey) return json({ error: "not_configured" }, 503);
+  if (!apiKey) return json({ error: "not_configured" }, 503);
   let body; try { body = await req.json(); } catch { return json({ error: "bad_json" }, 400); }
   const raw = Array.isArray(body && body.messages) ? body.messages.slice(-14) : [];
   const messages = raw.filter((m) => m && (m.role === "user" || m.role === "model")).map((m) => ({ role: m.role, text: clean(m.text, 500) })).filter((m) => m.text);
@@ -79,21 +95,22 @@ export async function handle(req, ctx) {
   const contents = [{ role: "user", parts: [{ text: messages.length ? "(The learner is ready to chat.)" : "(The learner just opened the chat. Greet them warmly and ask the first simple question.)" }] },
     ...messages.map((m) => ({ role: m.role, parts: [{ text: m.text }] }))];
   const payload = { systemInstruction: { parts: [{ text: systemPrompt(level, scenario, name) }] }, contents, generationConfig: { temperature: 0.8, maxOutputTokens: 500, responseMimeType: "application/json", responseSchema: SCHEMA } };
-  const models = [env.GEMINI_MODEL, ...DEFAULT_MODELS].filter(Boolean);
-  let lastStatus = 0;
-  for (const model of [...new Set(models)]) {
-    let r; try { r = await f(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify(payload) }); } catch { return json({ error: "upstream" }, 502); }
+  const tried = new Set(); let lastStatus = 0; let queue = [env.GEMINI_MODEL, ...DEFAULT_MODELS].filter(Boolean); let discovered = false;
+  while (queue.length) {
+    const model = queue.shift(); if (tried.has(model)) continue; tried.add(model);
+    let r; try { r = await f(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, { method: "POST", headers: { "content-type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify(payload) }); } catch { return json({ error: "upstream", detail: "network" }, 502); }
     lastStatus = r.status;
-    if (r.status === 404) continue;                      // model name not available: try the next one
+    if (r.status === 404) {                              // model name not available for this key: try the next, then ask Google which models exist
+      if (!queue.length && !discovered) { discovered = true; try { const l = await listModels(f, apiKey); queue = l.models.filter((m) => !tried.has(m)).slice(0, 4); } catch {} }
+      continue; }
     if (r.status === 429) return json({ error: "busy" }, 503);
-    if (r.status === 400 || r.status === 403) { const t = await r.text().catch(() => ""); return json({ error: /API key|API_KEY|permission|PERMISSION/i.test(t) ? "bad_key" : "upstream" }, 502); }
-    if (!r.ok) return json({ error: "upstream" }, 502);
+    if (!r.ok) { const t = redact(await r.text().catch(() => ""), apiKey); return json({ error: /API key not valid|API_KEY_INVALID|API key expired|key.*(invalid|expired)/i.test(t) ? "bad_key" : "upstream", detail: `${r.status} ${t}`.slice(0, 240) }, 502); }
     const data = await r.json(); const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
-    if (!text) return json({ error: "empty" }, 502);
+    if (!text) return json({ error: "empty", detail: String(data?.promptFeedback?.blockReason || data?.candidates?.[0]?.finishReason || "") }, 502);
     let o; try { o = JSON.parse(text); } catch { o = { reply: text, reply_he: "", correction: "", tip_he: "" }; }
     return json({ reply: clean(o.reply, 600), reply_he: clean(o.reply_he, 700), correction: clean(o.correction, 400), tip_he: clean(o.tip_he, 300), model });
   }
-  return json({ error: lastStatus === 404 ? "no_model" : "upstream" }, 502);
+  return json({ error: lastStatus === 404 ? "no_model" : "upstream", detail: `${lastStatus} models tried: ${[...tried].join(", ")}` }, 502);
 }
 
 export default async (req) => handle(req, { store: getStore({ name: "lumi-ai-usage", consistency: "strong" }), env: process.env, fetch });

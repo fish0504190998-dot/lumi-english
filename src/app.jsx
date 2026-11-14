@@ -745,21 +745,21 @@ const AI_OK=!/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname)
 const aiApi=()=>ON_SITE?'/api/talk':SITE_URL+'/api/talk';   // evaluated lazily: ON_SITE and SITE_URL are defined further down
 const AI_SCEN=[['free','💬','שיחה חופשית'],['smalltalk','👋','מה נשמע?'],['cafe','☕','בבית קפה'],['travel','🗺️','טיולים'],['shop','👕','בחנות'],['job','💼','ראיון עבודה'],['doctor','🩺','אצל הרופא']];
 const AI_ERR={ not_configured:'ה־AI עוד לא הופעל באתר. בעל האתר צריך להוסיף מפתח Gemini.', anon_limit:'הגעתם למגבלה היומית של אורחים. התחברו לחשבון כדי להמשיך (למשתמשים רשומים יש יותר הודעות).', user_limit:'הגעתם למגבלה היומית. נמשיך מחר!',
-  site_limit:'השיחה עם ה־AI עמוסה היום. נסו שוב מחר.', busy:'ה־AI עמוס כרגע. נסו שוב בעוד רגע.', bad_key:'יש בעיה בהגדרת ה־AI באתר. נסו שוב מאוחר יותר.', no_model:'ה־AI לא זמין כרגע. נסו שוב מאוחר יותר.', upstream:'ה־AI לא הגיב. נסו שוב.', empty:'ה־AI לא הגיב. נסו שוב.', bad_messages:'משהו השתבש בשיחה. התחילו שיחה חדשה.', net:'אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.' };
+  site_limit:'השיחה עם ה־AI עמוסה היום. נסו שוב מחר.', busy:'ה־AI עמוס כרגע. נסו שוב בעוד רגע.', bad_key:'המפתח של Gemini לא תקין. בעל האתר צריך ליצור מפתח חדש ב־Google AI Studio ולהדביק אותו ב־Netlify.', no_model:'ה־AI לא זמין כרגע. נסו שוב מאוחר יותר.', upstream:'ה־AI לא הגיב. נסו שוב בעוד רגע.', empty:'ה־AI לא הגיב. נסו שוב.', bad_messages:'משהו השתבש בשיחה. התחילו שיחה חדשה.', net:'אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.' };
 async function aiCall(body){
   const headers={'content-type':'application/json'}; const tok=SESSION&&SESSION.access_token; if(tok) headers.authorization='Bearer '+tok;
   let r; try{ r=await fetch(aiApi(),{method:'POST', headers, body:JSON.stringify(body)}); }catch(e){ throw new Error('net'); }
-  let j=null; try{ j=await r.json(); }catch(e){} if(!r.ok||!j||j.error) throw new Error((j&&j.error)||'net'); return j;
+  let j=null; try{ j=await r.json(); }catch(e){} if(!r.ok||!j||j.error){ const er=new Error((j&&j.error)||'net'); er.detail=(j&&j.detail)||String(r.status); throw er; } return j;
 }
 function AiChat({scenario, level, name, voice, actions, settings, onBack}){
-  const [msgs,setMsgs]=useState([]); const [text,setText]=useState(''); const [busy,setBusy]=useState(true); const [err,setErr]=useState(''); const [listening,setListening]=useState(false); const [sent,setSent]=useState(0);
+  const [msgs,setMsgs]=useState([]); const [text,setText]=useState(''); const [busy,setBusy]=useState(true); const [err,setErr]=useState(''); const [listening,setListening]=useState(false); const [sent,setSent]=useState(0); const [detail,setDetail]=useState('');
   const endRef=useRef(null), stopRef=useRef(null), started=useRef(false); const showHe=settings.talkHe!==false; const scen=AI_SCEN.find(x=>x[0]===scenario)||AI_SCEN[0];
   const hist=m=>m.filter(x=>x.from==='bot'||x.from==='me').map(x=>x.from==='bot'?{role:'model',text:x.en}:{role:'user',text:x.text});
   const ask=async(list)=>{ setBusy(true); setErr('');
     try{ const r=await aiCall({messages:hist(list), scenario, level, name});
       setMsgs(m=>{ const n=[...m]; if(r.correction&&n.length&&n[n.length-1].from==='me') n[n.length-1]={...n[n.length-1], correction:r.correction, tip:r.tip_he}; n.push({from:'bot', en:r.reply, he:r.reply_he}); return n; });
       speakText(r.reply,.9,voice); }
-    catch(e){ setErr(AI_ERR[e.message]||AI_ERR.net); }
+    catch(e){ setErr(AI_ERR[e.message]||AI_ERR.net); setDetail(e.detail||''); }
     setBusy(false); };
   useEffect(()=>{ if(started.current) return; started.current=true; ask([]); return ()=>{ stopRef.current&&stopRef.current(); }; },[]);
   useEffect(()=>{ endRef.current&&endRef.current.scrollIntoView&&endRef.current.scrollIntoView({block:'end', behavior:'smooth'}); },[msgs.length, busy, err]);
@@ -790,7 +790,7 @@ function AiChat({scenario, level, name, voice, actions, settings, onBack}){
       {busy&&<div className="flex gap-2 items-center text-muted text-sm" dir="rtl" role="status"><LogoMark size={28} radius={8}/>לומי חושבת…</div>}
       <div ref={endRef}></div>
     </section>
-    {err&&<div className="rounded-xl p-3 text-sm flex items-center gap-3 flex-wrap" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><span className="flex-1"><Bi>{err}</Bi></span>
+    {err&&<div className="rounded-xl p-3 text-sm flex items-center gap-3 flex-wrap" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><span className="flex-1"><Bi>{err}</Bi>{detail&&<details className="mt-1 text-xs opacity-80"><summary className="cursor-pointer">פרטים טכניים</summary><bdi dir="ltr" className="block text-left break-words select-all">{detail}</bdi></details>}</span>
       {msgs.length===0&&<button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>ask([])}>ניסיון חוזר</button>}{msgs.length>0&&msgs[msgs.length-1].from==='me'&&<button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>ask(msgs)}>שליחה מחדש</button>}</div>}
     <div className="talk-composer card p-2 flex items-center gap-2" dir="ltr">
       <button className={`btn w-14 h-14 shrink-0 ${listening?'pop':''}`} style={{borderRadius:'50%', background:listening?'var(--bad)':'var(--primary)', color:'var(--primary-ink)'}} onClick={mic} disabled={busy&&!listening} aria-label={listening?'עצירת ההקשבה':'דברו באנגלית'} aria-pressed={listening}><IconMic size={24}/></button>
