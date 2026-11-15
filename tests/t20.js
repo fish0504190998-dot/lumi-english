@@ -1,0 +1,34 @@
+const {chromium}=require('playwright');const S=process.argv[2];
+(async()=>{const b=await chromium.launch();const errs=[];const out={};
+const p=await b.newPage({viewport:{width:390,height:840},isMobile:true,hasTouch:true});p.on('pageerror',e=>errs.push(e.message));
+await p.route(/fonts\.|jiwsiutwvqdcafmiqxox/,r=>r.abort());
+let calls=[]; let mode='ok';
+await p.route(/lumi-english\.netlify\.app\/api\/talk/,async r=>{ const q=r.request(); const h={'access-control-allow-origin':'*','access-control-allow-headers':'*','content-type':'application/json'};
+  if(q.method()==='OPTIONS') return r.fulfill({status:204,headers:h}); const b=JSON.parse(q.postData()); calls.push(b);
+  if(mode==='limit') return r.fulfill({status:429,headers:h,body:JSON.stringify({error:'anon_limit'})});
+  if(mode==='nokey') return r.fulfill({status:503,headers:h,body:JSON.stringify({error:'not_configured'})});
+  const last=b.messages[b.messages.length-1];
+  const reply=!last?{reply:'Hi Dana! Welcome to the café. What would you like to drink?',reply_he:'היי דנה! ברוכה הבאה לבית הקפה. מה תרצי לשתות?',correction:'',tip_he:''}
+    :{reply:'Great choice! Would you like some cake too?',reply_he:'בחירה מצוינת! תרצי גם עוגה?',correction:/goed/.test(last.text)?'I went to the café yesterday.':'',tip_he:/goed/.test(last.text)?'went הוא העבר של go':''};
+  r.fulfill({status:200,headers:h,body:JSON.stringify(reply)}); });
+await p.addInitScript(()=>{ localStorage.setItem('lumi-profiles', JSON.stringify({list:[{id:'p1',name:'Dana',avatar:'🦊',key:'lumi-english-v1'}]}));
+  window.__say=[]; class U{constructor(t){this.text=t}}; window.SpeechSynthesisUtterance=U;
+  Object.defineProperty(window,'speechSynthesis',{value:{speaking:false,pending:false,speak(u){window.__say.push(u.text);setTimeout(()=>u.onend&&u.onend({}),20)},cancel(){},getVoices(){return[]},addEventListener(){},removeEventListener(){}},configurable:true}); });
+await p.goto('file:///home/user/lumi-english/lumi-english-offline.html');await p.waitForTimeout(700);
+await p.click('nav >> text=שיחה');await p.waitForTimeout(300);await p.screenshot({path:S+'/ai1.png'});
+out.cardTitle=await p.$eval('.ai-card h2',e=>e.textContent);
+await p.click('.ai-card .filter-pill:has-text("בבית קפה")');await p.waitForTimeout(900);
+out.opening=calls[0]; out.botSaid=await p.$$eval('.book.text-lg',e=>e.map(x=>x.textContent)); out.spoken=await p.evaluate(()=>window.__say.slice(-1)[0]);
+await p.fill('#ai-input','I goed to the cafe yesterday');await p.click('[aria-label="שליחה"]');await p.waitForTimeout(900);
+out.second=calls[1].messages; out.correction=await p.$eval('[style*="known-bg"]',e=>e.innerText.replace(/\s+/g,' ')).catch(()=>null);
+await p.screenshot({path:S+'/ai2.png'});
+await p.fill('#ai-input','A coffee please');await p.click('[aria-label="שליחה"]');await p.waitForTimeout(700);
+await p.fill('#ai-input','And a cake');await p.click('[aria-label="שליחה"]');await p.waitForTimeout(700);
+await p.click('button:has-text("סיום השיחה")');await p.waitForTimeout(300);
+out.talkDone=await p.evaluate(()=>Object.keys(JSON.parse(localStorage.getItem('lumi-english-v1')).talkDone||{}));
+// errors
+mode='limit';await p.click('.ai-card .filter-pill:has-text("שיחה חופשית")');await p.waitForTimeout(800);out.limitMsg=await p.$eval('[role=alert]',e=>e.textContent);
+await p.click('button:has-text("סיום השיחה")');await p.waitForTimeout(200);
+mode='nokey';await p.click('.ai-card .filter-pill:has-text("טיולים")');await p.waitForTimeout(800);out.nokeyMsg=await p.$eval('[role=alert]',e=>e.textContent);
+await p.screenshot({path:S+'/ai3.png'});
+out.sw=await p.evaluate(()=>document.documentElement.scrollWidth);out.errs=errs;console.log(JSON.stringify(out,null,1));await b.close();})();
