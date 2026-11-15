@@ -2174,17 +2174,18 @@ function CertificateView({course, state, profile, onBack, toast}){
 const normTxt=s=>String(s||'').toLowerCase().replace(/[’‘]/g,"'").replace(/\b(i)'m\b/g,'$1 am').replace(/\b(you|we|they)'re\b/g,'$1 are').replace(/\b(he|she|it|what|where|who)'s\b/g,'$1 is').replace(/[^a-z0-9' ]/g,' ').replace(/\s+/g,' ').trim();
 const sentOk=(target,heard)=>{ const t=normTxt(target).split(' '), h=new Set(normTxt(heard).split(' ')); return t.filter(w=>h.has(w)).length/t.length>=.7; };
 
-function ExItem({e, voice, onDone}){
+function ExItem({e, voice, onDone, copySeen, onCopy}){
   const opts=useMemo(()=>e.o?shuffle(e.o):[],[]);
   const bank=useMemo(()=>e.t==='order'?shuffle(e.words.map((w,i)=>({w,i}))):[],[]);
+  const hidden=useMemo(()=>e.t==='copy'&&((copySeen||{})[e.en]||0)>=2&&Math.random()<.6,[]); const [hint,setHint]=useState(false);
   const [picked,setPicked]=useState(null); const [chosen,setChosen]=useState([]); const [val,setVal]=useState('');
   const [res,setRes]=useState(null); const [listening,setListening]=useState(false); const [heard,setHeard]=useState(''); const [err,setErr]=useState(''); const [tip,setTip]=useState(''); const stopRef=useRef(null);
-  useEffect(()=>{ if(e.t==='listen') speakText(e.en,.9,voice); return ()=>{ stopRef.current&&stopRef.current(); }; },[]);
+  useEffect(()=>{ if(e.t==='listen'||hidden) speakText(e.en,.9,voice); return ()=>{ stopRef.current&&stopRef.current(); }; },[]);
   const finish=(ok)=>{ setRes(ok?'ok':'bad'); if(ok&&(e.t==='fill'||e.t==='order'||e.t==='type'||e.t==='copy')&&e.en) speakText(e.en,.9,voice); };
   const answerOf=()=>e.t==='order'?e.en:(e.t==='type'||e.t==='copy')?e.ans[0]:e.o?e.o[0]:'';
   const pickOpt=(o)=>{ if(res) return; setPicked(o); finish(o===e.o[0]); };
   const checkOrder=()=>{ if(res) return; finish(normTxt(chosen.map(i=>e.words[i]).join(' '))===normTxt(e.en)); };
-  const checkType=()=>{ if(res||!val.trim()) return; if(e.t==='copy'){ const v=val.trim(); setTip((/^[A-Z]/.test(e.en)&&!/^[A-Z]/.test(v))?'שימו לב: התחלת משפט באות גדולה.':(/[.!?]$/.test(e.en)&&!/[.!?]$/.test(v))?'שימו לב: חסר סימן סיום (נקודה, סימן שאלה או קריאה).':''); } finish(e.ans.some(a=>normTxt(a)===normTxt(val))); };
+  const checkType=()=>{ if(res||!val.trim()) return; if(e.t==='copy'){ const v=val.trim(); setTip((/^[A-Z]/.test(e.en)&&!/^[A-Z]/.test(v))?'שימו לב: התחלת משפט באות גדולה.':(/[.!?]$/.test(e.en)&&!/[.!?]$/.test(v))?'שימו לב: חסר סימן סיום (נקודה, סימן שאלה או קריאה).':''); } const ok=e.ans.some(a=>normTxt(a)===normTxt(val)); if(ok&&e.t==='copy'&&onCopy) onCopy(e.en); finish(ok); };
   const mic=()=>{ setErr(''); if(listening){ stopRef.current&&stopRef.current(); return; } setHeard('');
     stopRef.current=listenOnce({lang:'en', onPartial:t=>setHeard(t), onText:t=>{ setHeard(t); setRes(sentOk(e.en,t)?'ok':'bad'); }, onError:m=>setErr(m), onState:setListening}); };
   const fb=res&&(<div className="flex flex-col items-center gap-2 rise" role="status">
@@ -2206,7 +2207,8 @@ function ExItem({e, voice, onDone}){
       {e.t==='fill'&&<><div className="text-sm text-muted">השלימו את המשפט</div><div dir="ltr" className="book text-2xl sm:text-3xl font-bold">{res?e.en.replace('___',e.o[0]):e.en}</div><div className="text-muted"><Bi>{e.he}</Bi></div></>}
       {e.t==='listen'&&<><div className="text-sm text-muted">מה שמעתם?</div><button className="btn btn-primary px-6 py-3" onClick={()=>speakText(e.en,.9,voice)}><IconSpeaker size={20}/>השמעה</button></>}
       {e.t==='order'&&<><div className="text-sm text-muted">סדרו את המשפט באנגלית</div><div className="text-xl font-bold"><Bi>{e.he}</Bi></div></>}
-      {e.t==='copy'&&<><div className="text-sm text-muted">העתיקו את המשפט (הקלידו אותו בדיוק)</div><div dir="ltr" className="book text-2xl sm:text-3xl font-bold">{e.en}</div><div className="text-muted"><Bi>{e.he}</Bi></div><button className="btn btn-ghost px-4" onClick={()=>speakText(e.en,.9,voice)}><IconSpeaker size={18}/>השמעה</button></>}
+      {e.t==='copy'&&hidden&&!hint&&!res&&<><div className="text-sm text-muted">כתבו מהזיכרון, בלי להסתכל. זה המשפט שהעתקתם:</div><div className="text-xl font-bold"><Bi>{e.he}</Bi></div><div className="flex gap-2"><button className="btn btn-ghost px-4" onClick={()=>speakText(e.en,.9,voice)}><IconSpeaker size={18}/>השמעה</button><button data-hint className="btn btn-ghost px-4" onClick={()=>setHint(true)}>רמז: הצגת המשפט</button></div></>}
+      {e.t==='copy'&&(!hidden||hint||res)&&<><div className="text-sm text-muted">{hidden?'הנה המשפט:':'העתיקו את המשפט (הקלידו אותו בדיוק)'}</div><div dir="ltr" className="book text-2xl sm:text-3xl font-bold">{e.en}</div><div className="text-muted"><Bi>{e.he}</Bi></div><button className="btn btn-ghost px-4" onClick={()=>speakText(e.en,.9,voice)}><IconSpeaker size={18}/>השמעה</button></>}
       {e.t==='type'&&<><div className="text-sm text-muted">כתבו באנגלית</div><div className="text-xl font-bold"><Bi>{e.he}</Bi></div></>}
     </section>
     {(e.t==='choose'||e.t==='fill'||e.t==='listen')&&<div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="תשובות">{opts.map(o=>{ const right=o===e.o[0]; const st=!res?'':right?'ok':o===picked?'bad':'dim';
@@ -2222,7 +2224,7 @@ function ExItem({e, voice, onDone}){
   </div>);
 }
 
-function ExerciseRunner({items, title, onFinish, onExit, voice}){
+function ExerciseRunner({items, title, onFinish, onExit, voice, copySeen, onCopy}){
   const scored=useMemo(()=>items.filter(e=>e.t!=='speak').length,[]);
   const [queue,setQueue]=useState(()=>items.map(e=>({e,first:true}))); const [i,setI]=useState(0); const [good,setGood]=useState(0);
   const cur=queue[i];
@@ -2232,15 +2234,17 @@ function ExerciseRunner({items, title, onFinish, onExit, voice}){
     <div className="flex items-center gap-3"><button className="btn btn-ghost px-3 text-sm" onClick={onExit}><IconX size={16}/>יציאה</button>
       <div className="flex-1 h-2.5 rounded-full bg-sunk overflow-hidden" dir="ltr"><div className="h-full bar" style={{width:(i/queue.length*100)+'%',background:'var(--primary)'}}></div></div><span className="num text-sm text-muted">{Math.min(i+1,queue.length)}/{queue.length}</span></div>
     <div className="eyebrow">{title}{!cur.first&&' · חזרה על טעות'}</div>
-    <ExItem key={i} e={cur.e} voice={voice} onDone={done}/>
+    <ExItem key={i} e={cur.e} voice={voice} onDone={done} copySeen={copySeen} onCopy={onCopy}/>
   </div>);
 }
 
 function LessonRich({topic, lesson, state, actions, voice, celebrate, onBack}){
   const [step,setStep]=useState('dialogue'); const [pct,setPct]=useState(null); const [he,setHe]=useState(true);
+  const items=useMemo(()=>{ const idx=topic.lessons.findIndex(l=>l.id===lesson.id); const prev=shuffle(topic.lessons.slice(0,Math.max(idx,0)).flatMap(l=>l.ex.filter(e=>e.t==='copy'))).slice(0,2); const arr=lesson.ex.slice();
+    prev.forEach(e=>{ const at=Math.floor(arr.length/2)+Math.floor(Math.random()*(arr.length/2)); arr.splice(at,0,e); }); return arr; },[]);
   const STEPS=['dialogue','rule','vocab','ex']; const si=STEPS.indexOf(step);
   const finish=(p)=>{ setPct(p); actions.completeLesson(lesson.id, lesson.vocab.map(v=>v[0]).filter(w=>/^[a-z]+$/.test(w)&&MEANING[w])); if(p>=90) celebrate(false); setStep('result'); };
-  if(step==='ex') return <ExerciseRunner items={lesson.ex} title={'תרגול: '+lesson.title} voice={voice} onExit={()=>setStep('vocab')} onFinish={finish}/>;
+  if(step==='ex') return <ExerciseRunner items={items} title={'תרגול: '+lesson.title} voice={voice} copySeen={state.copySeen} onCopy={actions.noteCopy} onExit={()=>setStep('vocab')} onFinish={finish}/>;
   if(step==='result') return (<section className="card p-6 sm:p-8 flex flex-col gap-4 items-start rise" role="status"><div className="eyebrow">{topic.title}</div><h2 className="text-3xl font-extrabold">השיעור הושלם!</h2>
     <div className="num text-2xl font-extrabold">{pct}% <span className="text-base text-muted font-semibold">הצלחה בניסיון הראשון</span></div>
     <p className="text-muted">המילים נוספו לכרטיסי החזרה ויחזרו בלשונית "תרגול" בזמן הנכון.</p><button className="btn btn-primary px-6" onClick={onBack}>חזרה ליחידה</button></section>);
@@ -2269,7 +2273,7 @@ function CourseView({course, state, actions, voice, celebrate, profile, toast, o
   if(lesson&&lesson.l.type==='rich') return <LessonRich key={lesson.l.id} topic={lesson.t} lesson={lesson.l} state={state} actions={actions} voice={voice} celebrate={celebrate} onBack={()=>setLesson(null)}/>;
   if(lesson) return <LessonWords key={lesson.l.id} course={course} topic={lesson.t} lesson={lesson.l} state={state} actions={actions} voice={voice} celebrate={celebrate} onBack={()=>setLesson(null)}/>;
   const finishQuiz=pct=>{ const passed=pct>=PASS_PCT; actions.passTopic(quiz.id,pct,course.id); setRes({t:quiz,pct,passed}); setQuiz(null); if(passed) celebrate(pct===100); window.scrollTo({top:0}); };
-  if(quiz&&quiz.items) return <ExerciseRunner items={quiz.items} title={'מבחן יחידה: '+quiz.title} voice={voice} onExit={()=>setQuiz(null)} onFinish={finishQuiz}/>;
+  if(quiz&&quiz.items) return <ExerciseRunner items={quiz.items} title={'מבחן יחידה: '+quiz.title} voice={voice} copySeen={state.copySeen} onCopy={actions.noteCopy} onExit={()=>setQuiz(null)} onFinish={finishQuiz}/>;
   if(quiz) return <QuizRunner words={topicQuizWords(quiz)} title={'מבחן נושא: '+quiz.title} n={10} state={state} actions={actions} voice={voice} celebrate={celebrate} onExit={()=>setQuiz(null)} onFinish={finishQuiz}/>;
   return (<div className="flex flex-col gap-5">
     <button className="btn btn-ghost px-3 text-sm self-start" onClick={onBack}>← כל הקורסים</button>
@@ -2294,7 +2298,7 @@ function CourseView({course, state, actions, voice, celebrate, profile, toast, o
           {t.lessons.map(l=>{ const d=lessonDone(l,state); return (<li key={l.id}><button className="w-full flex items-center gap-3 rounded-xl border border-line px-3 py-3 text-start hover:border-primary" data-lesson={l.id} onClick={()=>go(t,l)}>
             <span className="w-6 h-6 rounded-full grid place-items-center shrink-0 text-xs" style={{background:d?'var(--known)':'var(--sunk)',color:d?'#fff':'var(--muted)'}} aria-hidden="true">{d?'✓':l.type==='story'?'📖':l.type==='talk'?'💬':'Aa'}</span>
             <span className="flex-1 font-semibold">{l.title}</span><span className="text-xs text-muted">{l.type==='story'?'סיפור':l.type==='talk'?'שיחה':'מילים'}</span></button></li>); })}
-          <li><button disabled={!tp.all} data-quiz={t.id} className={`btn ${tp.all?'btn-primary':'btn-ghost'} w-full py-3`} onClick={()=>{ setRes(null); const rich=t.lessons.filter(l=>l.type==='rich'); setQuiz(rich.length?{...t,items:shuffle(rich.flatMap(l=>l.ex.filter(x=>x.t!=='speak'&&x.t!=='copy'))).slice(0,12)}:t); window.scrollTo({top:0}); }}>{tp.all?(passed?'מבחן יחידה: לנסות שוב':'מבחן יחידה'):'מבחן נושא · נפתח בסיום כל השיעורים'}</button></li></ul>
+          <li><button disabled={!tp.all} data-quiz={t.id} className={`btn ${tp.all?'btn-primary':'btn-ghost'} w-full py-3`} onClick={()=>{ setRes(null); const rich=t.lessons.filter(l=>l.type==='rich'); setQuiz(rich.length?{...t,items:shuffle(rich.flatMap(l=>l.ex.filter(x=>x.t!=='speak'))).slice(0,12)}:t); window.scrollTo({top:0}); }}>{tp.all?(passed?'מבחן יחידה: לנסות שוב':'מבחן יחידה'):'מבחן נושא · נפתח בסיום כל השיעורים'}</button></li></ul>
         :<div className="text-sm text-muted">נפתח אחרי שתעברו את המבחן של "{course.topics[ti-1].title}".</div>}
       </section>); })}
   </div>);
@@ -2768,6 +2772,7 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
     passTopic:(tid,pct,cid)=>setState(s=>{ const cs=csOf(s); const ok=pct>=PASS_PCT; if(!ok) return withXP(s,1); const first=!cs.topics[tid]; const prev=cs.topics[tid];
       return withXP({...s, courses:{...cs, topics:{...cs.topics,[tid]:{pct:Math.max(pct,(prev&&prev.pct)||0), date:todayKey()}}, perfect:(cs.perfect||0)+(pct===100&&!(prev&&prev.pct===100)?1:0)}}, first?15:3); }),
     issueCert:(cid,avg)=>setState(s=>{ const cs=csOf(s); if(cs.certs[cid]) return s; return withXP({...s, courses:{...cs, certs:{...cs.certs,[cid]:{date:todayKey(), avg}}}}, 30); }),
+    noteCopy:(en)=>setState(s=>({...s, copySeen:{...(s.copySeen||{}),[en]:((s.copySeen||{})[en]||0)+1}})),
     finishTalk:(id)=>setState(s=>{ const td=s.talkDone||{}; const first=!td[id]||td[id]!==todayKey(); return withXP({...s, talkDone:{...td,[id]:todayKey()}}, first?10:0); }),
     noteCombo:(n)=>setState(s=>n>s.bestCombo?{...s, bestCombo:n}:s),
     setNote:(id,t)=>setState(s=>({...s, notes:{...(s.notes||{}),[id]:t}})),
