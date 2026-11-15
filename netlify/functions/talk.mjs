@@ -71,7 +71,7 @@ export async function handle(req, ctx) {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: HEADERS });
   const apiKey = cleanKey(env.GEMINI_API_KEY);
   if (req.method === "GET") {                       // /api/talk?check=1 : what is wrong with the setup? (never shows the key)
-    const info = { hasKey: !!apiKey, keyLength: apiKey.length, startsWithAIza: apiKey.startsWith("AIza"), preferredModel: env.GEMINI_MODEL || null };
+    const info = { hasKey: !!apiKey, keyLength: apiKey.length, startsWithAIza: apiKey.startsWith("AIza"), startsWithAQ: apiKey.startsWith("AQ."), looksLikeGoogleKey: /^(AIza[0-9A-Za-z_-]{30,}|AQ\.[0-9A-Za-z_.-]{20,})$/.test(apiKey), preferredModel: env.GEMINI_MODEL || null };
     if (!apiKey) return json({ ...info, problem: "GEMINI_API_KEY is not set in Netlify, or the site was not redeployed after adding it." });
     try { const l = await listModels(f, apiKey); return json({ ...info, googleStatus: l.status, googleMessage: l.status === 200 ? "ok" : redact(l.text, apiKey), usableFlashModels: l.models.slice(0, 8) }); }
     catch (e) { return json({ ...info, problem: "could not reach Google: " + redact(e && e.message, apiKey) }); }
