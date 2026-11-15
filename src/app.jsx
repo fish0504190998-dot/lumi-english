@@ -1383,13 +1383,13 @@ function SelectionPopover({rootRef, disabled, onSpeak, onCopy}){
 /* ---------- flashcards (spaced repetition session) ---------- */
 function FlashSession({keys, state, actions, voice, title, onDone, celebrate}){
   const [queue,setQueue]=useState(()=>keys.slice()); const [flipped,setFlipped]=useState(false);
-  const [stats,setStats]=useState({seen:0, ok:0, again:0, graduated:[]}); const requeued=useRef(new Set());
+  const [stats,setStats]=useState({seen:0, ok:0, again:0, graduated:[], hard:[]}); const requeued=useRef(new Set());
   const k=queue[0]; const info=k?wordInfo(k):null; const card=k?srsCard(state,k):null;
   useEffect(()=>{ if(k){ setFlipped(false); speakText(k,.9,voice); } },[k, stats.seen]);
   const grade=g=>{ if(!k) return; const next=srsNext(card,g);
     actions.reviewWord(k,g);
     const grad=next.iv>=GRADUATE_DAYS;
-    setStats(s=>({seen:s.seen+1, ok:s.ok+(g>=2?1:0), again:s.again+(g===0?1:0), graduated:grad?[...s.graduated,k]:s.graduated}));
+    setStats(s=>({seen:s.seen+1, ok:s.ok+(g>=2?1:0), again:s.again+(g===0?1:0), graduated:grad?[...s.graduated,k]:s.graduated, hard:g<=1&&!s.hard.includes(k)?[...s.hard,k]:s.hard}));
     setQueue(q=>{ const rest=q.slice(1); if(g===0&&!requeued.current.has(k)){ requeued.current.add(k); return [...rest,k]; } return rest; });
     if(grad) celebrate&&celebrate(false); };
   useEffect(()=>{ const h=e=>{ const t=e.target; if(t&&/INPUT|TEXTAREA|SELECT/.test(t.tagName)) return;
@@ -1404,7 +1404,10 @@ function FlashSession({keys, state, actions, voice, title, onDone, celebrate}){
     </div>}
     {stats.graduated.length>0&&<div className="flex flex-wrap gap-1.5" dir="ltr">{stats.graduated.map(w=><span key={w} className="pill pill-known book">{w}</span>)}</div>}
     <p className="text-muted">{stats.seen?'המילים יחזרו בדיוק כשהזיכרון מתחיל להיחלש. ככה הן נשארות לתמיד.':'כל מילה ששמרת לתרגול תופיע כאן כשיגיע הזמן לחזור עליה.'}</p>
-    <button className="btn btn-primary px-6" onClick={onDone}>סיום</button>
+    {stats.seen>0&&stats.hard.length>0&&<div className="rounded-xl bg-sunk p-4 flex flex-col gap-2 w-full max-w-md"><div className="font-bold">לדעתך צריך עוד חזרה?</div>
+      <p className="text-sm text-muted"><span className="num">{stats.hard.length}</span> מילים סימנתם "שכחתי" או "קשה". אפשר לעבור עליהן שוב עכשיו.</p>
+      <button data-more className="btn btn-go px-5 self-start" onClick={()=>{ requeued.current=new Set(); setQueue(stats.hard); setStats(s=>({...s,hard:[]})); }}>כן, עוד סבב ({stats.hard.length})</button></div>}
+    <button className="btn btn-primary px-6" onClick={onDone}>{stats.hard.length?'לא, מספיק לעכשיו':'סיום'}</button>
   </section>);
   const total=stats.seen+queue.length; const ex=examplesFor(k, STORIES)[0];
   return (<div className="flex flex-col gap-4 pb-28 sm:pb-0">
@@ -1690,7 +1693,10 @@ function SrsCard({state, onStart}){
       <p className="text-sm text-muted">{due.length?'כל מילה חוזרת בדיוק כשמתחילים לשכוח אותה. כמה דקות ביום מספיקות.':next?`החזרה הבאה ${relTime(next)}. בינתיים אפשר לקרוא סיפור.`:learning?'':'שמרו מילים לתרגול מתוך הסיפורים, והן יופיעו כאן.'}
         {' '}<span className="num">{learning}</span> בלמידה · <span className="num">{reviews}</span> חזרות עד היום</p>
     </div>
-    <button className="btn btn-go px-6 py-3 text-lg shrink-0" disabled={!due.length} onClick={()=>onStart(due.slice(0,30),'חזרה מרווחת')}><IconPlay size={18}/>{due.length?`התחל חזרה (${Math.min(30,due.length)})`:'אין חזרות'}</button>
+    <div className="flex flex-col gap-2 shrink-0">
+      <button className="btn btn-go px-6 py-3 text-lg" disabled={!due.length} onClick={()=>onStart(due.slice(0,30),'חזרה מרווחת')}><IconPlay size={18}/>{due.length?`התחל חזרה (${Math.min(30,due.length)})`:'אין חזרות'}</button>
+      {!due.length&&learning>0&&<button data-early className="btn btn-ghost px-4 py-2" onClick={()=>{ const ks=Object.keys(state.words).filter(k=>state.words[k]==='learning').sort((x,y)=>srsCard(state,x).due-srsCard(state,y).due).slice(0,20); onStart(ks,'תרגול מוקדם'); }}>רוצה לתרגל בכל זאת ({Math.min(20,learning)})</button>}
+    </div>
   </section>);
 }
 const CHEERS=['מעולה!','בדיוק!','יפה מאוד!','כל הכבוד!','איזה יופי!','נכון!'];
@@ -2167,19 +2173,20 @@ function ExItem({e, voice, onDone}){
   const opts=useMemo(()=>e.o?shuffle(e.o):[],[]);
   const bank=useMemo(()=>e.t==='order'?shuffle(e.words.map((w,i)=>({w,i}))):[],[]);
   const [picked,setPicked]=useState(null); const [chosen,setChosen]=useState([]); const [val,setVal]=useState('');
-  const [res,setRes]=useState(null); const [listening,setListening]=useState(false); const [heard,setHeard]=useState(''); const [err,setErr]=useState(''); const stopRef=useRef(null);
+  const [res,setRes]=useState(null); const [listening,setListening]=useState(false); const [heard,setHeard]=useState(''); const [err,setErr]=useState(''); const [tip,setTip]=useState(''); const stopRef=useRef(null);
   useEffect(()=>{ if(e.t==='listen') speakText(e.en,.9,voice); return ()=>{ stopRef.current&&stopRef.current(); }; },[]);
-  const finish=(ok)=>{ setRes(ok?'ok':'bad'); if(ok&&(e.t==='fill'||e.t==='order'||e.t==='type')&&e.en) speakText(e.en,.9,voice); };
-  const answerOf=()=>e.t==='order'?e.en:e.t==='type'?e.ans[0]:e.o?e.o[0]:'';
+  const finish=(ok)=>{ setRes(ok?'ok':'bad'); if(ok&&(e.t==='fill'||e.t==='order'||e.t==='type'||e.t==='copy')&&e.en) speakText(e.en,.9,voice); };
+  const answerOf=()=>e.t==='order'?e.en:(e.t==='type'||e.t==='copy')?e.ans[0]:e.o?e.o[0]:'';
   const pickOpt=(o)=>{ if(res) return; setPicked(o); finish(o===e.o[0]); };
   const checkOrder=()=>{ if(res) return; finish(normTxt(chosen.map(i=>e.words[i]).join(' '))===normTxt(e.en)); };
-  const checkType=()=>{ if(res||!val.trim()) return; finish(e.ans.some(a=>normTxt(a)===normTxt(val))); };
+  const checkType=()=>{ if(res||!val.trim()) return; if(e.t==='copy'){ const v=val.trim(); setTip((/^[A-Z]/.test(e.en)&&!/^[A-Z]/.test(v))?'שימו לב: התחלת משפט באות גדולה.':(/[.!?]$/.test(e.en)&&!/[.!?]$/.test(v))?'שימו לב: חסר סימן סיום (נקודה, סימן שאלה או קריאה).':''); } finish(e.ans.some(a=>normTxt(a)===normTxt(val))); };
   const mic=()=>{ setErr(''); if(listening){ stopRef.current&&stopRef.current(); return; } setHeard('');
     stopRef.current=listenOnce({lang:'en', onPartial:t=>setHeard(t), onText:t=>{ setHeard(t); setRes(sentOk(e.en,t)?'ok':'bad'); }, onError:m=>setErr(m), onState:setListening}); };
   const fb=res&&(<div className="flex flex-col items-center gap-2 rise" role="status">
     {e.t==='speak'?<div className="font-bold" style={{color:res==='ok'?'var(--known)':'var(--bad)'}}>{res==='ok'?pick(CHEERS):'כמעט! הקשיבו לדוגמה ונסו שוב'}</div>
     :<div className="font-bold" style={{color:res==='ok'?'var(--known)':'var(--bad)'}}>{res==='ok'?pick(CHEERS):<>התשובה הנכונה: <bdi dir="ltr" className="book">{e.t==='fill'?e.o[0]:answerOf()}</bdi></>}</div>}
-    {e.x&&<div className="text-sm text-muted text-center"><Bi>{e.x}</Bi></div>}
+    {tip&&res==='ok'&&<div className="text-sm text-center font-semibold" style={{color:'var(--bad)'}}><Bi>{tip}</Bi></div>}
+    {e.x&&<div className="rounded-xl bg-sunk p-3 text-sm leading-relaxed text-start w-full"><b>למה? </b><Bi>{e.x}</Bi></div>}
     <button data-next className="btn btn-primary py-3 px-6 dock-mobile" autoFocus onClick={()=>onDone(res==='ok')}>הבא</button></div>);
   if(e.t==='speak') return (<div className="flex flex-col gap-4 items-center">
     <section className="card p-6 w-full flex flex-col items-center gap-3 text-center"><div className="text-sm text-muted">אמרו בקול</div><div dir="ltr" className="book text-2xl sm:text-3xl font-bold">{e.en}</div>
@@ -2194,6 +2201,7 @@ function ExItem({e, voice, onDone}){
       {e.t==='fill'&&<><div className="text-sm text-muted">השלימו את המשפט</div><div dir="ltr" className="book text-2xl sm:text-3xl font-bold">{res?e.en.replace('___',e.o[0]):e.en}</div><div className="text-muted"><Bi>{e.he}</Bi></div></>}
       {e.t==='listen'&&<><div className="text-sm text-muted">מה שמעתם?</div><button className="btn btn-primary px-6 py-3" onClick={()=>speakText(e.en,.9,voice)}><IconSpeaker size={20}/>השמעה</button></>}
       {e.t==='order'&&<><div className="text-sm text-muted">סדרו את המשפט באנגלית</div><div className="text-xl font-bold"><Bi>{e.he}</Bi></div></>}
+      {e.t==='copy'&&<><div className="text-sm text-muted">העתיקו את המשפט (הקלידו אותו בדיוק)</div><div dir="ltr" className="book text-2xl sm:text-3xl font-bold">{e.en}</div><div className="text-muted"><Bi>{e.he}</Bi></div><button className="btn btn-ghost px-4" onClick={()=>speakText(e.en,.9,voice)}><IconSpeaker size={18}/>השמעה</button></>}
       {e.t==='type'&&<><div className="text-sm text-muted">כתבו באנגלית</div><div className="text-xl font-bold"><Bi>{e.he}</Bi></div></>}
     </section>
     {(e.t==='choose'||e.t==='fill'||e.t==='listen')&&<div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="תשובות">{opts.map(o=>{ const right=o===e.o[0]; const st=!res?'':right?'ok':o===picked?'bad':'dim';
@@ -2202,7 +2210,7 @@ function ExItem({e, voice, onDone}){
       <div dir="ltr" className="card p-3 min-h-[3.5rem] flex flex-wrap gap-2 items-center" data-answer aria-label="המשפט שלכם">{chosen.map(i=><button key={i} disabled={!!res} onClick={()=>setChosen(c=>c.filter(x=>x!==i))} className="btn btn-ghost px-3 book text-lg">{e.words[i]}</button>)}{!chosen.length&&<span className="text-muted text-sm">לחצו על המילים לפי הסדר</span>}</div>
       <div dir="ltr" className="flex flex-wrap gap-2 justify-center">{bank.map(b=>chosen.includes(b.i)?<span key={b.i} className="px-3 py-2 rounded-xl bg-sunk opacity-40 book text-lg">{b.w}</span>:<button key={b.i} data-w={b.w} disabled={!!res} onClick={()=>setChosen(c=>[...c,b.i])} className="btn btn-ghost px-3 book text-lg">{b.w}</button>)}</div>
       {!res&&<button className="btn btn-primary py-3 px-6 self-center" disabled={!chosen.length} onClick={checkOrder}>בדיקה</button>}</>}
-    {e.t==='type'&&<>
+    {(e.t==='type'||e.t==='copy')&&<>
       <input dir="ltr" className="field book text-xl text-center" value={val} onChange={ev=>setVal(ev.target.value)} onKeyDown={ev=>{ if(ev.key==='Enter') checkType(); }} disabled={!!res} autoCapitalize="off" autoCorrect="off" spellCheck={false} aria-label="התשובה באנגלית" />
       {!res&&<button className="btn btn-primary py-3 px-6 self-center" disabled={!val.trim()} onClick={checkType}>בדיקה</button>}</>}
     {fb}
@@ -2281,7 +2289,7 @@ function CourseView({course, state, actions, voice, celebrate, profile, toast, o
           {t.lessons.map(l=>{ const d=lessonDone(l,state); return (<li key={l.id}><button className="w-full flex items-center gap-3 rounded-xl border border-line px-3 py-3 text-start hover:border-primary" data-lesson={l.id} onClick={()=>go(t,l)}>
             <span className="w-6 h-6 rounded-full grid place-items-center shrink-0 text-xs" style={{background:d?'var(--known)':'var(--sunk)',color:d?'#fff':'var(--muted)'}} aria-hidden="true">{d?'✓':l.type==='story'?'📖':l.type==='talk'?'💬':'Aa'}</span>
             <span className="flex-1 font-semibold">{l.title}</span><span className="text-xs text-muted">{l.type==='story'?'סיפור':l.type==='talk'?'שיחה':'מילים'}</span></button></li>); })}
-          <li><button disabled={!tp.all} data-quiz={t.id} className={`btn ${tp.all?'btn-primary':'btn-ghost'} w-full py-3`} onClick={()=>{ setRes(null); const rich=t.lessons.filter(l=>l.type==='rich'); setQuiz(rich.length?{...t,items:shuffle(rich.flatMap(l=>l.ex.filter(x=>x.t!=='speak'))).slice(0,12)}:t); window.scrollTo({top:0}); }}>{tp.all?(passed?'מבחן יחידה: לנסות שוב':'מבחן יחידה'):'מבחן נושא · נפתח בסיום כל השיעורים'}</button></li></ul>
+          <li><button disabled={!tp.all} data-quiz={t.id} className={`btn ${tp.all?'btn-primary':'btn-ghost'} w-full py-3`} onClick={()=>{ setRes(null); const rich=t.lessons.filter(l=>l.type==='rich'); setQuiz(rich.length?{...t,items:shuffle(rich.flatMap(l=>l.ex.filter(x=>x.t!=='speak'&&x.t!=='copy'))).slice(0,12)}:t); window.scrollTo({top:0}); }}>{tp.all?(passed?'מבחן יחידה: לנסות שוב':'מבחן יחידה'):'מבחן נושא · נפתח בסיום כל השיעורים'}</button></li></ul>
         :<div className="text-sm text-muted">נפתח אחרי שתעברו את המבחן של "{course.topics[ti-1].title}".</div>}
       </section>); })}
   </div>);
