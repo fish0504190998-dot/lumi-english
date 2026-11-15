@@ -69,7 +69,7 @@ async function hashPin(pin, salt){
 async function makePin(pin){ const salt=Math.random().toString(36).slice(2)+Date.now().toString(36); return {salt, hash:await hashPin(pin, salt)}; }
 async function checkPin(pin, stored){ if(!stored) return true; const h=await hashPin(pin, stored.salt); return h===stored.hash; }
 const PIN_MIN=4;
-const DEFAULT_STATE={ words:{}, history:{}, goal:30, settings:{pron:true, parallel:false, rate:1, voice:'', font:1, pane:true}, storiesDone:{}, quiz:{}, bestCombo:0, totals:{answered:0, correct:0}, userStories:[], unlocked:{}, customDict:{}, netDict:{}, notes:{}, readToday:{date:'', ids:{}} };
+const DEFAULT_STATE={ words:{}, history:{}, goal:30, settings:{pron:true, parallel:false, rate:1, voice:'', font:1, pane:true}, storiesDone:{}, quiz:{}, bestCombo:0, totals:{answered:0, correct:0}, userStories:[], unlocked:{}, customDict:{}, netDict:{}, notes:{}, readToday:{date:'', ids:{}}, courses:{lessons:{},topics:{},certs:{},perfect:0} };
 function loadState(){
   try{ const raw=localStorage.getItem(LS_KEY); if(raw){ const p=JSON.parse(raw); return {...DEFAULT_STATE, ...p, settings:{...DEFAULT_STATE.settings, ...(p.settings||{})}, totals:{...DEFAULT_STATE.totals, ...(p.totals||{})}}; } }catch(e){}
   return DEFAULT_STATE;
@@ -145,12 +145,16 @@ const BADGES=[
   {id:'talkAll', icon:'🎤', name:'כל השיחות', desc:`סיימת את כל ${typeof TALKS!=='undefined'?TALKS.length:6} השיחות`, need:typeof TALKS!=='undefined'?TALKS.length:6, of:'talks'},
   {id:'sounds10', icon:'🔤', name:'10 צלילים', desc:'למדת 10 צירופי אותיות', need:10, of:'sounds'},
   {id:'mystory', icon:'✍️', name:'הסיפור שלי', desc:'הוספת סיפור משלך', need:1, of:'mine'},
+  {id:'lesson1', icon:'🎓', name:'שיעור ראשון', desc:'סיימת שיעור בקורס', need:1, of:'lessons'},
+  {id:'topic1', icon:'🧩', name:'מבחן נושא ראשון', desc:'עברת מבחן נושא', need:1, of:'topics'},
+  {id:'course1', icon:'📜', name:'תעודת סיום', desc:'סיימת קורס שלם וקיבלת תעודה', need:1, of:'certs'},
+  {id:'perfect', icon:'💯', name:'ציון מושלם', desc:'100% במבחן נושא', need:1, of:'perfect'},
   {id:'team', icon:'🤝', name:'לומדים ביחד', desc:'הצטרפת לקבוצת לימוד', need:1, of:'group'}
 ];
 function badgeStats(s){ const st=computeStreak(s.history), best=Math.max(st, bestStreak(s.history));
   return { stories:Object.keys(s.storiesDone||{}).length, known:Object.keys(s.words).filter(k=>s.words[k]==='known'&&!NAMES.has(k)).length, streak:best,
     reviews:(s.totals&&s.totals.reviews)||0, talks:Object.keys(s.talkDone||{}).filter(id=>TALKS.some(t=>t.id===id)).length, sounds:Object.values(s.phon||{}).filter(x=>x.c>=2).length,
-    mine:(s.userStories||[]).length, group:s.group?1:0 }; }
+    mine:(s.userStories||[]).length, group:s.group?1:0, lessons:Object.keys(csOf(s).lessons).length, topics:Object.keys(csOf(s).topics).length, certs:Object.keys(csOf(s).certs).length, perfect:csOf(s).perfect||0 }; }
 
 /* ---------- story helpers ---------- */
 const TOPICS=['יומיום','סיפור אמיתי','נסיעות','עבודה','חיות'];
@@ -440,6 +444,7 @@ const IconFlame=p=><Svg {...p} stroke={false}><path d="M12.6 2.4c.4 3.2 4.9 5.4 
 const IconChevR=p=><Svg {...p}><path d="M9 6l6 6-6 6"/></Svg>;
 const IconChevL=p=><Svg {...p}><path d="M15 6l-6 6 6 6"/></Svg>;
 const IconX=p=><Svg {...p}><path d="M6 6l12 12M18 6 6 18"/></Svg>;
+const IconCap=p=><Svg {...p}><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-4.5M22 9v6"/></Svg>;
 const IconBook=p=><Svg {...p}><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/></Svg>;
 const IconBolt=p=><Svg {...p} stroke={false}><path d="M13.5 2 4 13.5h6.5L9.5 22 20 9.5h-6.6z"/></Svg>;
 const IconChart=p=><Svg {...p}><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></Svg>;
@@ -543,7 +548,7 @@ function Header({known, streak, todayXP, goal, unlocked, onNav, profile, onProfi
   </header>);
 }
 function Tabs({tab, setTab, learning}){
-  const tabs=[['read','סיפורים',IconBook],['sounds','צלילים',IconWave],['talk','שיחה',IconChat],['practice','תרגול',IconBolt],['progress','התקדמות',IconChart]];
+  const tabs=[['courses','קורסים',IconCap],['read','סיפורים',IconBook],['sounds','צלילים',IconWave],['talk','שיחה',IconChat],['practice','תרגול',IconBolt],['progress','התקדמות',IconChart]];
   return (<nav className="sticky z-30 bg-surface border-b border-line" style={{top:'calc(env(safe-area-inset-top,0px) + 64px)'}} aria-label="ניווט">
     <div className="gutter"><div className="max-w-[860px] mx-auto flex gap-1">
       {tabs.map(([k,l,I])=><button key={k} onClick={()=>setTab(k)} aria-current={tab===k?'page':undefined}
@@ -2030,7 +2035,7 @@ function TalkChat({talk, voice, actions, onBack, onNext, settings, defaultName})
   </div>);
 }
 function Talk({state, actions, voice, profileName, known}){
-  const [id,setId]=useState(null); const [run,setRun]=useState(0); const [ai,setAi]=useState(null);
+  const [id,setId]=useState(()=>{ const p=PENDING_TALK; PENDING_TALK=null; return p; }); const [run,setRun]=useState(0); const [ai,setAi]=useState(null);
   if(ai) return <AiChat key={ai.id} scenario={ai.scen} level={ai.lv} name={profileName} voice={voice} actions={actions} settings={state.settings} onBack={()=>setAi(null)}/>;
   const t=TALKS.find(x=>x.id===id); const done=state.talkDone||{};
   if(t) return <TalkChat key={t.id+':'+run} talk={t} voice={voice} actions={actions} settings={state.settings} defaultName={profileName}
@@ -2048,6 +2053,167 @@ function Talk({state, actions, voice, profileName, known}){
       <span className="flex-1 min-w-0"><span dir="ltr" className="book font-bold text-lg block text-left">{x.title}</span><span className="text-sm text-muted block">{x.he} · <span className="num">{x.steps.length}</span> שאלות · שלב <span className="num">{x.level}</span></span></span>
       {done[x.id]?<span className="tag" style={{background:'var(--good-soft)', color:'var(--good)'}}><IconCheck size={12}/>בוצע</span>:<IconChevL size={18}/>}
     </button>))}</div>
+  </div>);
+}
+
+/* ---------- courses: course -> topics -> lessons -> topic quiz -> certificate ---------- */
+let PENDING_TALK=null;
+const PASS_PCT=70;
+const csOf=s=>({lessons:{},topics:{},certs:{},perfect:0,...(s.courses||{})});
+function lessonWordsOf(l){
+  if(l.words) return l.words;
+  if(l.fromStories){ const seen=new Set(); const out=[];
+    for(const id of l.fromStories){ const st=STORIES.find(x=>x.id===id); if(!st) continue; for(const k of storyData(st).keys) if(!seen.has(k)&&!NAMES.has(k)&&MEANING[k]&&k.length>=5&&!k.includes("'")&&!MEANING[k].includes('(')){ seen.add(k); out.push(k); } }
+    return out.sort((a,b)=>b.length-a.length||(a<b?-1:1)).slice(0,l.count||10); }
+  return [];
+}
+function lessonDone(l, s){ if(l.type==='story') return !!(s.storiesDone&&s.storiesDone[l.story]); if(l.type==='talk') return !!(s.talkDone&&s.talkDone[l.talk]); return !!csOf(s).lessons[l.id]; }
+function topicQuizWords(t){ const set=new Set(); t.lessons.forEach(l=>lessonWordsOf(l).forEach(k=>set.add(k))); return [...set]; }
+function topicProgress(t, s){ const done=t.lessons.filter(l=>lessonDone(l,s)).length; return {done, total:t.lessons.length, all:done===t.lessons.length, passed:!!csOf(s).topics[t.id]}; }
+function courseProgress(c, s){ const lessons=c.topics.reduce((a,t)=>a+topicProgress(t,s).done,0); const passed=c.topics.filter(t=>csOf(s).topics[t.id]).length;
+  return {lessons, total:c.lessonCount, passed, topics:c.topics.length, complete:passed===c.topics.length, pct:Math.round(100*(lessons+passed)/(c.lessonCount+c.topics.length))}; }
+const topicUnlocked=(c,i,s)=>i===0||!!csOf(s).topics[c.topics[i-1].id];
+function courseAvg(c,s){ const v=c.topics.map(t=>(csOf(s).topics[t.id]||{}).pct||0); return v.length?Math.round(v.reduce((a,b)=>a+b,0)/v.length):0; }
+function nextStep(c, s){ for(let i=0;i<c.topics.length;i++){ const t=c.topics[i]; if(csOf(s).topics[t.id]) continue; if(!topicUnlocked(c,i,s)) return null;
+  const l=t.lessons.find(x=>!lessonDone(x,s)); return l?{topic:t, lesson:l}:{topic:t, quiz:true}; } return null; }
+
+function QuizRunner({words, title, state, actions, voice, celebrate, onFinish, onExit, n=10}){
+  const seq=useMemo(()=>{ let w=shuffle(words); while(w.length<n&&words.length) w=w.concat(shuffle(words)); w=w.slice(0,Math.min(n,Math.max(words.length,1)>=n?n:words.length)); return w.map((k,i)=>makeQuestion([k],{},null,i%2?'listen':'meaning')); },[]);
+  const [i,setI]=useState(0); const [picked,setPicked]=useState(null); const [score,setScore]=useState(0);
+  const q=seq[i];
+  useEffect(()=>{ if(q&&q.type==='listen') speakText(q.key,.9,voice); },[i]);
+  const answer=(o)=>{ if(picked!==null) return; const ok=o.key===q.key; setPicked(o.key); actions.recordAnswer(q.key,ok); if(ok){ setScore(s=>s+1); if(q.type==='meaning') speakText(q.key,.9,voice); } };
+  const next=()=>{ if(i+1>=seq.length){ onFinish(Math.round(100*score/seq.length)); } else { setI(i+1); setPicked(null); } };
+  const info=wordInfo(q.key);
+  return (<div className="flex flex-col gap-4 pb-28 sm:pb-0">
+    <div className="flex items-center gap-3">
+      <button className="btn btn-ghost px-3 text-sm" onClick={onExit}><IconX size={16}/>יציאה</button>
+      <div className="flex-1 h-2.5 rounded-full bg-sunk overflow-hidden" dir="ltr"><div className="h-full bar" style={{width:(i/seq.length*100)+'%', background:'var(--primary)'}}></div></div>
+      <span className="num text-sm text-muted">{i+1}/{seq.length}</span></div>
+    <div className="eyebrow">{title}</div>
+    <section className="card p-6 flex flex-col items-center gap-3 text-center" key={i} data-qtype={q.type}>
+      {q.type==='meaning'
+        ? <><div className="text-sm text-muted">מה פירוש המילה?</div><div dir="ltr" className="book text-4xl sm:text-5xl font-bold">{q.key}</div><button className="btn btn-ghost px-4" onClick={()=>speakText(q.key,.9,voice)}><IconSpeaker size={18}/>השמעה</button></>
+        : <><div className="text-sm text-muted">איזו מילה שמעתם?</div><button className="btn btn-primary px-6 py-3" onClick={()=>speakText(q.key,.9,voice)}><IconSpeaker size={20}/>השמעה</button><div className="text-lg text-muted"><Bi>{info.he}</Bi></div></>}
+    </section>
+    <div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="תשובות">
+      {q.options.map(o=>{ const right=o.key===q.key; const st=picked===null?'':right?'ok':o.key===picked?'bad':'dim';
+        return <button key={o.key} data-correct={right?'1':'0'} disabled={picked!==null&&st==='dim'} onClick={()=>answer(o)} className="btn btn-ghost py-3 px-4 text-lg justify-center" style={st==='ok'?{background:'var(--good-soft)',borderColor:'var(--known)'}:st==='bad'?{background:'var(--bad-soft)',borderColor:'var(--bad)'}:st==='dim'?{opacity:.5}:{}}>
+          {q.type==='meaning'?<Bi>{o.label}</Bi>:<bdi dir="ltr" className="book">{o.label}</bdi>}</button>; })}
+    </div>
+    {picked!==null&&<div className="flex flex-col items-center gap-2 rise" role="status">
+      <div className="font-bold" style={{color:picked===q.key?'var(--known)':'var(--bad)'}}>{picked===q.key?pick(CHEERS):pick(COMFORT)}</div>
+      <button className="btn btn-primary py-3 px-6 dock-mobile" onClick={next} autoFocus>{i+1>=seq.length?'לתוצאה':'הבא'}</button></div>}
+  </div>);
+}
+
+function LessonWords({course, topic, lesson, state, actions, voice, celebrate, onBack}){
+  const words=useMemo(()=>lessonWordsOf(lesson),[]);
+  const [phase,setPhase]=useState(csOf(state).lessons[lesson.id]?'learn':'learn'); const [pct,setPct]=useState(null);
+  const finish=(p)=>{ setPct(p); actions.completeLesson(lesson.id, words); setPhase('result'); if(p>=90) celebrate(false); };
+  if(phase==='quiz') return <QuizRunner words={words} title={'חידון: '+lesson.title} state={state} actions={actions} voice={voice} celebrate={celebrate} onFinish={finish} onExit={()=>setPhase('learn')}/>;
+  if(phase==='speak') return <SpeakGame pool={words} state={state} actions={actions} voice={voice} celebrate={celebrate} onDone={()=>setPhase('result')}/>;
+  if(phase==='result') return (<section className="card p-6 sm:p-8 flex flex-col gap-4 items-start rise" role="status">
+    <div className="eyebrow">{topic.title}</div><h2 className="text-3xl font-extrabold">השיעור הושלם!</h2>
+    <div className="num text-2xl font-extrabold">{pct}% <span className="text-base text-muted font-semibold">בחידון השיעור</span></div>
+    <p className="text-muted">המילים נוספו לכרטיסי החזרה שלכם, ואפשר לחזור עליהן בלשונית "תרגול".</p>
+    <div className="flex gap-2 flex-wrap"><button className="btn btn-primary px-6" onClick={onBack}>חזרה לקורס</button><button className="btn btn-ghost px-4" onClick={()=>setPhase('speak')}><IconMic size={18}/>תרגול הגייה בקול</button></div></section>);
+  return (<div className="flex flex-col gap-4">
+    <button className="btn btn-ghost px-3 text-sm self-start" onClick={onBack}><IconX size={16}/>חזרה לקורס</button>
+    <section className="card p-5 flex flex-col gap-1"><div className="eyebrow">{topic.title}</div><h2 className="text-2xl font-extrabold">{lesson.title}</h2><p className="text-muted text-sm">הקשיבו לכל מילה ולחצו עליה כדי לשמוע שוב. אחר כך חידון קצר.</p></section>
+    <ul className="grid gap-2 sm:grid-cols-2">{words.map(k=>{ const i=wordInfo(k); return (<li key={k}><button className="card card-btn card-lift p-3 w-full flex items-center gap-3 text-start" onClick={()=>speakText(k,.9,voice)} aria-label={`השמעת ${k}`}>
+      <span className="flex-1 min-w-0"><bdi dir="ltr" className="book font-bold text-xl block text-left">{k}</bdi><span className="text-sm block"><Bi>{i.he}</Bi></span><span className="text-xs text-muted block">{i.pron}</span></span><IconSpeaker size={18}/></button></li>); })}</ul>
+    <button className="btn btn-primary py-3 px-6 self-center dock-mobile" onClick={()=>{ words.forEach(k=>speakText&&0); setPhase('quiz'); }}>מתחילים חידון</button>
+  </div>);
+}
+
+function certificateCanvas({name, course, avg, date}){
+  const W=1200,H=850; const c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
+  x.fillStyle='#fffaf0'; x.fillRect(0,0,W,H);
+  x.strokeStyle='#c8a24a'; x.lineWidth=14; x.strokeRect(30,30,W-60,H-60); x.lineWidth=3; x.strokeRect(54,54,W-108,H-108);
+  x.textAlign='center'; x.direction='rtl'; x.fillStyle='#2b2a33';
+  x.font='700 30px system-ui, Arial'; x.fillText('Lumi English',W/2,130);
+  x.font='800 68px system-ui, Arial'; x.fillText('תעודת סיום',W/2,240);
+  x.font='400 30px system-ui, Arial'; x.fillStyle='#6b6a75'; x.fillText('מוענקת בזאת ל',W/2,320);
+  x.fillStyle='#b4531f'; x.font='800 76px system-ui, Arial'; x.fillText(name||'לומד/ת',W/2,420);
+  x.fillStyle='#2b2a33'; x.font='400 32px system-ui, Arial'; x.fillText('על השלמת הקורס',W/2,495);
+  x.font='800 54px system-ui, Arial'; x.fillText(course.title,W/2,570);
+  x.font='600 30px system-ui, Arial'; x.fillStyle='#6b6a75'; x.fillText(`רמה ${course.level} · ${course.topics.length} נושאים · ${course.lessonCount} שיעורים`,W/2,630);
+  x.fillStyle='#2b2a33'; x.font='700 36px system-ui, Arial'; x.fillText(`ציון ממוצע במבחני הנושאים: ${avg}%`,W/2,700);
+  x.font='400 26px system-ui, Arial'; x.fillStyle='#6b6a75'; x.fillText(date,W/2,775);
+  return c;
+}
+async function saveCertificate(canvas, filename, toast){
+  const blob=await new Promise(r=>canvas.toBlob(r,'image/png'));
+  if(DOWNLOADS){ try{ await DOWNLOADS.save({filename, data:blob}); toast('התעודה נשמרה'); return; }catch(e){ toast('השמירה בוטלה'); return; } }
+  try{ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000); toast('התעודה ירדה למכשיר'); }catch(e){ toast('ההורדה נכשלה'); }
+}
+function CertificateView({course, state, profile, onBack, toast}){
+  const cert=csOf(state).certs[course.id]; const ref=useRef(null);
+  const data={name:profile.name, course, avg:cert?cert.avg:courseAvg(course,state), date:new Date(cert?cert.date+'T12:00:00':Date.now()).toLocaleDateString('he-IL',{year:'numeric',month:'long',day:'numeric'})};
+  useEffect(()=>{ const c=certificateCanvas(data); c.style.width='100%'; c.style.height='auto'; c.style.borderRadius='12px'; c.setAttribute('role','img'); c.setAttribute('aria-label',`תעודת סיום של ${profile.name} בקורס ${course.title}`); c.id='cert-canvas'; ref.current.innerHTML=''; ref.current.appendChild(c); },[]);
+  return (<div className="flex flex-col gap-4">
+    <button className="btn btn-ghost px-3 text-sm self-start" onClick={onBack}><IconX size={16}/>חזרה לקורס</button>
+    <section className="card p-3"><div ref={ref}></div></section>
+    <button className="btn btn-primary py-3 px-6 self-center" onClick={()=>saveCertificate(document.getElementById('cert-canvas'),`lumi-certificate-${course.id}.png`,toast)}>הורדת התעודה (PNG)</button>
+  </div>);
+}
+
+function CourseView({course, state, actions, voice, celebrate, profile, toast, onBack, openStory, openTalk}){
+  const [lesson,setLesson]=useState(null); const [quiz,setQuiz]=useState(null); const [res,setRes]=useState(null); const [cert,setCert]=useState(false);
+  const cp=courseProgress(course,state); const ns=nextStep(course,state); const cs=csOf(state);
+  const go=(t,l)=>{ if(l.type==='story') openStory(l.story); else if(l.type==='talk') openTalk(l.talk); else { setLesson({t,l}); window.scrollTo({top:0}); } };
+  if(cert) return <CertificateView course={course} state={state} profile={profile} toast={toast} onBack={()=>setCert(false)}/>;
+  if(lesson) return <LessonWords key={lesson.l.id} course={course} topic={lesson.t} lesson={lesson.l} state={state} actions={actions} voice={voice} celebrate={celebrate} onBack={()=>setLesson(null)}/>;
+  if(quiz) return <QuizRunner words={topicQuizWords(quiz)} title={'מבחן נושא: '+quiz.title} n={10} state={state} actions={actions} voice={voice} celebrate={celebrate} onExit={()=>setQuiz(null)}
+    onFinish={pct=>{ const passed=pct>=PASS_PCT; actions.passTopic(quiz.id,pct,course.id); setRes({t:quiz,pct,passed}); setQuiz(null); if(passed) celebrate(pct===100); window.scrollTo({top:0}); }}/>;
+  return (<div className="flex flex-col gap-5">
+    <button className="btn btn-ghost px-3 text-sm self-start" onClick={onBack}>← כל הקורסים</button>
+    <section className="card p-5 sm:p-6 flex flex-col gap-3">
+      <div className="flex items-center gap-4"><span className="w-16 h-16 rounded-2xl grid place-items-center text-4xl bg-sunk shrink-0" aria-hidden="true">{course.cover}</span>
+        <div className="min-w-0"><div className="eyebrow">רמה {course.level}</div><h1 className="text-2xl sm:text-3xl font-bold">{course.title}</h1><p className="text-sm text-muted">{course.sub}</p></div></div>
+      <p className="text-muted leading-relaxed">{course.desc}</p>
+      <div className="flex items-center gap-3"><div className="flex-1 h-2.5 rounded-full bg-sunk overflow-hidden" dir="ltr"><div className="h-full bar" style={{width:cp.pct+'%', background:'var(--primary)'}}></div></div><span className="num text-sm font-bold">{cp.pct}%</span></div>
+      <div className="text-xs text-muted"><span className="num">{cp.lessons}/{cp.total}</span> שיעורים · <span className="num">{cp.passed}/{cp.topics}</span> מבחני נושא · כ־<span className="num">{course.minutes}</span> דקות</div>
+      <ol className="text-sm text-muted grid gap-1 sm:grid-cols-3 list-none p-0"><li>① לומדים שיעור</li><li>② עוברים מבחן נושא ({PASS_PCT}% ומעלה)</li><li>③ מסיימים וזוכים בתעודה</li></ol>
+      {cp.complete?<div className="flex gap-2 flex-wrap"><button className="btn btn-primary px-6" onClick={()=>{ if(!cs.certs[course.id]) actions.issueCert(course.id,courseAvg(course,state)); setCert(true); }}><IconTrophy size={18}/>לתעודת הסיום</button></div>
+        : ns&&<button className="btn btn-primary px-6 self-start" onClick={()=>ns.quiz?setQuiz(ns.topic):go(ns.topic,ns.lesson)}>{cp.lessons===0?'מתחילים':'המשך'}: {ns.quiz?'מבחן '+ns.topic.title:ns.lesson.title}</button>}
+    </section>
+    {res&&<section className="card p-5 rise flex flex-col gap-2" role="status" style={{borderColor:res.passed?'var(--known)':'var(--bad)'}}>
+      <div className="font-extrabold text-xl">{res.passed?'עברתם את מבחן הנושא!':'כמעט! צריך '+PASS_PCT+'% כדי להמשיך'}</div><div className="num">{res.pct}% · {res.t.title}</div>
+      {!res.passed&&<div className="text-sm text-muted">חזרו על מילות הנושא ונסו שוב. אפשר כמה פעמים שרוצים.</div>}</section>}
+    {course.topics.map((t,ti)=>{ const tp=topicProgress(t,state); const open=topicUnlocked(course,ti,state); const passed=tp.passed;
+      return (<section key={t.id} className={`card p-4 sm:p-5 flex flex-col gap-3 ${open?'':'opacity-60'}`} data-topic={t.id} data-open={open?'1':'0'}>
+        <div className="flex items-center gap-3"><span className="text-2xl" aria-hidden="true">{open?t.icon:'🔒'}</span><div className="me-auto"><h2 className="font-extrabold text-lg">{t.title}</h2><div className="text-xs text-muted"><span className="num">{tp.done}/{tp.total}</span> שיעורים{passed?` · עברתם ${cs.topics[t.id].pct}%`:''}</div></div>
+          {passed&&<span className="tag" style={{background:'var(--good-soft)',color:'var(--good)'}}><IconCheck size={12}/>הושלם</span>}</div>
+        {open?<ul className="flex flex-col gap-1.5">
+          {t.lessons.map(l=>{ const d=lessonDone(l,state); return (<li key={l.id}><button className="w-full flex items-center gap-3 rounded-xl border border-line px-3 py-3 text-start hover:border-primary" data-lesson={l.id} onClick={()=>go(t,l)}>
+            <span className="w-6 h-6 rounded-full grid place-items-center shrink-0 text-xs" style={{background:d?'var(--known)':'var(--sunk)',color:d?'#fff':'var(--muted)'}} aria-hidden="true">{d?'✓':l.type==='story'?'📖':l.type==='talk'?'💬':'Aa'}</span>
+            <span className="flex-1 font-semibold">{l.title}</span><span className="text-xs text-muted">{l.type==='story'?'סיפור':l.type==='talk'?'שיחה':'מילים'}</span></button></li>); })}
+          <li><button disabled={!tp.all} data-quiz={t.id} className={`btn ${tp.all?'btn-primary':'btn-ghost'} w-full py-3`} onClick={()=>{ setRes(null); setQuiz(t); window.scrollTo({top:0}); }}>{tp.all?(passed?'מבחן נושא: לנסות שוב':'מבחן נושא'):'מבחן נושא · נפתח בסיום כל השיעורים'}</button></li></ul>
+        :<div className="text-sm text-muted">נפתח אחרי שתעברו את המבחן של "{course.topics[ti-1].title}".</div>}
+      </section>); })}
+  </div>);
+}
+
+function Courses({state, actions, voice, celebrate, profile, toast, openStory, openTalk}){
+  const [id,setId]=useState(null); const [q,setQ]=useState('');
+  const course=COURSES.find(c=>c.id===id);
+  if(course) return <CourseView course={course} state={state} actions={actions} voice={voice} celebrate={celebrate} profile={profile} toast={toast} onBack={()=>{ setId(null); window.scrollTo({top:0}); }} openStory={openStory} openTalk={openTalk}/>;
+  const list=COURSES.filter(c=>!q.trim()||(c.title+' '+c.sub+' '+c.level).includes(q.trim()));
+  return (<div className="flex flex-col gap-5">
+    <section className="card p-5 sm:p-6 flex flex-col gap-3">
+      <h1 className="text-2xl sm:text-3xl font-bold">קורסים</h1>
+      <p className="text-muted leading-relaxed">מסלול לימוד מסודר: קורס ← נושאים ← שיעורים ← מבחן נושא ← תעודת סיום. כל שיעור משלב מילים, הקראה, חידון, ולפעמים סיפור או שיחה.</p>
+      <label className="relative block"><span className="sr-only">חיפוש קורס</span><input value={q} onChange={e=>setQ(e.target.value)} placeholder="חיפוש קורס או רמה (A1, A2…)" className="field w-full" /></label>
+    </section>
+    <div className="grid gap-3 sm:grid-cols-2">{list.map(c=>{ const p=courseProgress(c,state); return (<button key={c.id} data-course={c.id} onClick={()=>{ setId(c.id); window.scrollTo({top:0}); }} className="card card-btn card-lift p-4 flex flex-col gap-3 text-start">
+      <div className="flex items-center gap-3"><span className="w-14 h-14 rounded-xl grid place-items-center text-3xl bg-sunk shrink-0" aria-hidden="true">{c.cover}</span>
+        <span className="flex-1 min-w-0"><span className="font-extrabold text-lg block">{c.title}</span><span className="text-sm text-muted block">{c.sub}</span></span><span className="tag num">{c.level}</span></div>
+      <div className="flex items-center gap-2"><div className="flex-1 h-2 rounded-full bg-sunk overflow-hidden" dir="ltr"><div className="h-full bar" style={{width:p.pct+'%', background:'var(--primary)'}}></div></div><span className="num text-xs font-bold">{p.pct}%</span></div>
+      <div className="text-xs text-muted flex gap-2 flex-wrap"><span className="num">{c.topics.length}</span> נושאים · <span className="num">{c.lessonCount}</span> שיעורים{p.complete&&<span style={{color:'var(--known)'}} className="font-bold">· הושלם 🎓</span>}</div>
+    </button>); })}
+    {list.length===0&&<p className="text-muted text-center py-6 sm:col-span-2">לא נמצא קורס. נסו מילה אחרת.</p>}</div>
   </div>);
 }
 
@@ -2462,7 +2628,7 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
     const o={}; earned.forEach(b=>{ o[b.id]=todayKey(); });
     if(!got){ actions.setBadges(o); return; }          // first run: record what is already earned, silently
     if(!earned.length) return; actions.setBadges(o);
-    const t=setTimeout(()=>{ toast(`הישג חדש: ${earned[0].icon} ${earned[0].name}`+(earned.length>1?` ועוד ${earned.length-1}`:'')); celebrate(false); },400); return ()=>clearTimeout(t); },[state.storiesDone, state.words, state.history, state.totals, state.talkDone, state.phon, state.userStories, state.group]);
+    const t=setTimeout(()=>{ toast(`הישג חדש: ${earned[0].icon} ${earned[0].name}`+(earned.length>1?` ועוד ${earned.length-1}`:'')); celebrate(false); },400); return ()=>clearTimeout(t); },[state.storiesDone, state.words, state.history, state.totals, state.talkDone, state.phon, state.userStories, state.group, state.courses]);
   const lv=levelFor(known); const prevLv=useRef(lv);
   useEffect(()=>{ if(lv>prevLv.current){ celebrate(true); toast(`עלית לשלב ${lv}: ${LEVELS[lv-1].name}. נפתחו סיפורים חדשים!`); } prevLv.current=lv; },[lv]);
 
@@ -2494,6 +2660,10 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
       if(s.words[k]==='learning'){ const c=srsNext(srsCard(s,k), ok?2:0); s={...s, srs:{...(s.srs||{}),[k]:c}}; }
       return withXP({...s, quiz:{...s.quiz,[k]:{c:q.c+(ok?1:0), w:q.w+(ok?0:1)}}, totals:{...s.totals, answered:s.totals.answered+1, correct:s.totals.correct+(ok?1:0)}}, ok?3:1); }),
     recordSound:(k, ok)=>setState(s=>{ const ph=s.phon||{}; const q=ph[k]||{c:0,w:0}; return withXP({...s, phon:{...ph,[k]:{c:q.c+(ok?1:0), w:q.w+(ok?0:1)}}}, ok?2:0); }),
+    completeLesson:(id,words)=>setState(s=>{ const cs=csOf(s); const first=!cs.lessons[id]; let n=s; for(const k of words||[]) if(!n.words[k]&&!NAMES.has(k)) n=withStatus(n,k,'learning'); return withXP({...n, courses:{...cs, lessons:{...cs.lessons,[id]:todayKey()}}}, first?8:2); }),
+    passTopic:(tid,pct,cid)=>setState(s=>{ const cs=csOf(s); const ok=pct>=PASS_PCT; if(!ok) return withXP(s,1); const first=!cs.topics[tid]; const prev=cs.topics[tid];
+      return withXP({...s, courses:{...cs, topics:{...cs.topics,[tid]:{pct:Math.max(pct,(prev&&prev.pct)||0), date:todayKey()}}, perfect:(cs.perfect||0)+(pct===100&&!(prev&&prev.pct===100)?1:0)}}, first?15:3); }),
+    issueCert:(cid,avg)=>setState(s=>{ const cs=csOf(s); if(cs.certs[cid]) return s; return withXP({...s, courses:{...cs, certs:{...cs.certs,[cid]:{date:todayKey(), avg}}}}, 30); }),
     finishTalk:(id)=>setState(s=>{ const td=s.talkDone||{}; const first=!td[id]||td[id]!==todayKey(); return withXP({...s, talkDone:{...td,[id]:todayKey()}}, first?10:0); }),
     noteCombo:(n)=>setState(s=>n>s.bestCombo?{...s, bestCombo:n}:s),
     setNote:(id,t)=>setState(s=>({...s, notes:{...(s.notes||{}),[id]:t}})),
@@ -2512,6 +2682,7 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
   const story=stories.find(s=>s.id===storyId);
   reading.current=tab==='read'&&!!story;   // no confetti over the page while reading
   const changeTab=(t)=>{ setTab(t); try{ synth&&synth.cancel(); }catch(e){} window.scrollTo({top:0}); };
+  const openTalk=(id)=>{ PENDING_TALK=id; setTab('talk'); window.scrollTo({top:0}); };
   const openStory=(id)=>{ setStoryId(id); setTab('read'); window.scrollTo({top:0}); };
 
   return (<div dir="rtl" className="min-h-full font-he" style={{overflowX:'clip'}}>
@@ -2524,6 +2695,7 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
         {tab==='read' && (story
           ? <Reader key={story.id} story={story} stories={stories} state={state} actions={actions} voice={voice} voices={voices} back={()=>{ setStoryId(null); window.scrollTo({top:0}); }} toast={toast} session={session} onReport={setReporting} onEdit={s=>setAdding({edit:s})} onDeleteCommunity={async s=>{ try{ await deleteCommunityStory(s.cid); toast('הסיפור נמחק'); }catch(e){ toast(cloudMsg(e)); } }} onWord={openCard} onPractice={(keys,title)=>{ setFlash({keys,title:'מילים קשות מ־'+title,id:Math.random()}); setStoryId(null); changeTab('practice'); }}/>
           : <Library state={state} known={known} actions={actions} openStory={openStory} onAdd={()=>setAdding(true)} toast={toast} stories={stories} community={community} session={session} onReport={setReporting} onEdit={s=>setAdding({edit:s})} onDeleteCommunity={async s=>{ try{ await deleteCommunityStory(s.cid); toast('הסיפור נמחק'); }catch(e){ toast(cloudMsg(e)); } }}/>)}
+        {tab==='courses' && <Courses state={state} actions={actions} voice={voice} celebrate={celebrate} profile={profile} toast={toast} openStory={openStory} openTalk={openTalk}/>}
         {tab==='sounds' && <Sounds state={state} actions={actions} voice={voice} celebrate={celebrate} onWord={openCard}/>}
         {tab==='talk' && <Talk state={state} actions={actions} voice={voice} profileName={profile.name} known={known}/>}
         {tab==='practice' && (flash ? <FlashSession key={flash.id} keys={flash.keys} title={flash.title} state={state} actions={actions} voice={voice} celebrate={celebrate} onDone={()=>setFlash(null)}/>

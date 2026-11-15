@@ -905,6 +905,10 @@ video {
   width: 3.5rem;
 }
 
+.w-16 {
+  width: 4rem;
+}
+
 .w-2\.5 {
   width: 0.625rem;
 }
@@ -1011,6 +1015,10 @@ video {
 
 .scroll-mb-4 {
   scroll-margin-bottom: 1rem;
+}
+
+.list-none {
+  list-style-type: none;
 }
 
 .grid-cols-2 {
@@ -1264,6 +1272,10 @@ video {
      object-fit: cover;
 }
 
+.p-0 {
+  padding: 0px;
+}
+
 .p-2 {
   padding: 0.5rem;
 }
@@ -1361,6 +1373,11 @@ video {
 .py-4 {
   padding-top: 1rem;
   padding-bottom: 1rem;
+}
+
+.py-6 {
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
 }
 
 .py-8 {
@@ -1570,6 +1587,10 @@ video {
   text-underline-offset: 4px;
 }
 
+.opacity-60 {
+  opacity: 0.6;
+}
+
 .opacity-80 {
   opacity: 0.8;
 }
@@ -1604,6 +1625,10 @@ video {
   border-color: var(--primary);
 }
 
+.hover\:border-primary:hover {
+  border-color: var(--primary);
+}
+
 .hover\:bg-sunk:hover {
   background-color: var(--sunk);
 }
@@ -1629,6 +1654,10 @@ video {
 
   .sm\:col-span-1 {
     grid-column: span 1 / span 1;
+  }
+
+  .sm\:col-span-2 {
+    grid-column: span 2 / span 2;
   }
 
   .sm\:block {
@@ -3209,6 +3238,82 @@ const TALKS = [
  ]}
 ];
 
+/* Structured courses: course -> topics -> lessons -> topic quiz -> certificate.
+   lesson types: words (cards + quiz + speaking), story (opens a built-in story), talk (opens a conversation) */
+const COURSES = [
+ { id:'a1', level:'A1', cover:'🌱', title:'אנגלית למתחילים', sub:'המילים והמשפטים הראשונים', desc:'קורס ראשון למי שמתחיל מאפס: ברכות, משפחה, אוכל, בית, מספרים ופעולות יומיומיות. כל שיעור מלווה בהקראה, הגייה בעברית ותרגול.', tags:['חדש'], topics:[
+  { id:'a1-greet', icon:'👋', title:'היכרות וברכות', lessons:[
+    { id:'a1-greet-1', type:'words', title:'ברכות ראשונות', words:['hello','goodbye','bye','please','thanks','sorry','yes','no','okay','welcome'] },
+    { id:'a1-greet-2', type:'words', title:'להציג את עצמי', words:['name','friend','nice','meet','today','how','what','who','where','good'] },
+    { id:'a1-greet-3', type:'talk', title:'שיחה: נעים להכיר', talk:'meet' } ] },
+  { id:'a1-family', icon:'👨‍👩‍👧', title:'משפחה ואנשים', lessons:[
+    { id:'a1-family-1', type:'words', title:'בני משפחה', words:['mother','father','brother','sister','son','daughter','baby','child','husband','wife'] },
+    { id:'a1-family-2', type:'words', title:'אנשים סביבי', words:['friend','teacher','student','doctor','nurse','king','queen','man','woman','people'] },
+    { id:'a1-family-3', type:'story', title:'סיפור: החתול שאהב פיצה', story:'pizza' } ] },
+  { id:'a1-food', icon:'🍎', title:'אוכל ושתייה', lessons:[
+    { id:'a1-food-1', type:'words', title:'בסיס השולחן', words:['bread','water','milk','coffee','tea','egg','cheese','rice','meat','salt'] },
+    { id:'a1-food-2', type:'words', title:'פירות וירקות', words:['apple','banana','tomato','cucumber','carrot','potato','onion','fruit','vegetable','cake'] },
+    { id:'a1-food-3', type:'talk', title:'שיחה: בבית קפה', talk:'cafe' },
+    { id:'a1-food-4', type:'story', title:'סיפור: בישול ארוחת ערב', story:'pasta' } ] },
+  { id:'a1-home', icon:'🏠', title:'בית וחפצים', lessons:[
+    { id:'a1-home-1', type:'words', title:'חדרים וריהוט', words:['house','door','window','table','chair','bed','floor','roof','key','box'] },
+    { id:'a1-home-2', type:'words', title:'חפצים יומיומיים', words:['bag','book','pen','phone','computer','clock','glass','cup','plate','bottle'] },
+    { id:'a1-home-3', type:'story', title:'סיפור: ניקיון הבית', story:'cleaning' } ] },
+  { id:'a1-numbers', icon:'⏰', title:'מספרים וזמן', lessons:[
+    { id:'a1-numbers-1', type:'words', title:'מספרים 1–10', words:['one','two','three','four','five','six','seven','eight','nine','ten'] },
+    { id:'a1-numbers-2', type:'words', title:'ימים וזמנים', words:['day','week','month','year','morning','night','today','tomorrow','yesterday','time'] },
+    { id:'a1-numbers-3', type:'story', title:'סיפור: קפה של בוקר', story:'coffee' } ] },
+  { id:'a1-actions', icon:'🏃', title:'פעולות יומיומיות', lessons:[
+    { id:'a1-actions-1', type:'words', title:'פעולות בסיסיות', words:['eat','drink','sleep','work','read','write','walk','run','play','go'] },
+    { id:'a1-actions-2', type:'words', title:'עוד פעולות', words:['come','give','take','see','hear','speak','buy','open','close','help'] },
+    { id:'a1-actions-3', type:'story', title:'סיפור: טיול עם הכלב', story:'dogwalk' } ] }
+ ]},
+ { id:'a2', level:'A2', cover:'🌿', title:'אנגלית יומיומית', sub:'להסתדר בחנות, בנסיעה ואצל הרופא', desc:'קורס המשך: קניות, נסיעות, בריאות, מזג אוויר, רגשות ותכנון. כולל שיחות מוכנות וסיפורים קצרים מהחיים.', tags:['חדש'], topics:[
+  { id:'a2-shop', icon:'🛍️', title:'קניות ובגדים', lessons:[
+    { id:'a2-shop-1', type:'words', title:'לקנות ולשלם', words:['buy','sell','pay','price','cheap','expensive','money','store','market','shop'] },
+    { id:'a2-shop-2', type:'words', title:'בגדים', words:['shirt','shoes','coat','dress','pants','socks','hat','size','color','jacket'] },
+    { id:'a2-shop-3', type:'talk', title:'שיחה: בחנות בגדים', talk:'shop' },
+    { id:'a2-shop-4', type:'story', title:'סיפור: חולצה חדשה', story:'shirt' } ] },
+  { id:'a2-travel', icon:'🚆', title:'נסיעות ותחבורה', lessons:[
+    { id:'a2-travel-1', type:'words', title:'תחבורה', words:['bus','train','taxi','ticket','station','airport','hotel','map','road','passport'] },
+    { id:'a2-travel-2', type:'words', title:'מקומות וכיוונים', words:['travel','trip','ship','boat','bridge','city','country','street','left','right'] },
+    { id:'a2-travel-3', type:'talk', title:'שיחה: שאלת דרך', talk:'way' },
+    { id:'a2-travel-4', type:'story', title:'סיפור: קניית כרטיס רכבת', story:'train' } ] },
+  { id:'a2-health', icon:'🩺', title:'בריאות', lessons:[
+    { id:'a2-health-1', type:'words', title:'אצל הרופא', words:['doctor','hospital','medicine','fever','cough','headache','throat','stomach','tooth','head'] },
+    { id:'a2-health-2', type:'words', title:'הגוף והרגשה', words:['sick','tired','hurt','sore','heart','hand','foot','leg','eye','ear'] },
+    { id:'a2-health-3', type:'talk', title:'שיחה: אצל הרופא', talk:'doctor' },
+    { id:'a2-health-4', type:'story', title:"סיפור: אצל הרופא", story:'clinic' } ] },
+  { id:'a2-weather', icon:'☀️', title:'מזג אוויר וטבע', lessons:[
+    { id:'a2-weather-1', type:'words', title:'שמיים ומזג אוויר', words:['sun','moon','star','cloud','rain','snow','wind','hot','cold','warm'] },
+    { id:'a2-weather-2', type:'words', title:'עונות וטבע', words:['summer','winter','spring','autumn','tree','flower','river','lake','beach','mountain'] },
+    { id:'a2-weather-3', type:'story', title:'סיפור: יום גשום', story:'rainy' },
+    { id:'a2-weather-4', type:'story', title:'סיפור: יום בחוף הים', story:'beach' } ] },
+  { id:'a2-feel', icon:'😊', title:'רגשות ותיאורים', lessons:[
+    { id:'a2-feel-1', type:'words', title:'איך אני מרגיש', words:['happy','sad','angry','tired','hungry','thirsty','scared','proud','lonely','bored'] },
+    { id:'a2-feel-2', type:'words', title:'לתאר דברים', words:['big','small','tall','short','long','young','old','new','beautiful','ugly'] },
+    { id:'a2-feel-3', type:'talk', title:'שיחה: איך היה היום', talk:'day' } ] },
+  { id:'a2-work', icon:'💼', title:'עבודה ותכנונים', lessons:[
+    { id:'a2-work-1', type:'words', title:'בעבודה', words:['work','job','office','meeting','team','project','idea','problem','plan','busy'] },
+    { id:'a2-work-2', type:'words', title:'ימי השבוע', words:['monday','tuesday','wednesday','thursday','saturday','sunday','weekend','week','holiday','birthday'] },
+    { id:'a2-work-3', type:'story', title:'סיפור: שיחת טלפון', story:'phonecall' },
+    { id:'a2-work-4', type:'story', title:'סיפור: בחדר הכושר', story:'gym' } ] }
+ ]},
+ { id:'b1', level:'B1', cover:'🌳', title:'סיפורים אמיתיים', sub:'קריאה בשטף מסיפורים שקרו באמת', desc:'שני נושאים של סיפורים אמיתיים וארוכים יותר, עם אוצר מילים מתקדם מכל סיפור ומבחן בסוף כל נושא. מתאים אחרי הקורסים הקודמים.', tags:[], topics:[
+  { id:'b1-real1', icon:'📰', title:'סיפורים מפתיעים', lessons:[
+    { id:'b1-real1-1', type:'story', title:'הכלב שחיכה', story:'hachiko' },
+    { id:'b1-real1-2', type:'story', title:'דבש אף פעם לא מתקלקל', story:'honey' },
+    { id:'b1-real1-3', type:'story', title:'הילד שהמציא את הארטיק', story:'popsicle' },
+    { id:'b1-real1-4', type:'words', title:'מילים מתקדמות מהסיפורים', fromStories:['hachiko','honey','popsicle'], count:10 } ] },
+  { id:'b1-real2', icon:'🌍', title:'אנשים שלא ויתרו', lessons:[
+    { id:'b1-real2-1', type:'story', title:'מייל בארבע דקות', story:'mile' },
+    { id:'b1-real2-2', type:'story', title:'הטעות המוצלחת שהצילה מיליונים', story:'penicillin' },
+    { id:'b1-real2-3', type:'story', title:'הנער שתפס את הרוח', story:'windmill' },
+    { id:'b1-real2-4', type:'words', title:'מילים מתקדמות מהסיפורים', fromStories:['mile','penicillin','windmill'], count:10 } ] }
+ ]}
+];
+COURSES.forEach(c=>{ c.lessonCount=c.topics.reduce((a,t)=>a+t.lessons.length,0); c.minutes=c.topics.reduce((a,t)=>a+t.lessons.reduce((b,l)=>b+(l.type==='story'?6:l.type==='talk'?5:7),0)+4,0); });
+
 /* ---------- word lookup: meaning + pronunciation for ANY English word ---------- */
 const MEANING = {}, PRON = {}, HARD = {};
 for(const k in DICT){ MEANING[k]=DICT[k][0]; PRON[k]=DICT[k][1]; if(DICT[k][2]) HARD[k]=1; }
@@ -3448,6 +3553,12 @@ const DEFAULT_STATE = {
   readToday: {
     date: '',
     ids: {}
+  },
+  courses: {
+    lessons: {},
+    topics: {},
+    certs: {},
+    perfect: 0
   }
 };
 function loadState() {
@@ -3782,6 +3893,34 @@ const BADGES = [{
   need: 1,
   of: 'mine'
 }, {
+  id: 'lesson1',
+  icon: '🎓',
+  name: 'שיעור ראשון',
+  desc: 'סיימת שיעור בקורס',
+  need: 1,
+  of: 'lessons'
+}, {
+  id: 'topic1',
+  icon: '🧩',
+  name: 'מבחן נושא ראשון',
+  desc: 'עברת מבחן נושא',
+  need: 1,
+  of: 'topics'
+}, {
+  id: 'course1',
+  icon: '📜',
+  name: 'תעודת סיום',
+  desc: 'סיימת קורס שלם וקיבלת תעודה',
+  need: 1,
+  of: 'certs'
+}, {
+  id: 'perfect',
+  icon: '💯',
+  name: 'ציון מושלם',
+  desc: '100% במבחן נושא',
+  need: 1,
+  of: 'perfect'
+}, {
   id: 'team',
   icon: '🤝',
   name: 'לומדים ביחד',
@@ -3800,7 +3939,11 @@ function badgeStats(s) {
     talks: Object.keys(s.talkDone || {}).filter(id => TALKS.some(t => t.id === id)).length,
     sounds: Object.values(s.phon || {}).filter(x => x.c >= 2).length,
     mine: (s.userStories || []).length,
-    group: s.group ? 1 : 0
+    group: s.group ? 1 : 0,
+    lessons: Object.keys(csOf(s).lessons).length,
+    topics: Object.keys(csOf(s).topics).length,
+    certs: Object.keys(csOf(s).certs).length,
+    perfect: csOf(s).perfect || 0
   };
 }
 
@@ -4666,6 +4809,11 @@ const IconChevL = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/Rea
 const IconX = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
   d: "M6 6l12 12M18 6 6 18"
 }));
+const IconCap = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M2 9l10-5 10 5-10 5z"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M6 11.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-4.5M22 9v6"
+}));
 const IconBook = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
   d: "M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"
 }), /*#__PURE__*/React.createElement("path", {
@@ -5101,7 +5249,7 @@ function Tabs({
   setTab,
   learning
 }) {
-  const tabs = [['read', 'סיפורים', IconBook], ['sounds', 'צלילים', IconWave], ['talk', 'שיחה', IconChat], ['practice', 'תרגול', IconBolt], ['progress', 'התקדמות', IconChart]];
+  const tabs = [['courses', 'קורסים', IconCap], ['read', 'סיפורים', IconBook], ['sounds', 'צלילים', IconWave], ['talk', 'שיחה', IconChat], ['practice', 'תרגול', IconBolt], ['progress', 'התקדמות', IconChart]];
   return /*#__PURE__*/React.createElement("nav", {
     className: "sticky z-30 bg-surface border-b border-line",
     style: {
@@ -10640,7 +10788,11 @@ function Talk({
   profileName,
   known
 }) {
-  const [id, setId] = useState(null);
+  const [id, setId] = useState(() => {
+    const p = PENDING_TALK;
+    PENDING_TALK = null;
+    return p;
+  });
   const [run, setRun] = useState(0);
   const [ai, setAi] = useState(null);
   if (ai) return /*#__PURE__*/React.createElement(AiChat, {
@@ -10732,6 +10884,757 @@ function Talk({
   }), "\u05D1\u05D5\u05E6\u05E2") : /*#__PURE__*/React.createElement(IconChevL, {
     size: 18
   })))));
+}
+
+/* ---------- courses: course -> topics -> lessons -> topic quiz -> certificate ---------- */
+let PENDING_TALK = null;
+const PASS_PCT = 70;
+const csOf = s => ({
+  lessons: {},
+  topics: {},
+  certs: {},
+  perfect: 0,
+  ...(s.courses || {})
+});
+function lessonWordsOf(l) {
+  if (l.words) return l.words;
+  if (l.fromStories) {
+    const seen = new Set();
+    const out = [];
+    for (const id of l.fromStories) {
+      const st = STORIES.find(x => x.id === id);
+      if (!st) continue;
+      for (const k of storyData(st).keys) if (!seen.has(k) && !NAMES.has(k) && MEANING[k] && k.length >= 5 && !k.includes("'") && !MEANING[k].includes('(')) {
+        seen.add(k);
+        out.push(k);
+      }
+    }
+    return out.sort((a, b) => b.length - a.length || (a < b ? -1 : 1)).slice(0, l.count || 10);
+  }
+  return [];
+}
+function lessonDone(l, s) {
+  if (l.type === 'story') return !!(s.storiesDone && s.storiesDone[l.story]);
+  if (l.type === 'talk') return !!(s.talkDone && s.talkDone[l.talk]);
+  return !!csOf(s).lessons[l.id];
+}
+function topicQuizWords(t) {
+  const set = new Set();
+  t.lessons.forEach(l => lessonWordsOf(l).forEach(k => set.add(k)));
+  return [...set];
+}
+function topicProgress(t, s) {
+  const done = t.lessons.filter(l => lessonDone(l, s)).length;
+  return {
+    done,
+    total: t.lessons.length,
+    all: done === t.lessons.length,
+    passed: !!csOf(s).topics[t.id]
+  };
+}
+function courseProgress(c, s) {
+  const lessons = c.topics.reduce((a, t) => a + topicProgress(t, s).done, 0);
+  const passed = c.topics.filter(t => csOf(s).topics[t.id]).length;
+  return {
+    lessons,
+    total: c.lessonCount,
+    passed,
+    topics: c.topics.length,
+    complete: passed === c.topics.length,
+    pct: Math.round(100 * (lessons + passed) / (c.lessonCount + c.topics.length))
+  };
+}
+const topicUnlocked = (c, i, s) => i === 0 || !!csOf(s).topics[c.topics[i - 1].id];
+function courseAvg(c, s) {
+  const v = c.topics.map(t => (csOf(s).topics[t.id] || {}).pct || 0);
+  return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : 0;
+}
+function nextStep(c, s) {
+  for (let i = 0; i < c.topics.length; i++) {
+    const t = c.topics[i];
+    if (csOf(s).topics[t.id]) continue;
+    if (!topicUnlocked(c, i, s)) return null;
+    const l = t.lessons.find(x => !lessonDone(x, s));
+    return l ? {
+      topic: t,
+      lesson: l
+    } : {
+      topic: t,
+      quiz: true
+    };
+  }
+  return null;
+}
+function QuizRunner({
+  words,
+  title,
+  state,
+  actions,
+  voice,
+  celebrate,
+  onFinish,
+  onExit,
+  n = 10
+}) {
+  const seq = useMemo(() => {
+    let w = shuffle(words);
+    while (w.length < n && words.length) w = w.concat(shuffle(words));
+    w = w.slice(0, Math.min(n, Math.max(words.length, 1) >= n ? n : words.length));
+    return w.map((k, i) => makeQuestion([k], {}, null, i % 2 ? 'listen' : 'meaning'));
+  }, []);
+  const [i, setI] = useState(0);
+  const [picked, setPicked] = useState(null);
+  const [score, setScore] = useState(0);
+  const q = seq[i];
+  useEffect(() => {
+    if (q && q.type === 'listen') speakText(q.key, .9, voice);
+  }, [i]);
+  const answer = o => {
+    if (picked !== null) return;
+    const ok = o.key === q.key;
+    setPicked(o.key);
+    actions.recordAnswer(q.key, ok);
+    if (ok) {
+      setScore(s => s + 1);
+      if (q.type === 'meaning') speakText(q.key, .9, voice);
+    }
+  };
+  const next = () => {
+    if (i + 1 >= seq.length) {
+      onFinish(Math.round(100 * score / seq.length));
+    } else {
+      setI(i + 1);
+      setPicked(null);
+    }
+  };
+  const info = wordInfo(q.key);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-4 pb-28 sm:pb-0"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-3 text-sm",
+    onClick: onExit
+  }, /*#__PURE__*/React.createElement(IconX, {
+    size: 16
+  }), "\u05D9\u05E6\u05D9\u05D0\u05D4"), /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 h-2.5 rounded-full bg-sunk overflow-hidden",
+    dir: "ltr"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "h-full bar",
+    style: {
+      width: i / seq.length * 100 + '%',
+      background: 'var(--primary)'
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    className: "num text-sm text-muted"
+  }, i + 1, "/", seq.length)), /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, title), /*#__PURE__*/React.createElement("section", {
+    className: "card p-6 flex flex-col items-center gap-3 text-center",
+    key: i,
+    "data-qtype": q.type
+  }, q.type === 'meaning' ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted"
+  }, "\u05DE\u05D4 \u05E4\u05D9\u05E8\u05D5\u05E9 \u05D4\u05DE\u05D9\u05DC\u05D4?"), /*#__PURE__*/React.createElement("div", {
+    dir: "ltr",
+    className: "book text-4xl sm:text-5xl font-bold"
+  }, q.key), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-4",
+    onClick: () => speakText(q.key, .9, voice)
+  }, /*#__PURE__*/React.createElement(IconSpeaker, {
+    size: 18
+  }), "\u05D4\u05E9\u05DE\u05E2\u05D4")) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted"
+  }, "\u05D0\u05D9\u05D6\u05D5 \u05DE\u05D9\u05DC\u05D4 \u05E9\u05DE\u05E2\u05EA\u05DD?"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary px-6 py-3",
+    onClick: () => speakText(q.key, .9, voice)
+  }, /*#__PURE__*/React.createElement(IconSpeaker, {
+    size: 20
+  }), "\u05D4\u05E9\u05DE\u05E2\u05D4"), /*#__PURE__*/React.createElement("div", {
+    className: "text-lg text-muted"
+  }, /*#__PURE__*/React.createElement(Bi, null, info.he)))), /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-2 sm:grid-cols-2",
+    role: "group",
+    "aria-label": "\u05EA\u05E9\u05D5\u05D1\u05D5\u05EA"
+  }, q.options.map(o => {
+    const right = o.key === q.key;
+    const st = picked === null ? '' : right ? 'ok' : o.key === picked ? 'bad' : 'dim';
+    return /*#__PURE__*/React.createElement("button", {
+      key: o.key,
+      "data-correct": right ? '1' : '0',
+      disabled: picked !== null && st === 'dim',
+      onClick: () => answer(o),
+      className: "btn btn-ghost py-3 px-4 text-lg justify-center",
+      style: st === 'ok' ? {
+        background: 'var(--good-soft)',
+        borderColor: 'var(--known)'
+      } : st === 'bad' ? {
+        background: 'var(--bad-soft)',
+        borderColor: 'var(--bad)'
+      } : st === 'dim' ? {
+        opacity: .5
+      } : {}
+    }, q.type === 'meaning' ? /*#__PURE__*/React.createElement(Bi, null, o.label) : /*#__PURE__*/React.createElement("bdi", {
+      dir: "ltr",
+      className: "book"
+    }, o.label));
+  })), picked !== null && /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col items-center gap-2 rise",
+    role: "status"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-bold",
+    style: {
+      color: picked === q.key ? 'var(--known)' : 'var(--bad)'
+    }
+  }, picked === q.key ? pick(CHEERS) : pick(COMFORT)), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary py-3 px-6 dock-mobile",
+    onClick: next,
+    autoFocus: true
+  }, i + 1 >= seq.length ? 'לתוצאה' : 'הבא')));
+}
+function LessonWords({
+  course,
+  topic,
+  lesson,
+  state,
+  actions,
+  voice,
+  celebrate,
+  onBack
+}) {
+  const words = useMemo(() => lessonWordsOf(lesson), []);
+  const [phase, setPhase] = useState(csOf(state).lessons[lesson.id] ? 'learn' : 'learn');
+  const [pct, setPct] = useState(null);
+  const finish = p => {
+    setPct(p);
+    actions.completeLesson(lesson.id, words);
+    setPhase('result');
+    if (p >= 90) celebrate(false);
+  };
+  if (phase === 'quiz') return /*#__PURE__*/React.createElement(QuizRunner, {
+    words: words,
+    title: 'חידון: ' + lesson.title,
+    state: state,
+    actions: actions,
+    voice: voice,
+    celebrate: celebrate,
+    onFinish: finish,
+    onExit: () => setPhase('learn')
+  });
+  if (phase === 'speak') return /*#__PURE__*/React.createElement(SpeakGame, {
+    pool: words,
+    state: state,
+    actions: actions,
+    voice: voice,
+    celebrate: celebrate,
+    onDone: () => setPhase('result')
+  });
+  if (phase === 'result') return /*#__PURE__*/React.createElement("section", {
+    className: "card p-6 sm:p-8 flex flex-col gap-4 items-start rise",
+    role: "status"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, topic.title), /*#__PURE__*/React.createElement("h2", {
+    className: "text-3xl font-extrabold"
+  }, "\u05D4\u05E9\u05D9\u05E2\u05D5\u05E8 \u05D4\u05D5\u05E9\u05DC\u05DD!"), /*#__PURE__*/React.createElement("div", {
+    className: "num text-2xl font-extrabold"
+  }, pct, "% ", /*#__PURE__*/React.createElement("span", {
+    className: "text-base text-muted font-semibold"
+  }, "\u05D1\u05D7\u05D9\u05D3\u05D5\u05DF \u05D4\u05E9\u05D9\u05E2\u05D5\u05E8")), /*#__PURE__*/React.createElement("p", {
+    className: "text-muted"
+  }, "\u05D4\u05DE\u05D9\u05DC\u05D9\u05DD \u05E0\u05D5\u05E1\u05E4\u05D5 \u05DC\u05DB\u05E8\u05D8\u05D9\u05E1\u05D9 \u05D4\u05D7\u05D6\u05E8\u05D4 \u05E9\u05DC\u05DB\u05DD, \u05D5\u05D0\u05E4\u05E9\u05E8 \u05DC\u05D7\u05D6\u05D5\u05E8 \u05E2\u05DC\u05D9\u05D4\u05DF \u05D1\u05DC\u05E9\u05D5\u05E0\u05D9\u05EA \"\u05EA\u05E8\u05D2\u05D5\u05DC\"."), /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 flex-wrap"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary px-6",
+    onClick: onBack
+  }, "\u05D7\u05D6\u05E8\u05D4 \u05DC\u05E7\u05D5\u05E8\u05E1"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-4",
+    onClick: () => setPhase('speak')
+  }, /*#__PURE__*/React.createElement(IconMic, {
+    size: 18
+  }), "\u05EA\u05E8\u05D2\u05D5\u05DC \u05D4\u05D2\u05D9\u05D9\u05D4 \u05D1\u05E7\u05D5\u05DC")));
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-4"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-3 text-sm self-start",
+    onClick: onBack
+  }, /*#__PURE__*/React.createElement(IconX, {
+    size: 16
+  }), "\u05D7\u05D6\u05E8\u05D4 \u05DC\u05E7\u05D5\u05E8\u05E1"), /*#__PURE__*/React.createElement("section", {
+    className: "card p-5 flex flex-col gap-1"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, topic.title), /*#__PURE__*/React.createElement("h2", {
+    className: "text-2xl font-extrabold"
+  }, lesson.title), /*#__PURE__*/React.createElement("p", {
+    className: "text-muted text-sm"
+  }, "\u05D4\u05E7\u05E9\u05D9\u05D1\u05D5 \u05DC\u05DB\u05DC \u05DE\u05D9\u05DC\u05D4 \u05D5\u05DC\u05D7\u05E6\u05D5 \u05E2\u05DC\u05D9\u05D4 \u05DB\u05D3\u05D9 \u05DC\u05E9\u05DE\u05D5\u05E2 \u05E9\u05D5\u05D1. \u05D0\u05D7\u05E8 \u05DB\u05DA \u05D7\u05D9\u05D3\u05D5\u05DF \u05E7\u05E6\u05E8.")), /*#__PURE__*/React.createElement("ul", {
+    className: "grid gap-2 sm:grid-cols-2"
+  }, words.map(k => {
+    const i = wordInfo(k);
+    return /*#__PURE__*/React.createElement("li", {
+      key: k
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "card card-btn card-lift p-3 w-full flex items-center gap-3 text-start",
+      onClick: () => speakText(k, .9, voice),
+      "aria-label": `השמעת ${k}`
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "flex-1 min-w-0"
+    }, /*#__PURE__*/React.createElement("bdi", {
+      dir: "ltr",
+      className: "book font-bold text-xl block text-left"
+    }, k), /*#__PURE__*/React.createElement("span", {
+      className: "text-sm block"
+    }, /*#__PURE__*/React.createElement(Bi, null, i.he)), /*#__PURE__*/React.createElement("span", {
+      className: "text-xs text-muted block"
+    }, i.pron)), /*#__PURE__*/React.createElement(IconSpeaker, {
+      size: 18
+    })));
+  })), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary py-3 px-6 self-center dock-mobile",
+    onClick: () => {
+      words.forEach(k => speakText && 0);
+      setPhase('quiz');
+    }
+  }, "\u05DE\u05EA\u05D7\u05D9\u05DC\u05D9\u05DD \u05D7\u05D9\u05D3\u05D5\u05DF"));
+}
+function certificateCanvas({
+  name,
+  course,
+  avg,
+  date
+}) {
+  const W = 1200,
+    H = 850;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fffaf0';
+  x.fillRect(0, 0, W, H);
+  x.strokeStyle = '#c8a24a';
+  x.lineWidth = 14;
+  x.strokeRect(30, 30, W - 60, H - 60);
+  x.lineWidth = 3;
+  x.strokeRect(54, 54, W - 108, H - 108);
+  x.textAlign = 'center';
+  x.direction = 'rtl';
+  x.fillStyle = '#2b2a33';
+  x.font = '700 30px system-ui, Arial';
+  x.fillText('Lumi English', W / 2, 130);
+  x.font = '800 68px system-ui, Arial';
+  x.fillText('תעודת סיום', W / 2, 240);
+  x.font = '400 30px system-ui, Arial';
+  x.fillStyle = '#6b6a75';
+  x.fillText('מוענקת בזאת ל', W / 2, 320);
+  x.fillStyle = '#b4531f';
+  x.font = '800 76px system-ui, Arial';
+  x.fillText(name || 'לומד/ת', W / 2, 420);
+  x.fillStyle = '#2b2a33';
+  x.font = '400 32px system-ui, Arial';
+  x.fillText('על השלמת הקורס', W / 2, 495);
+  x.font = '800 54px system-ui, Arial';
+  x.fillText(course.title, W / 2, 570);
+  x.font = '600 30px system-ui, Arial';
+  x.fillStyle = '#6b6a75';
+  x.fillText(`רמה ${course.level} · ${course.topics.length} נושאים · ${course.lessonCount} שיעורים`, W / 2, 630);
+  x.fillStyle = '#2b2a33';
+  x.font = '700 36px system-ui, Arial';
+  x.fillText(`ציון ממוצע במבחני הנושאים: ${avg}%`, W / 2, 700);
+  x.font = '400 26px system-ui, Arial';
+  x.fillStyle = '#6b6a75';
+  x.fillText(date, W / 2, 775);
+  return c;
+}
+async function saveCertificate(canvas, filename, toast) {
+  const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+  if (DOWNLOADS) {
+    try {
+      await DOWNLOADS.save({
+        filename,
+        data: blob
+      });
+      toast('התעודה נשמרה');
+      return;
+    } catch (e) {
+      toast('השמירה בוטלה');
+      return;
+    }
+  }
+  try {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    toast('התעודה ירדה למכשיר');
+  } catch (e) {
+    toast('ההורדה נכשלה');
+  }
+}
+function CertificateView({
+  course,
+  state,
+  profile,
+  onBack,
+  toast
+}) {
+  const cert = csOf(state).certs[course.id];
+  const ref = useRef(null);
+  const data = {
+    name: profile.name,
+    course,
+    avg: cert ? cert.avg : courseAvg(course, state),
+    date: new Date(cert ? cert.date + 'T12:00:00' : Date.now()).toLocaleDateString('he-IL', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  };
+  useEffect(() => {
+    const c = certificateCanvas(data);
+    c.style.width = '100%';
+    c.style.height = 'auto';
+    c.style.borderRadius = '12px';
+    c.setAttribute('role', 'img');
+    c.setAttribute('aria-label', `תעודת סיום של ${profile.name} בקורס ${course.title}`);
+    c.id = 'cert-canvas';
+    ref.current.innerHTML = '';
+    ref.current.appendChild(c);
+  }, []);
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-4"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-3 text-sm self-start",
+    onClick: onBack
+  }, /*#__PURE__*/React.createElement(IconX, {
+    size: 16
+  }), "\u05D7\u05D6\u05E8\u05D4 \u05DC\u05E7\u05D5\u05E8\u05E1"), /*#__PURE__*/React.createElement("section", {
+    className: "card p-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    ref: ref
+  })), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary py-3 px-6 self-center",
+    onClick: () => saveCertificate(document.getElementById('cert-canvas'), `lumi-certificate-${course.id}.png`, toast)
+  }, "\u05D4\u05D5\u05E8\u05D3\u05EA \u05D4\u05EA\u05E2\u05D5\u05D3\u05D4 (PNG)"));
+}
+function CourseView({
+  course,
+  state,
+  actions,
+  voice,
+  celebrate,
+  profile,
+  toast,
+  onBack,
+  openStory,
+  openTalk
+}) {
+  const [lesson, setLesson] = useState(null);
+  const [quiz, setQuiz] = useState(null);
+  const [res, setRes] = useState(null);
+  const [cert, setCert] = useState(false);
+  const cp = courseProgress(course, state);
+  const ns = nextStep(course, state);
+  const cs = csOf(state);
+  const go = (t, l) => {
+    if (l.type === 'story') openStory(l.story);else if (l.type === 'talk') openTalk(l.talk);else {
+      setLesson({
+        t,
+        l
+      });
+      window.scrollTo({
+        top: 0
+      });
+    }
+  };
+  if (cert) return /*#__PURE__*/React.createElement(CertificateView, {
+    course: course,
+    state: state,
+    profile: profile,
+    toast: toast,
+    onBack: () => setCert(false)
+  });
+  if (lesson) return /*#__PURE__*/React.createElement(LessonWords, {
+    key: lesson.l.id,
+    course: course,
+    topic: lesson.t,
+    lesson: lesson.l,
+    state: state,
+    actions: actions,
+    voice: voice,
+    celebrate: celebrate,
+    onBack: () => setLesson(null)
+  });
+  if (quiz) return /*#__PURE__*/React.createElement(QuizRunner, {
+    words: topicQuizWords(quiz),
+    title: 'מבחן נושא: ' + quiz.title,
+    n: 10,
+    state: state,
+    actions: actions,
+    voice: voice,
+    celebrate: celebrate,
+    onExit: () => setQuiz(null),
+    onFinish: pct => {
+      const passed = pct >= PASS_PCT;
+      actions.passTopic(quiz.id, pct, course.id);
+      setRes({
+        t: quiz,
+        pct,
+        passed
+      });
+      setQuiz(null);
+      if (passed) celebrate(pct === 100);
+      window.scrollTo({
+        top: 0
+      });
+    }
+  });
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-5"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-3 text-sm self-start",
+    onClick: onBack
+  }, "\u2190 \u05DB\u05DC \u05D4\u05E7\u05D5\u05E8\u05E1\u05D9\u05DD"), /*#__PURE__*/React.createElement("section", {
+    className: "card p-5 sm:p-6 flex flex-col gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-4"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "w-16 h-16 rounded-2xl grid place-items-center text-4xl bg-sunk shrink-0",
+    "aria-hidden": "true"
+  }, course.cover), /*#__PURE__*/React.createElement("div", {
+    className: "min-w-0"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, "\u05E8\u05DE\u05D4 ", course.level), /*#__PURE__*/React.createElement("h1", {
+    className: "text-2xl sm:text-3xl font-bold"
+  }, course.title), /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-muted"
+  }, course.sub))), /*#__PURE__*/React.createElement("p", {
+    className: "text-muted leading-relaxed"
+  }, course.desc), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 h-2.5 rounded-full bg-sunk overflow-hidden",
+    dir: "ltr"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "h-full bar",
+    style: {
+      width: cp.pct + '%',
+      background: 'var(--primary)'
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    className: "num text-sm font-bold"
+  }, cp.pct, "%")), /*#__PURE__*/React.createElement("div", {
+    className: "text-xs text-muted"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "num"
+  }, cp.lessons, "/", cp.total), " \u05E9\u05D9\u05E2\u05D5\u05E8\u05D9\u05DD \xB7 ", /*#__PURE__*/React.createElement("span", {
+    className: "num"
+  }, cp.passed, "/", cp.topics), " \u05DE\u05D1\u05D7\u05E0\u05D9 \u05E0\u05D5\u05E9\u05D0 \xB7 \u05DB\u05BE", /*#__PURE__*/React.createElement("span", {
+    className: "num"
+  }, course.minutes), " \u05D3\u05E7\u05D5\u05EA"), /*#__PURE__*/React.createElement("ol", {
+    className: "text-sm text-muted grid gap-1 sm:grid-cols-3 list-none p-0"
+  }, /*#__PURE__*/React.createElement("li", null, "\u2460 \u05DC\u05D5\u05DE\u05D3\u05D9\u05DD \u05E9\u05D9\u05E2\u05D5\u05E8"), /*#__PURE__*/React.createElement("li", null, "\u2461 \u05E2\u05D5\u05D1\u05E8\u05D9\u05DD \u05DE\u05D1\u05D7\u05DF \u05E0\u05D5\u05E9\u05D0 (", PASS_PCT, "% \u05D5\u05DE\u05E2\u05DC\u05D4)"), /*#__PURE__*/React.createElement("li", null, "\u2462 \u05DE\u05E1\u05D9\u05D9\u05DE\u05D9\u05DD \u05D5\u05D6\u05D5\u05DB\u05D9\u05DD \u05D1\u05EA\u05E2\u05D5\u05D3\u05D4")), cp.complete ? /*#__PURE__*/React.createElement("div", {
+    className: "flex gap-2 flex-wrap"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary px-6",
+    onClick: () => {
+      if (!cs.certs[course.id]) actions.issueCert(course.id, courseAvg(course, state));
+      setCert(true);
+    }
+  }, /*#__PURE__*/React.createElement(IconTrophy, {
+    size: 18
+  }), "\u05DC\u05EA\u05E2\u05D5\u05D3\u05EA \u05D4\u05E1\u05D9\u05D5\u05DD")) : ns && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary px-6 self-start",
+    onClick: () => ns.quiz ? setQuiz(ns.topic) : go(ns.topic, ns.lesson)
+  }, cp.lessons === 0 ? 'מתחילים' : 'המשך', ": ", ns.quiz ? 'מבחן ' + ns.topic.title : ns.lesson.title)), res && /*#__PURE__*/React.createElement("section", {
+    className: "card p-5 rise flex flex-col gap-2",
+    role: "status",
+    style: {
+      borderColor: res.passed ? 'var(--known)' : 'var(--bad)'
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "font-extrabold text-xl"
+  }, res.passed ? 'עברתם את מבחן הנושא!' : 'כמעט! צריך ' + PASS_PCT + '% כדי להמשיך'), /*#__PURE__*/React.createElement("div", {
+    className: "num"
+  }, res.pct, "% \xB7 ", res.t.title), !res.passed && /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted"
+  }, "\u05D7\u05D6\u05E8\u05D5 \u05E2\u05DC \u05DE\u05D9\u05DC\u05D5\u05EA \u05D4\u05E0\u05D5\u05E9\u05D0 \u05D5\u05E0\u05E1\u05D5 \u05E9\u05D5\u05D1. \u05D0\u05E4\u05E9\u05E8 \u05DB\u05DE\u05D4 \u05E4\u05E2\u05DE\u05D9\u05DD \u05E9\u05E8\u05D5\u05E6\u05D9\u05DD.")), course.topics.map((t, ti) => {
+    const tp = topicProgress(t, state);
+    const open = topicUnlocked(course, ti, state);
+    const passed = tp.passed;
+    return /*#__PURE__*/React.createElement("section", {
+      key: t.id,
+      className: `card p-4 sm:p-5 flex flex-col gap-3 ${open ? '' : 'opacity-60'}`,
+      "data-topic": t.id,
+      "data-open": open ? '1' : '0'
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center gap-3"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "text-2xl",
+      "aria-hidden": "true"
+    }, open ? t.icon : '🔒'), /*#__PURE__*/React.createElement("div", {
+      className: "me-auto"
+    }, /*#__PURE__*/React.createElement("h2", {
+      className: "font-extrabold text-lg"
+    }, t.title), /*#__PURE__*/React.createElement("div", {
+      className: "text-xs text-muted"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "num"
+    }, tp.done, "/", tp.total), " \u05E9\u05D9\u05E2\u05D5\u05E8\u05D9\u05DD", passed ? ` · עברתם ${cs.topics[t.id].pct}%` : '')), passed && /*#__PURE__*/React.createElement("span", {
+      className: "tag",
+      style: {
+        background: 'var(--good-soft)',
+        color: 'var(--good)'
+      }
+    }, /*#__PURE__*/React.createElement(IconCheck, {
+      size: 12
+    }), "\u05D4\u05D5\u05E9\u05DC\u05DD")), open ? /*#__PURE__*/React.createElement("ul", {
+      className: "flex flex-col gap-1.5"
+    }, t.lessons.map(l => {
+      const d = lessonDone(l, state);
+      return /*#__PURE__*/React.createElement("li", {
+        key: l.id
+      }, /*#__PURE__*/React.createElement("button", {
+        className: "w-full flex items-center gap-3 rounded-xl border border-line px-3 py-3 text-start hover:border-primary",
+        "data-lesson": l.id,
+        onClick: () => go(t, l)
+      }, /*#__PURE__*/React.createElement("span", {
+        className: "w-6 h-6 rounded-full grid place-items-center shrink-0 text-xs",
+        style: {
+          background: d ? 'var(--known)' : 'var(--sunk)',
+          color: d ? '#fff' : 'var(--muted)'
+        },
+        "aria-hidden": "true"
+      }, d ? '✓' : l.type === 'story' ? '📖' : l.type === 'talk' ? '💬' : 'Aa'), /*#__PURE__*/React.createElement("span", {
+        className: "flex-1 font-semibold"
+      }, l.title), /*#__PURE__*/React.createElement("span", {
+        className: "text-xs text-muted"
+      }, l.type === 'story' ? 'סיפור' : l.type === 'talk' ? 'שיחה' : 'מילים')));
+    }), /*#__PURE__*/React.createElement("li", null, /*#__PURE__*/React.createElement("button", {
+      disabled: !tp.all,
+      "data-quiz": t.id,
+      className: `btn ${tp.all ? 'btn-primary' : 'btn-ghost'} w-full py-3`,
+      onClick: () => {
+        setRes(null);
+        setQuiz(t);
+        window.scrollTo({
+          top: 0
+        });
+      }
+    }, tp.all ? passed ? 'מבחן נושא: לנסות שוב' : 'מבחן נושא' : 'מבחן נושא · נפתח בסיום כל השיעורים'))) : /*#__PURE__*/React.createElement("div", {
+      className: "text-sm text-muted"
+    }, "\u05E0\u05E4\u05EA\u05D7 \u05D0\u05D7\u05E8\u05D9 \u05E9\u05EA\u05E2\u05D1\u05E8\u05D5 \u05D0\u05EA \u05D4\u05DE\u05D1\u05D7\u05DF \u05E9\u05DC \"", course.topics[ti - 1].title, "\"."));
+  }));
+}
+function Courses({
+  state,
+  actions,
+  voice,
+  celebrate,
+  profile,
+  toast,
+  openStory,
+  openTalk
+}) {
+  const [id, setId] = useState(null);
+  const [q, setQ] = useState('');
+  const course = COURSES.find(c => c.id === id);
+  if (course) return /*#__PURE__*/React.createElement(CourseView, {
+    course: course,
+    state: state,
+    actions: actions,
+    voice: voice,
+    celebrate: celebrate,
+    profile: profile,
+    toast: toast,
+    onBack: () => {
+      setId(null);
+      window.scrollTo({
+        top: 0
+      });
+    },
+    openStory: openStory,
+    openTalk: openTalk
+  });
+  const list = COURSES.filter(c => !q.trim() || (c.title + ' ' + c.sub + ' ' + c.level).includes(q.trim()));
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-5"
+  }, /*#__PURE__*/React.createElement("section", {
+    className: "card p-5 sm:p-6 flex flex-col gap-3"
+  }, /*#__PURE__*/React.createElement("h1", {
+    className: "text-2xl sm:text-3xl font-bold"
+  }, "\u05E7\u05D5\u05E8\u05E1\u05D9\u05DD"), /*#__PURE__*/React.createElement("p", {
+    className: "text-muted leading-relaxed"
+  }, "\u05DE\u05E1\u05DC\u05D5\u05DC \u05DC\u05D9\u05DE\u05D5\u05D3 \u05DE\u05E1\u05D5\u05D3\u05E8: \u05E7\u05D5\u05E8\u05E1 \u2190 \u05E0\u05D5\u05E9\u05D0\u05D9\u05DD \u2190 \u05E9\u05D9\u05E2\u05D5\u05E8\u05D9\u05DD \u2190 \u05DE\u05D1\u05D7\u05DF \u05E0\u05D5\u05E9\u05D0 \u2190 \u05EA\u05E2\u05D5\u05D3\u05EA \u05E1\u05D9\u05D5\u05DD. \u05DB\u05DC \u05E9\u05D9\u05E2\u05D5\u05E8 \u05DE\u05E9\u05DC\u05D1 \u05DE\u05D9\u05DC\u05D9\u05DD, \u05D4\u05E7\u05E8\u05D0\u05D4, \u05D7\u05D9\u05D3\u05D5\u05DF, \u05D5\u05DC\u05E4\u05E2\u05DE\u05D9\u05DD \u05E1\u05D9\u05E4\u05D5\u05E8 \u05D0\u05D5 \u05E9\u05D9\u05D7\u05D4."), /*#__PURE__*/React.createElement("label", {
+    className: "relative block"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "sr-only"
+  }, "\u05D7\u05D9\u05E4\u05D5\u05E9 \u05E7\u05D5\u05E8\u05E1"), /*#__PURE__*/React.createElement("input", {
+    value: q,
+    onChange: e => setQ(e.target.value),
+    placeholder: "\u05D7\u05D9\u05E4\u05D5\u05E9 \u05E7\u05D5\u05E8\u05E1 \u05D0\u05D5 \u05E8\u05DE\u05D4 (A1, A2\u2026)",
+    className: "field w-full"
+  }))), /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-3 sm:grid-cols-2"
+  }, list.map(c => {
+    const p = courseProgress(c, state);
+    return /*#__PURE__*/React.createElement("button", {
+      key: c.id,
+      "data-course": c.id,
+      onClick: () => {
+        setId(c.id);
+        window.scrollTo({
+          top: 0
+        });
+      },
+      className: "card card-btn card-lift p-4 flex flex-col gap-3 text-start"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center gap-3"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "w-14 h-14 rounded-xl grid place-items-center text-3xl bg-sunk shrink-0",
+      "aria-hidden": "true"
+    }, c.cover), /*#__PURE__*/React.createElement("span", {
+      className: "flex-1 min-w-0"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "font-extrabold text-lg block"
+    }, c.title), /*#__PURE__*/React.createElement("span", {
+      className: "text-sm text-muted block"
+    }, c.sub)), /*#__PURE__*/React.createElement("span", {
+      className: "tag num"
+    }, c.level)), /*#__PURE__*/React.createElement("div", {
+      className: "flex items-center gap-2"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "flex-1 h-2 rounded-full bg-sunk overflow-hidden",
+      dir: "ltr"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "h-full bar",
+      style: {
+        width: p.pct + '%',
+        background: 'var(--primary)'
+      }
+    })), /*#__PURE__*/React.createElement("span", {
+      className: "num text-xs font-bold"
+    }, p.pct, "%")), /*#__PURE__*/React.createElement("div", {
+      className: "text-xs text-muted flex gap-2 flex-wrap"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "num"
+    }, c.topics.length), " \u05E0\u05D5\u05E9\u05D0\u05D9\u05DD \xB7 ", /*#__PURE__*/React.createElement("span", {
+      className: "num"
+    }, c.lessonCount), " \u05E9\u05D9\u05E2\u05D5\u05E8\u05D9\u05DD", p.complete && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: 'var(--known)'
+      },
+      className: "font-bold"
+    }, "\xB7 \u05D4\u05D5\u05E9\u05DC\u05DD \uD83C\uDF93")));
+  }), list.length === 0 && /*#__PURE__*/React.createElement("p", {
+    className: "text-muted text-center py-6 sm:col-span-2"
+  }, "\u05DC\u05D0 \u05E0\u05DE\u05E6\u05D0 \u05E7\u05D5\u05E8\u05E1. \u05E0\u05E1\u05D5 \u05DE\u05D9\u05DC\u05D4 \u05D0\u05D7\u05E8\u05EA.")));
 }
 
 /* ---------- study groups: weekly leaderboard shared through the site's small API ---------- */
@@ -12396,7 +13299,7 @@ function App({
       celebrate(false);
     }, 400);
     return () => clearTimeout(t);
-  }, [state.storiesDone, state.words, state.history, state.totals, state.talkDone, state.phon, state.userStories, state.group]);
+  }, [state.storiesDone, state.words, state.history, state.totals, state.talkDone, state.phon, state.userStories, state.group, state.courses]);
   const lv = levelFor(known);
   const prevLv = useRef(lv);
   useEffect(() => {
@@ -12582,6 +13485,60 @@ function App({
         }
       }, ok ? 2 : 0);
     }),
+    completeLesson: (id, words) => setState(s => {
+      const cs = csOf(s);
+      const first = !cs.lessons[id];
+      let n = s;
+      for (const k of words || []) if (!n.words[k] && !NAMES.has(k)) n = withStatus(n, k, 'learning');
+      return withXP({
+        ...n,
+        courses: {
+          ...cs,
+          lessons: {
+            ...cs.lessons,
+            [id]: todayKey()
+          }
+        }
+      }, first ? 8 : 2);
+    }),
+    passTopic: (tid, pct, cid) => setState(s => {
+      const cs = csOf(s);
+      const ok = pct >= PASS_PCT;
+      if (!ok) return withXP(s, 1);
+      const first = !cs.topics[tid];
+      const prev = cs.topics[tid];
+      return withXP({
+        ...s,
+        courses: {
+          ...cs,
+          topics: {
+            ...cs.topics,
+            [tid]: {
+              pct: Math.max(pct, prev && prev.pct || 0),
+              date: todayKey()
+            }
+          },
+          perfect: (cs.perfect || 0) + (pct === 100 && !(prev && prev.pct === 100) ? 1 : 0)
+        }
+      }, first ? 15 : 3);
+    }),
+    issueCert: (cid, avg) => setState(s => {
+      const cs = csOf(s);
+      if (cs.certs[cid]) return s;
+      return withXP({
+        ...s,
+        courses: {
+          ...cs,
+          certs: {
+            ...cs.certs,
+            [cid]: {
+              date: todayKey(),
+              avg
+            }
+          }
+        }
+      }, 30);
+    }),
     finishTalk: id => setState(s => {
       const td = s.talkDone || {};
       const first = !td[id] || td[id] !== todayKey();
@@ -12673,6 +13630,13 @@ function App({
     try {
       synth && synth.cancel();
     } catch (e) {}
+    window.scrollTo({
+      top: 0
+    });
+  };
+  const openTalk = id => {
+    PENDING_TALK = id;
+    setTab('talk');
     window.scrollTo({
       top: 0
     });
@@ -12789,7 +13753,16 @@ function App({
         toast(cloudMsg(e));
       }
     }
-  })), tab === 'sounds' && /*#__PURE__*/React.createElement(Sounds, {
+  })), tab === 'courses' && /*#__PURE__*/React.createElement(Courses, {
+    state: state,
+    actions: actions,
+    voice: voice,
+    celebrate: celebrate,
+    profile: profile,
+    toast: toast,
+    openStory: openStory,
+    openTalk: openTalk
+  }), tab === 'sounds' && /*#__PURE__*/React.createElement(Sounds, {
     state: state,
     actions: actions,
     voice: voice,
