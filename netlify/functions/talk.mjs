@@ -104,6 +104,7 @@ export async function handle(req, ctx) {
       if (!queue.length && !discovered) { discovered = true; try { const l = await listModels(f, apiKey); queue = l.models.filter((m) => !tried.has(m)).slice(0, 4); } catch {} }
       continue; }
     if (r.status === 429) return json({ error: "busy" }, 503);
+    if (r.status === 402) return json({ error: "no_credits", detail: "402 prepayment credits depleted" }, 503);
     if (!r.ok) { const t = redact(await r.text().catch(() => ""), apiKey); return json({ error: /API key not valid|API_KEY_INVALID|API key expired|key.*(invalid|expired)/i.test(t) ? "bad_key" : "upstream", detail: `${r.status} ${t}`.slice(0, 240) }, 502); }
     const data = await r.json(); const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("") || "";
     if (!text) return json({ error: "empty", detail: String(data?.promptFeedback?.blockReason || data?.candidates?.[0]?.finishReason || "") }, 502);
