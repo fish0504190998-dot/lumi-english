@@ -1385,7 +1385,9 @@ function FlashSession({keys, state, actions, voice, title, onDone, celebrate}){
   const [queue,setQueue]=useState(()=>keys.slice()); const [flipped,setFlipped]=useState(false);
   const [stats,setStats]=useState({seen:0, ok:0, again:0, graduated:[], hard:[]}); const requeued=useRef(new Set());
   const k=queue[0]; const info=k?wordInfo(k):null; const card=k?srsCard(state,k):null;
-  useEffect(()=>{ if(k){ setFlipped(false); speakText(k,.9,voice); } },[k, stats.seen]);
+  const [picked,setPicked]=useState(null);
+  const choices=useMemo(()=>{ if(!k||!info||!info.he) return null; const seen=new Set([info.he]); const ds=[]; for(const w of shuffle(QUIZ_POOL)){ const t=MEANING[w]; if(w!==k&&!seen.has(t)){ seen.add(t); ds.push(t); } if(ds.length===3) break; } return shuffle([info.he,...ds]); },[k, stats.seen]);
+  useEffect(()=>{ if(k){ setFlipped(false); setPicked(null); speakText(k,.9,voice); } },[k, stats.seen]);
   const grade=g=>{ if(!k) return; const next=srsNext(card,g);
     actions.reviewWord(k,g);
     const grad=next.iv>=GRADUATE_DAYS;
@@ -1421,7 +1423,7 @@ function FlashSession({keys, state, actions, voice, title, onDone, celebrate}){
       <div className="flex items-center justify-center gap-3" dir="ltr">
         <span className="book text-5xl sm:text-6xl font-bold">{k}</span>
       </div>
-      {!flipped ? <span className="text-muted text-sm mt-4">נסו להיזכר מה זה אומר, ואז לחצו כדי לבדוק</span>
+      {!flipped ? <span className="text-muted text-sm mt-4">נסו להיזכר מה זה אומר, או בחרו תשובה למטה</span>
       : <div className="flex flex-col items-center gap-2 mt-4 rise">
           <div className="text-3xl font-extrabold"><Bi>{info.he||'(אין תרגום)'}</Bi></div>
           <div className="text-xl" style={{color:'var(--primary)'}}>{info.pron}</div>
@@ -1432,6 +1434,9 @@ function FlashSession({keys, state, actions, voice, title, onDone, celebrate}){
       <button className="btn btn-ghost px-4" onClick={()=>speakText(k,.9,voice)}><IconSpeaker size={18}/>השמעה</button>
       <button className="btn btn-ghost px-4" onClick={()=>speakText(k,.45,voice)}><span aria-hidden="true">🐢</span>לאט</button>
     </div>
+    {choices&&<div className="grid gap-2 sm:grid-cols-2" role="group" aria-label="בחרו את הפירוש">{choices.map(c=>{ const right=c===info.he; const st=picked===null?'':right?'ok':c===picked?'bad':'dim';
+      return <button key={c} data-choice={right?'1':'0'} disabled={picked!==null} onClick={()=>{ setPicked(c); setFlipped(true); if(right) celebrate&&0; }} className="btn btn-ghost py-3 px-4 text-lg justify-center" style={st==='ok'?{background:'var(--good-soft)',borderColor:'var(--known)'}:st==='bad'?{background:'var(--bad-soft)',borderColor:'var(--bad)'}:st==='dim'?{opacity:.5}:{}}><Bi>{c}</Bi></button>; })}</div>}
+    {picked!==null&&<p className="text-center font-bold" role="status" style={{color:picked===info.he?'var(--known)':'var(--bad)'}}>{picked===info.he?'נכון! עכשיו דרגו כמה קל היה לכם:':'לא בדיוק. הפירוש הוא למעלה. דרגו בכנות:'}</p>}
     {flipped ? <div className="grade-row grid grid-cols-4 gap-2">
       {[[0,'שכחתי','bad'],[1,'קשה','learn'],[2,'ידעתי','primary'],[3,'קל','known']].map(([g,l,c])=><button key={g} className={`btn grade grade-${c} flex-col py-2`} style={{minHeight:'60px'}} onClick={()=>grade(g)}>
         <span className="font-extrabold">{l}</span><span className="text-[11px] opacity-80 num">{gradeLabel(card,g)}</span></button>)}

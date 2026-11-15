@@ -8541,9 +8541,25 @@ function FlashSession({
   const k = queue[0];
   const info = k ? wordInfo(k) : null;
   const card = k ? srsCard(state, k) : null;
+  const [picked, setPicked] = useState(null);
+  const choices = useMemo(() => {
+    if (!k || !info || !info.he) return null;
+    const seen = new Set([info.he]);
+    const ds = [];
+    for (const w of shuffle(QUIZ_POOL)) {
+      const t = MEANING[w];
+      if (w !== k && !seen.has(t)) {
+        seen.add(t);
+        ds.push(t);
+      }
+      if (ds.length === 3) break;
+    }
+    return shuffle([info.he, ...ds]);
+  }, [k, stats.seen]);
   useEffect(() => {
     if (k) {
       setFlipped(false);
+      setPicked(null);
       speakText(k, .9, voice);
     }
   }, [k, stats.seen]);
@@ -8664,7 +8680,7 @@ function FlashSession({
     className: "book text-5xl sm:text-6xl font-bold"
   }, k)), !flipped ? /*#__PURE__*/React.createElement("span", {
     className: "text-muted text-sm mt-4"
-  }, "\u05E0\u05E1\u05D5 \u05DC\u05D4\u05D9\u05D6\u05DB\u05E8 \u05DE\u05D4 \u05D6\u05D4 \u05D0\u05D5\u05DE\u05E8, \u05D5\u05D0\u05D6 \u05DC\u05D7\u05E6\u05D5 \u05DB\u05D3\u05D9 \u05DC\u05D1\u05D3\u05D5\u05E7") : /*#__PURE__*/React.createElement("div", {
+  }, "\u05E0\u05E1\u05D5 \u05DC\u05D4\u05D9\u05D6\u05DB\u05E8 \u05DE\u05D4 \u05D6\u05D4 \u05D0\u05D5\u05DE\u05E8, \u05D0\u05D5 \u05D1\u05D7\u05E8\u05D5 \u05EA\u05E9\u05D5\u05D1\u05D4 \u05DC\u05DE\u05D8\u05D4") : /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col items-center gap-2 mt-4 rise"
   }, /*#__PURE__*/React.createElement("div", {
     className: "text-3xl font-extrabold"
@@ -8691,7 +8707,40 @@ function FlashSession({
     onClick: () => speakText(k, .45, voice)
   }, /*#__PURE__*/React.createElement("span", {
     "aria-hidden": "true"
-  }, "\uD83D\uDC22"), "\u05DC\u05D0\u05D8")), flipped ? /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDC22"), "\u05DC\u05D0\u05D8")), choices && /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-2 sm:grid-cols-2",
+    role: "group",
+    "aria-label": "\u05D1\u05D7\u05E8\u05D5 \u05D0\u05EA \u05D4\u05E4\u05D9\u05E8\u05D5\u05E9"
+  }, choices.map(c => {
+    const right = c === info.he;
+    const st = picked === null ? '' : right ? 'ok' : c === picked ? 'bad' : 'dim';
+    return /*#__PURE__*/React.createElement("button", {
+      key: c,
+      "data-choice": right ? '1' : '0',
+      disabled: picked !== null,
+      onClick: () => {
+        setPicked(c);
+        setFlipped(true);
+        if (right) celebrate && 0;
+      },
+      className: "btn btn-ghost py-3 px-4 text-lg justify-center",
+      style: st === 'ok' ? {
+        background: 'var(--good-soft)',
+        borderColor: 'var(--known)'
+      } : st === 'bad' ? {
+        background: 'var(--bad-soft)',
+        borderColor: 'var(--bad)'
+      } : st === 'dim' ? {
+        opacity: .5
+      } : {}
+    }, /*#__PURE__*/React.createElement(Bi, null, c));
+  })), picked !== null && /*#__PURE__*/React.createElement("p", {
+    className: "text-center font-bold",
+    role: "status",
+    style: {
+      color: picked === info.he ? 'var(--known)' : 'var(--bad)'
+    }
+  }, picked === info.he ? 'נכון! עכשיו דרגו כמה קל היה לכם:' : 'לא בדיוק. הפירוש הוא למעלה. דרגו בכנות:'), flipped ? /*#__PURE__*/React.createElement("div", {
     className: "grade-row grid grid-cols-4 gap-2"
   }, [[0, 'שכחתי', 'bad'], [1, 'קשה', 'learn'], [2, 'ידעתי', 'primary'], [3, 'קל', 'known']].map(([g, l, c]) => /*#__PURE__*/React.createElement("button", {
     key: g,
