@@ -873,6 +873,10 @@ video {
   height: 100%;
 }
 
+.min-h-\[3\.5rem\] {
+  min-height: 3.5rem;
+}
+
 .min-h-\[44px\] {
   min-height: 44px;
 }
@@ -1585,6 +1589,10 @@ video {
 
 .underline-offset-4 {
   text-underline-offset: 4px;
+}
+
+.opacity-40 {
+  opacity: 0.4;
 }
 
 .opacity-60 {
@@ -3312,7 +3320,39 @@ const COURSES = [
     { id:'b1-real2-4', type:'words', title:'מילים מתקדמות מהסיפורים', fromStories:['mile','penicillin','windmill'], count:10 } ] }
  ]}
 ];
-COURSES.forEach(c=>{ c.lessonCount=c.topics.reduce((a,t)=>a+t.lessons.length,0); c.minutes=c.topics.reduce((a,t)=>a+t.lessons.reduce((b,l)=>b+(l.type==='story'?6:l.type==='talk'?5:7),0)+4,0); });
+
+/* ---- rich lessons: dialogue -> rule (in Hebrew) -> vocab in phrases -> mixed exercises. Correct answer is always o[0]; options are shuffled when shown ---- */
+const CH=(q,o,x)=>({t:'choose',q,o,x});
+const FL=(en,o,he,x)=>({t:'fill',en,o,he,x});
+const LI=(en,o)=>({t:'listen',en,o});
+const OR=(he,words,en)=>({t:'order',he,words,en});
+const TY=(he,ans,x)=>({t:'type',he,ans,x});
+const SP=(en)=>({t:'speak',en});
+COURSES.unshift({ id:'a1u', level:'A1', cover:'🌟', title:'A1 · מסלול מובנה (יחידה 1)', sub:'שלום, אני… נעים להכיר', desc:'יחידה ראשונה במסלול החדש: דיאלוג, הסבר קצר בעברית על כלל אחד, מילים בתוך משפטים, תרגילים מגוונים (בחירה, השלמה, סידור משפט, הקלדה, האזנה ודיבור) ומבחן יחידה. לומדים לפי הסדר.', tags:['חדש'], topics:[
+ { id:'a1u-u1', icon:'👋', title:'יחידה 1: היכרות', goal:'בסוף היחידה תוכלו להציג את עצמכם, לשאול "מה שמך?" ו"מאיפה אתה?", ולהציג חבר.', lessons:[
+  { id:'a1u-u1-1', type:'rich', title:'שלום ולהתראות', dialogue:[['Dan','Hello!','שלום!'],['Maya','Hi! Good morning.','היי! בוקר טוב.'],['Dan','Good morning.','בוקר טוב.'],['Maya','Goodbye, Dan.','להתראות, דן.'],['Dan','Bye, Maya!','ביי, מאיה!']],
+    rule:{title:'ברכות לפי שעות היום', he:'Hello היא הברכה הרגילה בכל שעה, ו־Hi קלילה וחברית. Good morning אומרים עד הצהריים, Good evening בערב, ו־Good night רק כשנפרדים לפני השינה. Goodbye ו־Bye הן "להתראות".', ex:[['Hello!','שלום!'],['Good morning!','בוקר טוב!'],['Good night!','לילה טוב!']], pit:'Good night היא ברכת פרידה בערב, לא ברכת פגישה. כשנפגשים בערב אומרים Good evening.'},
+    vocab:[['hello','שלום','הֶלוֹ'],['hi','היי','האי'],['goodbye','להתראות','גוּד־בַּאי'],['bye','ביי','באי'],['good morning','בוקר טוב','גוּד מוֹרנינג'],['good evening','ערב טוב','גוּד אִיבנינג'],['good night','לילה טוב','גוּד נַאיט'],['please','בבקשה','פְּלִיז'],['thank you','תודה','תֶנְק יוּ'],['sorry','סליחה','סוֹרי']],
+    ex:[CH('איך אומרים "ערב טוב" באנגלית?',['Good evening','Good morning','Good night']),CH('אתם הולכים לישון. מה אומרים?',['Good night','Good morning','Hello']),LI('Good morning',['Good morning','Good evening','Goodbye']),FL('___ morning, Dan!',['Good','Hi','Bye'],'בוקר טוב, דן!'),OR('בוקר טוב',['morning','Good'],'Good morning'),OR('להתראות, דן',['Goodbye','Dan'],'Goodbye Dan'),TY('תודה',['thank you','thanks']),TY('שלום',['hello','hi']),CH('מה פירוש Sorry?',['סליחה','בבקשה','תודה']),SP('Good morning, Dan')] },
+  { id:'a1u-u1-2', type:'rich', title:'I am… (אני…)', dialogue:[['Dan','Hello! I am Dan.','שלום! אני דן.'],['Maya','Hi! I am Maya.','היי! אני מאיה.'],['Dan','I am happy.','אני שמח.'],['Maya',"I'm happy too.",'גם אני שמחה.'],['Dan','I am a student.','אני סטודנט.'],['Maya','I am a teacher.','אני מורה.']],
+    rule:{title:'הפועל am: חובה באנגלית', he:'בעברית אומרים "אני דן" בלי פועל. באנגלית כל משפט צריך פועל, ולכן אומרים I am Dan. am הוא הצורה של to be עם I. בדיבור מקצרים: I am = I\'m.', ex:[['I am Dan.','אני דן.'],["I'm happy.",'אני שמח.'],['I am a student.','אני סטודנט.']], pit:'הטעות הנפוצה ביותר של דוברי עברית: "I Dan" או "I happy". חסר am!'},
+    vocab:[['I','אני','אַי'],['am','(אני) הוא/נמצא','אֶם'],['happy','שמח','הֶפִּי'],['tired','עייף','טַיירְד'],['hungry','רעב','הַנְגְרִי'],['student','סטודנט','סטיוּדנְט'],['teacher','מורה','טִיצ׳ר'],['doctor','רופא','דוֹקְטֶר'],['too','גם','טוּ'],['yes','כן','יֶס']],
+    ex:[FL('I ___ Dan.',['am','is','are'],'אני דן'),FL('I ___ happy.',['am','is','are'],'אני שמח'),FL('I ___ a teacher.',['am','is','are'],'אני מורה'),CH('איזה משפט נכון?',['I am tired.','I tired.','I are tired.']),CH('מה פירוש "I am hungry"?',['אני רעב','אני עייף','אני שמח']),OR('אני דן',['I','am','Dan'],'I am Dan'),OR('אני שמח',['I','am','happy','is'],'I am happy'),OR('אני סטודנט',['I','am','a','student'],'I am a student'),TY('אני עייף',['i am tired',"i'm tired"]),TY('אני רופא',['i am a doctor',"i'm a doctor"],'שימו לב: לפני מקצוע באנגלית מוסיפים a.'),LI('I am a teacher',['I am a teacher','I am a student','I am a doctor']),SP('I am happy')] },
+  { id:'a1u-u1-3', type:'rich', title:'My name is… (שמי…)', dialogue:[['Maya','Hello! What is your name?','שלום! מה שמך?'],['Dan','My name is Dan. And you?','שמי דן. ואת?'],['Maya','My name is Maya.','שמי מאיה.'],['Dan','Nice to meet you, Maya.','נעים להכיר, מאיה.'],['Maya','Nice to meet you too.','גם לי נעים.']],
+    rule:{title:'my / your ושאלת השם', he:'my = שלי, your = שלך. אומרים My name is Dan (שמי דן) ושואלים What is your name? (מה שמך?). בשאלה הפועל is בא אחרי What.', ex:[['My name is Dan.','שמי דן.'],['What is your name?','מה שמך?'],['Nice to meet you.','נעים להכיר.']], pit:'לא אומרים "What your name?". בעברית אין פועל כאן, אבל באנגלית חייבים: What is your name?'},
+    vocab:[['name','שם','נֵיים'],['my','שלי','מַאי'],['your','שלך','יוֹר'],['what','מה','וָואט'],['and','ו','אֶנְד'],['you','אתה/את','יוּ'],['nice','נעים/נחמד','נַאיס'],['meet','לפגוש','מִיט'],['friend','חבר','פְרֶנְד'],['new','חדש','נְיוּ']],
+    ex:[CH('איך שואלים "מה שמך?"',['What is your name?','What your name?','Your name what is?']),FL('My ___ is Maya.',['name','you','am'],'שמי מאיה'),FL('What is ___ name?',['your','you','I'],'מה שמך?'),FL('Nice to ___ you.',['meet','name','happy'],'נעים להכיר'),OR('שמי דן',['My','name','is','Dan'],'My name is Dan'),OR('מה שמך',['What','is','your','name'],'What is your name'),TY('נעים להכיר',['nice to meet you']),TY('שמי מאיה',['my name is maya']),LI('Nice to meet you',['Nice to meet you','Nice to see you','Nice name']),CH('מה פירוש "my"?',['שלי','שלך','אני']),SP('My name is Dan')] },
+  { id:'a1u-u1-4', type:'rich', title:'You, he, she (אתה, הוא, היא)', dialogue:[['Dan','You are Maya.','את מאיה.'],['Maya','Yes, I am.','כן, נכון.'],['Maya','He is Tom. He is my friend.','הוא טום. הוא חבר שלי.'],['Dan','And she is Anna. She is a teacher.','והיא אנה. היא מורה.'],['Maya','Yes, she is.','כן, נכון.']],
+    rule:{title:'to be: I am, you are, he is, she is', he:'I am, you are, he is, she is. he = הוא, she = היא. המילה you משמשת לאתה, לאת ולאתם. בעברית אין is/are בהווה, באנגלית הם חובה.', ex:[['You are Maya.','את מאיה.'],['He is Tom.','הוא טום.'],['She is a teacher.','היא מורה.']], pit:'לא "She happy" אלא "She is happy". וגם לא "he are": ל־he ול־she אומרים is.'},
+    vocab:[['he','הוא','הִי'],['she','היא','שִי'],['is','הוא/היא נמצא','אִיז'],['are','אתה/הם נמצאים','אר'],['man','גבר','מֶן'],['woman','אישה','וּוּמֶן'],['boy','ילד','בּוֹי'],['girl','ילדה','גֶרְל'],['brother','אח','בְּרָאדֶר'],['sister','אחות','סִיסְטֶר']],
+    ex:[FL('He ___ Tom.',['is','am','are'],'הוא טום'),FL('She ___ a teacher.',['is','am','are'],'היא מורה'),FL('You ___ Maya.',['are','is','am'],'את מאיה'),FL('I ___ Dan.',['am','is','are'],'אני דן'),CH('איזה משפט נכון?',['She is happy.','She happy.','She are happy.']),CH('איזה משפט נכון?',['He is a doctor.','He are a doctor.','He a doctor.']),OR('היא מורה',['She','is','a','teacher','are'],'She is a teacher'),OR('הוא חבר שלי',['He','is','my','friend'],'He is my friend'),TY('את מאיה',['you are maya']),TY('הוא שמח',['he is happy']),LI('She is a girl',['She is a girl','He is a boy','She is a woman']),SP('He is my friend')] },
+  { id:'a1u-u1-5', type:'rich', title:'Where are you from? (מאיפה אתה?)', dialogue:[['Maya','Where are you from?','מאיפה אתה?'],['Dan','I am from Israel. And you?','אני מישראל. ואת?'],['Maya','I am from Spain.','אני מספרד.'],['Dan','Spain is nice.','ספרד יפה.'],['Maya','Thank you!','תודה!']],
+    rule:{title:'from = מ… (מאיפה אתה?)', he:'שואלים Where are you from? (מאיפה אתה?) ועונים I am from + מקום. המילה from מחליפה את האות מ־ בעברית: "אני מישראל" = I am from Israel.', ex:[['Where are you from?','מאיפה אתה?'],['I am from Israel.','אני מישראל.'],["I'm from Spain.",'אני מספרד.']], pit:'בעברית אומרים "מאיפה אתה" בלי פועל. באנגלית צריך are: Where are you from?'},
+    vocab:[['where','איפה','וָור'],['from','מ־','פְרוֹם'],['Israel','ישראל','אִיזְרִיאֶל'],['Spain','ספרד','ספֵּיין'],['France','צרפת','פְרַאנְס'],['Italy','איטליה','אִיטְלִי'],['England','אנגליה','אִינְגְלֶנְד'],['America','אמריקה','אֲמֶרִיקָה'],['Germany','גרמניה','גֶ׳רְמָנִי'],['country','מדינה','קַאנְטְרִי']],
+    ex:[CH('איך שואלים "מאיפה אתה?"',['Where are you from?','Where you from?','What are you from?']),FL('I am ___ Israel.',['from','in','to'],'אני מישראל'),FL('Where ___ you from?',['are','is','am'],'מאיפה אתה?'),FL('She ___ from Spain.',['is','are','am'],'היא מספרד'),OR('אני מישראל',['I','am','from','Israel'],'I am from Israel'),OR('מאיפה אתה',['Where','are','you','from'],'Where are you from'),OR('היא מצרפת',['She','is','from','France'],'She is from France'),TY('אני מישראל',['i am from israel',"i'm from israel"]),TY('איפה',['where']),LI('I am from Italy',['I am from Italy','I am from Spain','I am from France']),CH('מה פירוש "country"?',['מדינה','עיר','שם']),SP('I am from Israel')] }
+ ]}
+]});
+COURSES.forEach(c=>{ c.lessonCount=c.topics.reduce((a,t)=>a+t.lessons.length,0); c.minutes=c.topics.reduce((a,t)=>a+t.lessons.reduce((b,l)=>b+(l.type==='story'?6:l.type==='talk'?5:l.type==='rich'?12:7),0)+4,0); });
 
 /* ---------- word lookup: meaning + pronunciation for ANY English word ---------- */
 const MEANING = {}, PRON = {}, HARD = {};
@@ -10888,7 +10928,7 @@ function Talk({
 
 /* ---------- courses: course -> topics -> lessons -> topic quiz -> certificate ---------- */
 let PENDING_TALK = null;
-const PASS_PCT = 70;
+const PASS_PCT = 80;
 const csOf = s => ({
   lessons: {},
   topics: {},
@@ -11322,6 +11362,461 @@ function CertificateView({
     onClick: () => saveCertificate(document.getElementById('cert-canvas'), `lumi-certificate-${course.id}.png`, toast)
   }, "\u05D4\u05D5\u05E8\u05D3\u05EA \u05D4\u05EA\u05E2\u05D5\u05D3\u05D4 (PNG)"));
 }
+
+/* ---------- rich lessons: dialogue, rule in Hebrew, vocabulary, mixed exercises ---------- */
+const normTxt = s => String(s || '').toLowerCase().replace(/[’‘]/g, "'").replace(/\b(i)'m\b/g, '$1 am').replace(/\b(you|we|they)'re\b/g, '$1 are').replace(/\b(he|she|it|what|where|who)'s\b/g, '$1 is').replace(/[^a-z0-9' ]/g, ' ').replace(/\s+/g, ' ').trim();
+const sentOk = (target, heard) => {
+  const t = normTxt(target).split(' '),
+    h = new Set(normTxt(heard).split(' '));
+  return t.filter(w => h.has(w)).length / t.length >= .7;
+};
+function ExItem({
+  e,
+  voice,
+  onDone
+}) {
+  const opts = useMemo(() => e.o ? shuffle(e.o) : [], []);
+  const bank = useMemo(() => e.t === 'order' ? shuffle(e.words.map((w, i) => ({
+    w,
+    i
+  }))) : [], []);
+  const [picked, setPicked] = useState(null);
+  const [chosen, setChosen] = useState([]);
+  const [val, setVal] = useState('');
+  const [res, setRes] = useState(null);
+  const [listening, setListening] = useState(false);
+  const [heard, setHeard] = useState('');
+  const [err, setErr] = useState('');
+  const stopRef = useRef(null);
+  useEffect(() => {
+    if (e.t === 'listen') speakText(e.en, .9, voice);
+    return () => {
+      stopRef.current && stopRef.current();
+    };
+  }, []);
+  const finish = ok => {
+    setRes(ok ? 'ok' : 'bad');
+    if (ok && (e.t === 'fill' || e.t === 'order' || e.t === 'type') && e.en) speakText(e.en, .9, voice);
+  };
+  const answerOf = () => e.t === 'order' ? e.en : e.t === 'type' ? e.ans[0] : e.o ? e.o[0] : '';
+  const pickOpt = o => {
+    if (res) return;
+    setPicked(o);
+    finish(o === e.o[0]);
+  };
+  const checkOrder = () => {
+    if (res) return;
+    finish(normTxt(chosen.map(i => e.words[i]).join(' ')) === normTxt(e.en));
+  };
+  const checkType = () => {
+    if (res || !val.trim()) return;
+    finish(e.ans.some(a => normTxt(a) === normTxt(val)));
+  };
+  const mic = () => {
+    setErr('');
+    if (listening) {
+      stopRef.current && stopRef.current();
+      return;
+    }
+    setHeard('');
+    stopRef.current = listenOnce({
+      lang: 'en',
+      onPartial: t => setHeard(t),
+      onText: t => {
+        setHeard(t);
+        setRes(sentOk(e.en, t) ? 'ok' : 'bad');
+      },
+      onError: m => setErr(m),
+      onState: setListening
+    });
+  };
+  const fb = res && /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col items-center gap-2 rise",
+    role: "status"
+  }, e.t === 'speak' ? /*#__PURE__*/React.createElement("div", {
+    className: "font-bold",
+    style: {
+      color: res === 'ok' ? 'var(--known)' : 'var(--bad)'
+    }
+  }, res === 'ok' ? pick(CHEERS) : 'כמעט! הקשיבו לדוגמה ונסו שוב') : /*#__PURE__*/React.createElement("div", {
+    className: "font-bold",
+    style: {
+      color: res === 'ok' ? 'var(--known)' : 'var(--bad)'
+    }
+  }, res === 'ok' ? pick(CHEERS) : /*#__PURE__*/React.createElement(React.Fragment, null, "\u05D4\u05EA\u05E9\u05D5\u05D1\u05D4 \u05D4\u05E0\u05DB\u05D5\u05E0\u05D4: ", /*#__PURE__*/React.createElement("bdi", {
+    dir: "ltr",
+    className: "book"
+  }, e.t === 'fill' ? e.o[0] : answerOf()))), e.x && /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted text-center"
+  }, /*#__PURE__*/React.createElement(Bi, null, e.x)), /*#__PURE__*/React.createElement("button", {
+    "data-next": true,
+    className: "btn btn-primary py-3 px-6 dock-mobile",
+    autoFocus: true,
+    onClick: () => onDone(res === 'ok')
+  }, "\u05D4\u05D1\u05D0"));
+  if (e.t === 'speak') return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-4 items-center"
+  }, /*#__PURE__*/React.createElement("section", {
+    className: "card p-6 w-full flex flex-col items-center gap-3 text-center"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted"
+  }, "\u05D0\u05DE\u05E8\u05D5 \u05D1\u05E7\u05D5\u05DC"), /*#__PURE__*/React.createElement("div", {
+    dir: "ltr",
+    className: "book text-2xl sm:text-3xl font-bold"
+  }, e.en), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-4",
+    onClick: () => speakText(e.en, .85, voice)
+  }, /*#__PURE__*/React.createElement(IconSpeaker, {
+    size: 18
+  }), "\u05D4\u05E9\u05DE\u05E2\u05D4"), heard && /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted"
+  }, "\u05E9\u05DE\u05E2\u05EA\u05D9: ", /*#__PURE__*/React.createElement("bdi", {
+    dir: "ltr",
+    className: "book text-ink"
+  }, heard))), err && /*#__PURE__*/React.createElement("div", {
+    className: "rounded-xl p-3 text-sm w-full",
+    role: "alert",
+    style: {
+      background: 'var(--bad-soft)',
+      color: 'var(--bad)'
+    }
+  }, /*#__PURE__*/React.createElement(Bi, null, err)), res ? fb : /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col items-center gap-2"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: `btn w-20 h-20 ${listening ? 'pop' : ''}`,
+    style: {
+      borderRadius: '50%',
+      background: listening ? 'var(--bad)' : 'var(--primary)',
+      color: 'var(--primary-ink)'
+    },
+    onClick: mic,
+    "aria-label": "\u05D4\u05E7\u05DC\u05D8\u05D4"
+  }, /*#__PURE__*/React.createElement(IconMic, {
+    size: 34
+  })), /*#__PURE__*/React.createElement("span", {
+    className: "text-sm text-muted"
+  }, listening ? 'מקשיב…' : 'לחצו ואמרו את המשפט'), /*#__PURE__*/React.createElement("button", {
+    "data-skip": true,
+    className: "hit text-sm text-muted underline",
+    onClick: () => onDone(true)
+  }, "\u05D3\u05DC\u05D2")));
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-4"
+  }, /*#__PURE__*/React.createElement("section", {
+    className: "card p-6 flex flex-col items-center gap-3 text-center"
+  }, e.t === 'choose' && /*#__PURE__*/React.createElement("div", {
+    className: "text-lg font-bold"
+  }, /*#__PURE__*/React.createElement(Bi, null, e.q)), e.t === 'fill' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted"
+  }, "\u05D4\u05E9\u05DC\u05D9\u05DE\u05D5 \u05D0\u05EA \u05D4\u05DE\u05E9\u05E4\u05D8"), /*#__PURE__*/React.createElement("div", {
+    dir: "ltr",
+    className: "book text-2xl sm:text-3xl font-bold"
+  }, res ? e.en.replace('___', e.o[0]) : e.en), /*#__PURE__*/React.createElement("div", {
+    className: "text-muted"
+  }, /*#__PURE__*/React.createElement(Bi, null, e.he))), e.t === 'listen' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted"
+  }, "\u05DE\u05D4 \u05E9\u05DE\u05E2\u05EA\u05DD?"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary px-6 py-3",
+    onClick: () => speakText(e.en, .9, voice)
+  }, /*#__PURE__*/React.createElement(IconSpeaker, {
+    size: 20
+  }), "\u05D4\u05E9\u05DE\u05E2\u05D4")), e.t === 'order' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted"
+  }, "\u05E1\u05D3\u05E8\u05D5 \u05D0\u05EA \u05D4\u05DE\u05E9\u05E4\u05D8 \u05D1\u05D0\u05E0\u05D2\u05DC\u05D9\u05EA"), /*#__PURE__*/React.createElement("div", {
+    className: "text-xl font-bold"
+  }, /*#__PURE__*/React.createElement(Bi, null, e.he))), e.t === 'type' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "text-sm text-muted"
+  }, "\u05DB\u05EA\u05D1\u05D5 \u05D1\u05D0\u05E0\u05D2\u05DC\u05D9\u05EA"), /*#__PURE__*/React.createElement("div", {
+    className: "text-xl font-bold"
+  }, /*#__PURE__*/React.createElement(Bi, null, e.he)))), (e.t === 'choose' || e.t === 'fill' || e.t === 'listen') && /*#__PURE__*/React.createElement("div", {
+    className: "grid gap-2 sm:grid-cols-2",
+    role: "group",
+    "aria-label": "\u05EA\u05E9\u05D5\u05D1\u05D5\u05EA"
+  }, opts.map(o => {
+    const right = o === e.o[0];
+    const st = !res ? '' : right ? 'ok' : o === picked ? 'bad' : 'dim';
+    return /*#__PURE__*/React.createElement("button", {
+      key: o,
+      "data-correct": right ? '1' : '0',
+      disabled: !!res && st === 'dim',
+      onClick: () => pickOpt(o),
+      className: "btn btn-ghost py-3 px-4 text-lg justify-center",
+      style: st === 'ok' ? {
+        background: 'var(--good-soft)',
+        borderColor: 'var(--known)'
+      } : st === 'bad' ? {
+        background: 'var(--bad-soft)',
+        borderColor: 'var(--bad)'
+      } : st === 'dim' ? {
+        opacity: .5
+      } : {}
+    }, /[א-ת]/.test(o) ? /*#__PURE__*/React.createElement(Bi, null, o) : /*#__PURE__*/React.createElement("bdi", {
+      dir: "ltr",
+      className: "book"
+    }, o));
+  })), e.t === 'order' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    dir: "ltr",
+    className: "card p-3 min-h-[3.5rem] flex flex-wrap gap-2 items-center",
+    "data-answer": true,
+    "aria-label": "\u05D4\u05DE\u05E9\u05E4\u05D8 \u05E9\u05DC\u05DB\u05DD"
+  }, chosen.map(i => /*#__PURE__*/React.createElement("button", {
+    key: i,
+    disabled: !!res,
+    onClick: () => setChosen(c => c.filter(x => x !== i)),
+    className: "btn btn-ghost px-3 book text-lg"
+  }, e.words[i])), !chosen.length && /*#__PURE__*/React.createElement("span", {
+    className: "text-muted text-sm"
+  }, "\u05DC\u05D7\u05E6\u05D5 \u05E2\u05DC \u05D4\u05DE\u05D9\u05DC\u05D9\u05DD \u05DC\u05E4\u05D9 \u05D4\u05E1\u05D3\u05E8")), /*#__PURE__*/React.createElement("div", {
+    dir: "ltr",
+    className: "flex flex-wrap gap-2 justify-center"
+  }, bank.map(b => chosen.includes(b.i) ? /*#__PURE__*/React.createElement("span", {
+    key: b.i,
+    className: "px-3 py-2 rounded-xl bg-sunk opacity-40 book text-lg"
+  }, b.w) : /*#__PURE__*/React.createElement("button", {
+    key: b.i,
+    "data-w": b.w,
+    disabled: !!res,
+    onClick: () => setChosen(c => [...c, b.i]),
+    className: "btn btn-ghost px-3 book text-lg"
+  }, b.w))), !res && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary py-3 px-6 self-center",
+    disabled: !chosen.length,
+    onClick: checkOrder
+  }, "\u05D1\u05D3\u05D9\u05E7\u05D4")), e.t === 'type' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("input", {
+    dir: "ltr",
+    className: "field book text-xl text-center",
+    value: val,
+    onChange: ev => setVal(ev.target.value),
+    onKeyDown: ev => {
+      if (ev.key === 'Enter') checkType();
+    },
+    disabled: !!res,
+    autoCapitalize: "off",
+    autoCorrect: "off",
+    spellCheck: false,
+    "aria-label": "\u05D4\u05EA\u05E9\u05D5\u05D1\u05D4 \u05D1\u05D0\u05E0\u05D2\u05DC\u05D9\u05EA"
+  }), !res && /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary py-3 px-6 self-center",
+    disabled: !val.trim(),
+    onClick: checkType
+  }, "\u05D1\u05D3\u05D9\u05E7\u05D4")), fb);
+}
+function ExerciseRunner({
+  items,
+  title,
+  onFinish,
+  onExit,
+  voice
+}) {
+  const scored = useMemo(() => items.filter(e => e.t !== 'speak').length, []);
+  const [queue, setQueue] = useState(() => items.map(e => ({
+    e,
+    first: true
+  })));
+  const [i, setI] = useState(0);
+  const [good, setGood] = useState(0);
+  const cur = queue[i];
+  const done = ok => {
+    let g = good;
+    if (cur.first && cur.e.t !== 'speak') {
+      if (ok) g = good + 1;else setQueue(q => [...q, {
+        e: cur.e,
+        first: false
+      }]);
+    }
+    setGood(g);
+    if (i + 1 >= queue.length + (cur.first && !ok && cur.e.t !== 'speak' ? 1 : 0)) {
+      onFinish(scored ? Math.round(100 * g / scored) : 100);
+    } else setI(i + 1);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-4 pb-28 sm:pb-0"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-3 text-sm",
+    onClick: onExit
+  }, /*#__PURE__*/React.createElement(IconX, {
+    size: 16
+  }), "\u05D9\u05E6\u05D9\u05D0\u05D4"), /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 h-2.5 rounded-full bg-sunk overflow-hidden",
+    dir: "ltr"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "h-full bar",
+    style: {
+      width: i / queue.length * 100 + '%',
+      background: 'var(--primary)'
+    }
+  })), /*#__PURE__*/React.createElement("span", {
+    className: "num text-sm text-muted"
+  }, Math.min(i + 1, queue.length), "/", queue.length)), /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, title, !cur.first && ' · חזרה על טעות'), /*#__PURE__*/React.createElement(ExItem, {
+    key: i,
+    e: cur.e,
+    voice: voice,
+    onDone: done
+  }));
+}
+function LessonRich({
+  topic,
+  lesson,
+  state,
+  actions,
+  voice,
+  celebrate,
+  onBack
+}) {
+  const [step, setStep] = useState('dialogue');
+  const [pct, setPct] = useState(null);
+  const [he, setHe] = useState(true);
+  const STEPS = ['dialogue', 'rule', 'vocab', 'ex'];
+  const si = STEPS.indexOf(step);
+  const finish = p => {
+    setPct(p);
+    actions.completeLesson(lesson.id, lesson.vocab.map(v => v[0]).filter(w => /^[a-z]+$/.test(w) && MEANING[w]));
+    if (p >= 90) celebrate(false);
+    setStep('result');
+  };
+  if (step === 'ex') return /*#__PURE__*/React.createElement(ExerciseRunner, {
+    items: lesson.ex,
+    title: 'תרגול: ' + lesson.title,
+    voice: voice,
+    onExit: () => setStep('vocab'),
+    onFinish: finish
+  });
+  if (step === 'result') return /*#__PURE__*/React.createElement("section", {
+    className: "card p-6 sm:p-8 flex flex-col gap-4 items-start rise",
+    role: "status"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, topic.title), /*#__PURE__*/React.createElement("h2", {
+    className: "text-3xl font-extrabold"
+  }, "\u05D4\u05E9\u05D9\u05E2\u05D5\u05E8 \u05D4\u05D5\u05E9\u05DC\u05DD!"), /*#__PURE__*/React.createElement("div", {
+    className: "num text-2xl font-extrabold"
+  }, pct, "% ", /*#__PURE__*/React.createElement("span", {
+    className: "text-base text-muted font-semibold"
+  }, "\u05D4\u05E6\u05DC\u05D7\u05D4 \u05D1\u05E0\u05D9\u05E1\u05D9\u05D5\u05DF \u05D4\u05E8\u05D0\u05E9\u05D5\u05DF")), /*#__PURE__*/React.createElement("p", {
+    className: "text-muted"
+  }, "\u05D4\u05DE\u05D9\u05DC\u05D9\u05DD \u05E0\u05D5\u05E1\u05E4\u05D5 \u05DC\u05DB\u05E8\u05D8\u05D9\u05E1\u05D9 \u05D4\u05D7\u05D6\u05E8\u05D4 \u05D5\u05D9\u05D7\u05D6\u05E8\u05D5 \u05D1\u05DC\u05E9\u05D5\u05E0\u05D9\u05EA \"\u05EA\u05E8\u05D2\u05D5\u05DC\" \u05D1\u05D6\u05DE\u05DF \u05D4\u05E0\u05DB\u05D5\u05DF."), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary px-6",
+    onClick: onBack
+  }, "\u05D7\u05D6\u05E8\u05D4 \u05DC\u05D9\u05D7\u05D9\u05D3\u05D4"));
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-4 pb-28 sm:pb-0"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-3"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-3 text-sm",
+    onClick: onBack
+  }, /*#__PURE__*/React.createElement(IconX, {
+    size: 16
+  }), "\u05D9\u05E6\u05D9\u05D0\u05D4"), /*#__PURE__*/React.createElement("div", {
+    className: "flex-1 flex gap-1.5",
+    dir: "ltr"
+  }, STEPS.map((s, k) => /*#__PURE__*/React.createElement("span", {
+    key: s,
+    className: "flex-1 h-2.5 rounded-full",
+    style: {
+      background: k <= si ? 'var(--primary)' : 'var(--sunk)'
+    }
+  })))), /*#__PURE__*/React.createElement("section", {
+    className: "card p-5 flex flex-col gap-1"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, topic.title), /*#__PURE__*/React.createElement("h2", {
+    className: "text-2xl font-extrabold"
+  }, lesson.title)), step === 'dialogue' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("section", {
+    className: "card p-4 flex flex-col gap-3",
+    "aria-label": "\u05D3\u05D9\u05D0\u05DC\u05D5\u05D2"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "font-extrabold me-auto"
+  }, "\u2460 \u05D3\u05D9\u05D0\u05DC\u05D5\u05D2: \u05D4\u05E7\u05E9\u05D9\u05D1\u05D5 \u05D5\u05E7\u05E8\u05D0\u05D5"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-3 text-sm",
+    onClick: () => speakText(lesson.dialogue.map(d => d[1]).join(' '), .9, voice)
+  }, /*#__PURE__*/React.createElement(IconSpeaker, {
+    size: 16
+  }), "\u05D4\u05DB\u05D5\u05DC"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-ghost px-3 text-sm",
+    "aria-pressed": he,
+    onClick: () => setHe(x => !x)
+  }, "\u05E2\u05D1\u05E8\u05D9\u05EA ", he ? '✓' : '')), lesson.dialogue.map((d, k) => /*#__PURE__*/React.createElement("button", {
+    key: k,
+    onClick: () => speakText(d[1], .9, voice),
+    className: "rounded-xl border border-line p-3 text-start hover:border-primary flex gap-3 items-start"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "tag shrink-0 mt-1"
+  }, d[0]), /*#__PURE__*/React.createElement("span", {
+    className: "flex-1 min-w-0"
+  }, /*#__PURE__*/React.createElement("bdi", {
+    dir: "ltr",
+    className: "book text-lg font-semibold block text-left"
+  }, d[1]), he && /*#__PURE__*/React.createElement("span", {
+    className: "text-sm text-muted block"
+  }, /*#__PURE__*/React.createElement(Bi, null, d[2]))), /*#__PURE__*/React.createElement(IconSpeaker, {
+    size: 16
+  })))), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary py-3 px-6 self-center dock-mobile",
+    onClick: () => setStep('rule')
+  }, "\u05D4\u05D1\u05E0\u05EA\u05D9, \u05DC\u05DB\u05DC\u05DC")), step === 'rule' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("section", {
+    className: "card p-5 flex flex-col gap-3",
+    "aria-label": "\u05D4\u05DB\u05DC\u05DC"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "font-extrabold"
+  }, "\u2461 ", lesson.rule.title), /*#__PURE__*/React.createElement("p", {
+    className: "leading-relaxed"
+  }, /*#__PURE__*/React.createElement(Bi, null, lesson.rule.he)), /*#__PURE__*/React.createElement("ul", {
+    className: "flex flex-col gap-2"
+  }, lesson.rule.ex.map((x, k) => /*#__PURE__*/React.createElement("li", {
+    key: k
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => speakText(x[0], .9, voice),
+    className: "w-full rounded-xl bg-sunk p-3 text-start flex gap-3 items-center"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "flex-1"
+  }, /*#__PURE__*/React.createElement("bdi", {
+    dir: "ltr",
+    className: "book font-bold text-lg block text-left"
+  }, x[0]), /*#__PURE__*/React.createElement("span", {
+    className: "text-sm text-muted"
+  }, /*#__PURE__*/React.createElement(Bi, null, x[1]))), /*#__PURE__*/React.createElement(IconSpeaker, {
+    size: 16
+  }))))), /*#__PURE__*/React.createElement("div", {
+    className: "rounded-xl p-3 text-sm leading-relaxed",
+    style: {
+      background: 'var(--learn-bg)'
+    }
+  }, /*#__PURE__*/React.createElement("b", null, "\u05E9\u05D9\u05DE\u05D5 \u05DC\u05D1: "), /*#__PURE__*/React.createElement(Bi, null, lesson.rule.pit))), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary py-3 px-6 self-center dock-mobile",
+    onClick: () => setStep('vocab')
+  }, "\u05DC\u05DE\u05D9\u05DC\u05D9\u05DD")), step === 'vocab' && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("h3", {
+    className: "font-extrabold"
+  }, "\u2462 \u05DE\u05D9\u05DC\u05D9\u05DD \u05D5\u05D1\u05D9\u05D8\u05D5\u05D9\u05D9\u05DD \u05D7\u05D3\u05E9\u05D9\u05DD"), /*#__PURE__*/React.createElement("ul", {
+    className: "grid gap-2 sm:grid-cols-2"
+  }, lesson.vocab.map(v => /*#__PURE__*/React.createElement("li", {
+    key: v[0]
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "card card-btn card-lift p-3 w-full flex items-center gap-3 text-start",
+    onClick: () => speakText(v[0], .9, voice),
+    "aria-label": 'השמעת ' + v[0]
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "flex-1 min-w-0"
+  }, /*#__PURE__*/React.createElement("bdi", {
+    dir: "ltr",
+    className: "book font-bold text-xl block text-left"
+  }, v[0]), /*#__PURE__*/React.createElement("span", {
+    className: "text-sm block"
+  }, /*#__PURE__*/React.createElement(Bi, null, v[1])), /*#__PURE__*/React.createElement("span", {
+    className: "text-xs text-muted block"
+  }, v[2])), /*#__PURE__*/React.createElement(IconSpeaker, {
+    size: 18
+  }))))), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary py-3 px-6 self-center dock-mobile",
+    onClick: () => setStep('ex')
+  }, "\u05DE\u05EA\u05D7\u05D9\u05DC\u05D9\u05DD \u05DC\u05EA\u05E8\u05D2\u05DC")));
+}
 function CourseView({
   course,
   state,
@@ -11359,6 +11854,16 @@ function CourseView({
     toast: toast,
     onBack: () => setCert(false)
   });
+  if (lesson && lesson.l.type === 'rich') return /*#__PURE__*/React.createElement(LessonRich, {
+    key: lesson.l.id,
+    topic: lesson.t,
+    lesson: lesson.l,
+    state: state,
+    actions: actions,
+    voice: voice,
+    celebrate: celebrate,
+    onBack: () => setLesson(null)
+  });
   if (lesson) return /*#__PURE__*/React.createElement(LessonWords, {
     key: lesson.l.id,
     course: course,
@@ -11370,6 +11875,27 @@ function CourseView({
     celebrate: celebrate,
     onBack: () => setLesson(null)
   });
+  const finishQuiz = pct => {
+    const passed = pct >= PASS_PCT;
+    actions.passTopic(quiz.id, pct, course.id);
+    setRes({
+      t: quiz,
+      pct,
+      passed
+    });
+    setQuiz(null);
+    if (passed) celebrate(pct === 100);
+    window.scrollTo({
+      top: 0
+    });
+  };
+  if (quiz && quiz.items) return /*#__PURE__*/React.createElement(ExerciseRunner, {
+    items: quiz.items,
+    title: 'מבחן יחידה: ' + quiz.title,
+    voice: voice,
+    onExit: () => setQuiz(null),
+    onFinish: finishQuiz
+  });
   if (quiz) return /*#__PURE__*/React.createElement(QuizRunner, {
     words: topicQuizWords(quiz),
     title: 'מבחן נושא: ' + quiz.title,
@@ -11379,20 +11905,7 @@ function CourseView({
     voice: voice,
     celebrate: celebrate,
     onExit: () => setQuiz(null),
-    onFinish: pct => {
-      const passed = pct >= PASS_PCT;
-      actions.passTopic(quiz.id, pct, course.id);
-      setRes({
-        t: quiz,
-        pct,
-        passed
-      });
-      setQuiz(null);
-      if (passed) celebrate(pct === 100);
-      window.scrollTo({
-        top: 0
-      });
-    }
+    onFinish: finishQuiz
   });
   return /*#__PURE__*/React.createElement("div", {
     className: "flex flex-col gap-5"
@@ -11522,12 +12035,16 @@ function CourseView({
       className: `btn ${tp.all ? 'btn-primary' : 'btn-ghost'} w-full py-3`,
       onClick: () => {
         setRes(null);
-        setQuiz(t);
+        const rich = t.lessons.filter(l => l.type === 'rich');
+        setQuiz(rich.length ? {
+          ...t,
+          items: shuffle(rich.flatMap(l => l.ex.filter(x => x.t !== 'speak'))).slice(0, 12)
+        } : t);
         window.scrollTo({
           top: 0
         });
       }
-    }, tp.all ? passed ? 'מבחן נושא: לנסות שוב' : 'מבחן נושא' : 'מבחן נושא · נפתח בסיום כל השיעורים'))) : /*#__PURE__*/React.createElement("div", {
+    }, tp.all ? passed ? 'מבחן יחידה: לנסות שוב' : 'מבחן יחידה' : 'מבחן נושא · נפתח בסיום כל השיעורים'))) : /*#__PURE__*/React.createElement("div", {
       className: "text-sm text-muted"
     }, "\u05E0\u05E4\u05EA\u05D7 \u05D0\u05D7\u05E8\u05D9 \u05E9\u05EA\u05E2\u05D1\u05E8\u05D5 \u05D0\u05EA \u05D4\u05DE\u05D1\u05D7\u05DF \u05E9\u05DC \"", course.topics[ti - 1].title, "\"."));
   }));
