@@ -5689,7 +5689,7 @@ async function loadCommunity(force) {
       error
     } = await SB.from('community_stories').select('id,user_id,author_name,title,content,level,topic,cover_emoji,cover_image,is_approved,created_at').order('created_at', {
       ascending: false
-    }).limit(200);
+    }).limit(60);
     if (error) throw error;
     COMMUNITY = (data || []).map(toStory);
     COMMUNITY_AT = Date.now();

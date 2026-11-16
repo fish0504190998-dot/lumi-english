@@ -1,4 +1,4 @@
-const { useState, useEffect, useRef, useMemo, useCallback } = React;
+﻿const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
 /* ---------- helpers ---------- */
 const WORD_RE = /[A-Za-z]+(?:'[A-Za-z]+)?/g;
@@ -624,7 +624,7 @@ const toStory=r=>({ id:'c_'+r.id, cid:r.id, community:true, ownerId:r.user_id, a
   paras:splitParas(cleanText(r.content)).map(en=>({en})), raw:r });
 async function loadCommunity(force){
   if(!SB) return; if(!force&&Date.now()-COMMUNITY_AT<60000) return;
-  try{ const {data,error}=await SB.from('community_stories').select('id,user_id,author_name,title,content,level,topic,cover_emoji,cover_image,is_approved,created_at').order('created_at',{ascending:false}).limit(200);
+  try{ const {data,error}=await SB.from('community_stories').select('id,user_id,author_name,title,content,level,topic,cover_emoji,cover_image,is_approved,created_at').order('created_at',{ascending:false}).limit(60);
     if(error) throw error; COMMUNITY=(data||[]).map(toStory); COMMUNITY_AT=Date.now(); COMMUNITY_ERR=''; }
   catch(e){ COMMUNITY_ERR=cloudMsg(e); }
   COMMUNITY_SUBS.forEach(f=>f());
