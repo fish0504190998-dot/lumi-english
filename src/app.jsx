@@ -561,6 +561,7 @@ function Tabs({tab, setTab, learning}){
 /* The publishable key is meant to be public: it ships inside every Supabase web app. Access is decided by the
    row level security rules in supabase-setup.sql and supabase-community.sql, not by hiding this key. */
 const CLOUD_CFG={ url:'https://jiwsiutwvqdcafmiqxox.supabase.co', key:'sb_publishable_EfvswdyANwtEjarf0FhQrA_K6-KgDZj' };
+const ANALYTICS_CODE='';   // GoatCounter site code (the part before .goatcounter.com). Empty = no visit counting and no policy section.
 const SUPPORT_EMAIL='support@lumi-english.app';     // change to your real support address
 let SB=null;
 try{ if(!/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname) && window.supabase&&window.supabase.createClient) SB=window.supabase.createClient(CLOUD_CFG.url, CLOUD_CFG.key, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true, storageKey:'lumi-auth'}}); }catch(e){ SB=null; }
@@ -666,6 +667,7 @@ const LEGAL={
     ['איפה המידע נשמר','המידע נשמר בתשתית ענן מאובטחת של Supabase. כל משתמש מבודד ברמת השורה, באמצעות מנגנון ההרשאות של Supabase: רק אתם יכולים לקרוא ולשנות את ההתקדמות שלכם. סיפורים שבחרתם לפרסם כציבוריים גלויים לכל המשתמשים יחד עם שם התצוגה שבחרתם, ללא כתובת המייל.'],
     ['שיתוף עם צדדים שלישיים','איננו מוכרים את המידע שלכם, ואיננו משתפים אותו עם מפרסמים או עם צדדים שלישיים לצורכי שיווק. המידע משמש רק להפעלת השירות.'],
     ['שירותים חיצוניים','חיפוש מילה שאינה במילון המובנה נשלח לשירותי מילון ותרגום חיצוניים (dictionaryapi.dev ו־MyMemory). שיחה חופשית עם ה־AI שולחת את ההודעות שלכם לספק הבינה המלאכותית של האתר (Groq או Google Gemini) כדי לקבל תשובה, ואיננו שומרים אותן. זיהוי דיבור מתבצע על ידי הדפדפן שלכם. קבוצות לימוד שומרות שם, דמות ונקודות בלבד.'],
+    ...(ANALYTICS_CODE?[['ספירת כניסות','האתר משתמש ב־GoatCounter, שירות סטטיסטיקה ידידותי לפרטיות, כדי לספור כניסות: דפים שנצפו, מדינה וסוג דפדפן. השירות לא משתמש בעוגיות, לא עוקב אחרי אנשים בנפרד, ולא נמכר או משותף לצורכי פרסום. הוא פועל רק באתר עצמו, לא בהתקדמות הלימוד שלכם.']]:[]),
     ['מחיקת חשבון ונתונים','אפשר למחוק את החשבון וכל הנתונים בכל רגע: לוחצים על השם שלכם בראש המסך ובוחרים "מחק את החשבון והנתונים שלי". המחיקה סופית. אפשר גם לבקש מחיקה במייל לכתובת שבעמוד "צור קשר".']]},
   access:{title:'הצהרת נגישות', body:[
     ['המחויבות שלנו','אנו רואים חשיבות רבה בהנגשת האתר לאנשים עם מוגבלויות, ופועלים להתאים אותו לתקנות שוויון זכויות לאנשים עם מוגבלות (התאמות נגישות לשירות), התשע"ג־2013, ולתקן הישראלי ת"י 5568 המבוסס על הנחיות WCAG 2.1 ברמה AA, ככל האפשר.'],
@@ -2701,6 +2703,7 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
   const [state,setState]=useState(loadState);
   const [profileOpen,setProfileOpen]=useState(false);
   const [tab,setTab]=useState('read');
+  useEffect(()=>{ if(!ANALYTICS_CODE||!/(^|\.)netlify\.app$/.test(location.hostname)||document.getElementById('gc-count')) return; const s=document.createElement('script'); s.id='gc-count'; s.async=true; s.src='https://gc.zgo.at/count.js'; s.setAttribute('data-goatcounter','https://'+ANALYTICS_CODE+'.goatcounter.com/count'); document.head.appendChild(s); },[]);
   const [storyId,setStoryId]=useState(null);
   const [adding,setAdding]=useState(false);
   const [burst,setBurst]=useState(null);
