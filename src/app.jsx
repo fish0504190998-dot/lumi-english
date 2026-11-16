@@ -580,18 +580,20 @@ async function cloudPush(payload){ const u=SESSION&&SESSION.user; if(!u) return 
 function cleanText(s, max){ return String(s||'').replace(/<[^>]*>/g,' ').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F​-‏‪-‮⁦-⁩]/g,'').replace(/[ \t]+/g,' ').trim().slice(0,max||60000); }
 
 function AuthForm({onDone, intro}){
-  const [mode,setMode]=useState('in'); const [email,setEmail]=useState(''); const [pw,setPw]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState(null);
+  const [mode,setMode]=useState('in'); const [name,setName]=useState(''); const [email,setEmail]=useState(''); const [pw,setPw]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState(null);
   if(!SB) return <p className="text-sm text-muted">שמירה בענן זמינה באתר <bdi dir="ltr">lumi-english.netlify.app</bdi>.</p>;
   const submit=async e=>{ e.preventDefault(); setBusy(true); setMsg(null);
     try{
       if(mode==='forgot'){ const {error}=await SB.auth.resetPasswordForEmail(email.trim(),{redirectTo:SITE_URL+'/'}); if(error) throw error; setMsg({ok:true, t:'שלחנו לך מייל עם קישור לבחירת סיסמה חדשה.'}); }
-      else if(mode==='up'){ const {data,error}=await SB.auth.signUp({email:email.trim(), password:pw, options:{emailRedirectTo:SITE_URL+'/'}}); if(error) throw error;
+      else if(mode==='up'){ const nm=cleanText(name,40); if(nm.length<2){ setMsg({ok:false, t:'כתבו את השם שלכם (לפחות 2 תווים).'}); setBusy(false); return; }
+        const {data,error}=await SB.auth.signUp({email:email.trim(), password:pw, options:{emailRedirectTo:SITE_URL+'/', data:{name:nm}}}); if(error) throw error;
         if(data.session) onDone(data.session); else setMsg({ok:true, t:'נרשמת! שלחנו מייל אישור. לחצו על הקישור במייל, ואז התחברו כאן.'}); }
       else { const {data,error}=await SB.auth.signInWithPassword({email:email.trim(), password:pw}); if(error) throw error; onDone(data.session); }
     }catch(x){ setMsg({ok:false, t:cloudMsg(x)}); } setBusy(false); };
   return (<form className="flex flex-col gap-3" onSubmit={submit}>
     {intro&&<p className="text-sm text-muted">{intro}</p>}
     {mode!=='forgot'&&<div className="seg self-start" role="group" aria-label="כניסה או הרשמה"><button type="button" aria-pressed={mode==='in'} onClick={()=>setMode('in')}>התחברות</button><button type="button" aria-pressed={mode==='up'} onClick={()=>setMode('up')}>הרשמה</button></div>}
+    {mode==='up'&&<label className="flex flex-col gap-1"><span className="text-sm font-semibold">שם</span><input id="auth-name" type="text" className="field" autoComplete="name" required minLength={2} maxLength={40} value={name} onChange={e=>setName(e.target.value)}/></label>}
     <label className="flex flex-col gap-1"><span className="text-sm font-semibold">מייל</span><input id="auth-email" type="email" dir="ltr" className="field text-left" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)}/></label>
     {mode!=='forgot'&&<label className="flex flex-col gap-1"><span className="text-sm font-semibold">סיסמה{mode==='up'?' (לפחות 6 תווים)':''}</span><input id="auth-pw" type="password" dir="ltr" className="field text-left" autoComplete={mode==='up'?'new-password':'current-password'} minLength={6} required value={pw} onChange={e=>setPw(e.target.value)}/></label>}
     {msg&&<div className="rounded-xl p-3 text-sm" role={msg.ok?'status':'alert'} style={{background:msg.ok?'var(--known-bg)':'var(--bad-soft)', color:msg.ok?'var(--known)':'var(--bad)'}}><Bi>{msg.t}</Bi></div>}
@@ -663,7 +665,7 @@ const LEGAL={
     ['אחריות','השירות ניתן כפי שהוא (As-Is). איננו מתחייבים שהשירות יפעל ללא הפסקות או תקלות, ולא נישא באחריות לנזק שייגרם בשל הפסקות זמניות, תקלות טכניות או אובדן נתונים. מומלץ להוריד מדי פעם גיבוי של ההתקדמות.'],
     ['שינויים','אנו רשאים לעדכן את תנאי השימוש מעת לעת. המשך השימוש באתר לאחר עדכון מהווה הסכמה לתנאים המעודכנים.']]},
   privacy:{title:'מדיניות פרטיות', body:[
-    ['איזה מידע נאסף','כשנרשמים לשמירה בענן, נשמרים כתובת המייל (לצורך התחברות), התקדמות הלמידה (מילים מוכרות ומילים בלמידה, היסטוריית תרגול, רצף והישגים), הסיפורים והתמונות שהעליתם, ושם התצוגה שבחרתם. בלי הרשמה, כל המידע נשמר רק בדפדפן שלכם ולא נשלח אלינו.'],
+    ['איזה מידע נאסף','כשנרשמים לשמירה בענן, נשמרים השם וכתובת המייל שמסרתם (לצורך התחברות וקשר), התקדמות הלמידה (מילים מוכרות ומילים בלמידה, היסטוריית תרגול, רצף והישגים), הסיפורים והתמונות שהעליתם, ושם התצוגה שבחרתם. בלי הרשמה, כל המידע נשמר רק בדפדפן שלכם ולא נשלח אלינו.'],
     ['איפה המידע נשמר','המידע נשמר בתשתית ענן מאובטחת של Supabase. כל משתמש מבודד ברמת השורה, באמצעות מנגנון ההרשאות של Supabase: רק אתם יכולים לקרוא ולשנות את ההתקדמות שלכם. סיפורים שבחרתם לפרסם כציבוריים גלויים לכל המשתמשים יחד עם שם התצוגה שבחרתם, ללא כתובת המייל.'],
     ['שיתוף עם צדדים שלישיים','איננו מוכרים את המידע שלכם, ואיננו משתפים אותו עם מפרסמים או עם צדדים שלישיים לצורכי שיווק. המידע משמש רק להפעלת השירות.'],
     ['שירותים חיצוניים','חיפוש מילה שאינה במילון המובנה נשלח לשירותי מילון ותרגום חיצוניים (dictionaryapi.dev ו־MyMemory). שיחה חופשית עם ה־AI שולחת את ההודעות שלכם לספק הבינה המלאכותית של האתר (Groq או Google Gemini) כדי לקבל תשובה, ואיננו שומרים אותן. זיהוי דיבור מתבצע על ידי הדפדפן שלכם. קבוצות לימוד שומרות שם, דמות ונקודות בלבד.'],
@@ -2267,18 +2269,34 @@ function LessonRich({topic, lesson, state, actions, voice, celebrate, onBack}){
   </div>);
 }
 
-/* a video lesson: the unit's video (hosted next to the site), then "I watched it" marks the lesson done */
+/* a video lesson: a calm "lecture" page (poster, what you will learn, speed control, what comes next); "I watched it" marks the lesson done */
 function LessonVideo({topic, lesson, state, actions, celebrate, onBack}){
-  const done=lessonDone(lesson,state); const [err,setErr]=useState(false);
-  return (<div className="flex flex-col gap-4 pb-28 sm:pb-0">
-    <div className="flex items-center gap-3"><button className="btn btn-ghost px-3 text-sm" onClick={onBack}><IconX size={16}/>יציאה</button></div>
-    <section className="card p-5 flex flex-col gap-1"><div className="eyebrow">{topic.title}</div><h2 className="text-2xl font-extrabold">{lesson.title}</h2>{lesson.blurb&&<p className="text-muted leading-relaxed">{lesson.blurb}</p>}</section>
-    <section className="card p-2 sm:p-3 flex flex-col gap-2">
-      {err?<p className="p-6 text-center text-muted">הסרטון לא נטען. בדקו את החיבור לאינטרנט ונסו שוב.</p>
-        :<video src={lesson.src} controls playsInline preload="metadata" onError={()=>setErr(true)} style={{width:'100%', borderRadius:12, background:'#0F2742', aspectRatio:'16 / 9'}} aria-label={lesson.title}></video>}
+  const done=lessonDone(lesson,state); const [err,setErr]=useState(false); const [rate,setRate]=useState(1); const [play,setPlay]=useState(false); const ref=useRef(null);
+  const idx=topic.lessons.findIndex(l=>l.id===lesson.id); const next=topic.lessons.slice(idx+1);
+  useEffect(()=>{ if(ref.current) ref.current.playbackRate=rate; },[rate,play]);
+  const start=()=>{ setPlay(true); setTimeout(()=>{ try{ if(ref.current){ ref.current.playbackRate=rate; ref.current.play(); } }catch(e){} },50); };
+  return (<div className="flex flex-col gap-5 pb-28 sm:pb-0">
+    <div className="flex items-center gap-3"><button className="btn btn-ghost px-3 text-sm" onClick={onBack}><IconX size={16}/>חזרה ליחידה</button><span className="text-sm text-muted me-auto">{topic.title}</span></div>
+    <section className="card" style={{padding:0, overflow:'hidden'}}>
+      <div style={{position:'relative', background:'#0F2742', aspectRatio:'16 / 9'}}>
+        {err?<p className="p-8 text-center" style={{color:'#CFE0FF'}}>הסרטון לא נטען. בדקו את החיבור לאינטרנט ונסו שוב.</p>
+          :<video ref={ref} src={lesson.src} poster={lesson.poster} controls={play} playsInline preload="metadata" onError={()=>setErr(true)} onEnded={()=>{}} style={{width:'100%', height:'100%', display:'block', background:'#0F2742'}} aria-label={lesson.title}></video>}
+        {!play&&!err&&<button onClick={start} aria-label={'הפעלת הסרטון: '+lesson.title} style={{position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', gap:14, padding:'0 20px 7%', background:'linear-gradient(to top, rgba(15,39,66,.92) 0%, rgba(15,39,66,.45) 45%, rgba(15,39,66,0) 75%)', border:0, cursor:'pointer', color:'#fff'}}>
+          <span style={{width:68, height:68, borderRadius:'50%', background:'#fff', display:'grid', placeItems:'center', boxShadow:'0 10px 30px rgba(0,0,0,.35)'}}><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="#0F2742"/></svg></span>
+          <span style={{fontWeight:800, fontSize:'clamp(18px,3.4vw,28px)'}}>{lesson.title}</span>
+          <span style={{fontSize:'clamp(12px,2vw,15px)', opacity:.85}} className="num">{lesson.mins} דקות · שיעור וידאו</span></button>}
+      </div>
+      <div className="p-5 sm:p-6 flex flex-col gap-4">
+        <div><div className="eyebrow">שיעור {idx+1} מתוך {topic.lessons.length} · {topic.title}</div><h2 className="text-2xl font-extrabold mt-1">{lesson.title}</h2>{lesson.blurb&&<p className="text-muted leading-relaxed mt-1">{lesson.blurb}</p>}</div>
+        {lesson.learn&&<div><h3 className="font-extrabold mb-2">מה תלמדו בסרטון</h3><ul className="flex flex-col gap-2">{lesson.learn.map((x,k)=><li key={k} className="flex gap-3 items-start"><span className="w-6 h-6 rounded-full grid place-items-center shrink-0 mt-0.5" style={{background:'var(--primary)', color:'#fff'}} aria-hidden="true"><IconCheck size={14}/></span><span className="leading-relaxed">{x[0]}{x[1]&&<>{': '}<bdi dir="ltr" className="book font-bold">{x[1]}</bdi></>}</span></li>)}</ul></div>}
+        <div className="flex items-center gap-2 flex-wrap"><span className="text-sm text-muted">מהירות:</span>
+          {[0.75,1,1.25].map(r=><button key={r} className="btn btn-ghost px-3 text-sm num" aria-pressed={rate===r} style={rate===r?{borderColor:'var(--primary)', color:'var(--primary)', fontWeight:800}:undefined} onClick={()=>setRate(r)}>{r}x</button>)}
+          <span className="text-xs text-muted me-auto"></span></div>
+      </div>
     </section>
-    <p className="text-sm text-muted leading-relaxed">טיפ: אפשר לעצור, לחזור אחורה ולצפות שוב. כשהאורי אומר "חזרו אחריי", חזרו בקול רם.</p>
-    <button className="btn btn-primary py-3 px-6 self-center dock-mobile" onClick={()=>{ actions.completeLesson(lesson.id, []); if(!done) celebrate(false); onBack(); }}>{done?'חזרה ליחידה':'סיימתי לצפות, להמשך'}</button>
+    {next.length>0&&<section className="card p-5"><h3 className="font-extrabold mb-2">אחרי הסרטון: מתרגלים</h3><ol className="flex flex-col gap-1.5 list-none p-0 m-0">{next.map((l,k)=><li key={l.id} className="flex gap-3 items-center text-sm"><span className="w-6 h-6 rounded-full grid place-items-center shrink-0 text-xs num" style={{background:'var(--sunk)', color:'var(--muted)'}}>{k+1}</span><span className="font-semibold">{l.title}</span></li>)}</ol>
+      <p className="text-sm text-muted mt-4 leading-relaxed">כל שיעור כולל דיאלוג, כלל קצר בעברית, מילים ותרגילים. מומלץ לצפות בסרטון פעם אחת ברצף, ואז לחזור אליו אחרי התרגול.</p></section>}
+    <button className="btn btn-primary py-3 px-8 self-center dock-mobile" onClick={()=>{ actions.completeLesson(lesson.id, []); if(!done) celebrate(false); onBack(); }}>{done?'חזרה ליחידה':'סיימתי לצפות, להמשך לתרגול'}</button>
   </div>);
 }
 
@@ -2344,8 +2362,10 @@ function Courses({state, actions, voice, celebrate, profile, toast, openStory, o
 }
 
 /* ---------- study groups: weekly leaderboard shared through the site's small API ---------- */
-const SITE_URL='https://lumi-english.netlify.app';
-const ON_SITE=typeof location!=='undefined' && /(^|\.)netlify\.app$|^localhost$/.test(location.hostname);
+// the site answers on two addresses: links (join codes, e-mail confirmation, password reset) keep the address the visitor is on
+const NEW_HOST=/(^|\.)lumienglish\.co\.il$/;
+const SITE_URL=(typeof location!=='undefined' && NEW_HOST.test(location.hostname))?location.origin:'https://lumi-english.netlify.app';
+const ON_SITE=typeof location!=='undefined' && (/(^|\.)netlify\.app$|^localhost$/.test(location.hostname) || NEW_HOST.test(location.hostname));
 const GROUP_API=ON_SITE?'/api/groups':SITE_URL+'/api/groups';
 let JOIN_CODE=''; try{ const m=(location.search+location.hash).match(/join[=-]([A-Za-z2-9]{6})/); if(m) JOIN_CODE=m[1].toUpperCase(); }catch(e){}
 const GERR={not_found:'לא מצאתי קבוצה עם הקוד הזה. בדקו שהקוד נכון.', bad_code:'קוד קבוצה הוא 6 אותיות ומספרים באנגלית.', full:'הקבוצה מלאה (עד 40 חברים).', not_member:'החיבור שלך לקבוצה כבר לא בתוקף. הצטרפו שוב עם הקוד.', bad_name:'צריך שם.', bad_group_name:'צריך לתת שם לקבוצה.', net:ON_SITE?'אין חיבור לשרת כרגע. בדקו את האינטרנט ונסו שוב.':'קבוצות עובדות רק באתר lumi-english.netlify.app. פתחו את האפליקציה שם.'};

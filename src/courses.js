@@ -1,4 +1,4 @@
-/* Structured courses: course -> topics -> lessons -> topic quiz -> certificate.
+﻿/* Structured courses: course -> topics -> lessons -> topic quiz -> certificate.
    lesson types: words (cards + quiz + speaking), story (opens a built-in story), talk (opens a conversation) */
 const COURSES = [
  { id:'a1', level:'A1', cover:'🌱', title:'אנגלית למתחילים', sub:'המילים והמשפטים הראשונים', desc:'קורס ראשון למי שמתחיל מאפס: ברכות, משפחה, אוכל, בית, מספרים ופעולות יומיומיות. כל שיעור מלווה בהקראה, הגייה בעברית ותרגול.', tags:['חדש'], topics:[
@@ -82,7 +82,7 @@ const TY=(he,ans,x)=>({t:'type',he,ans,x});
 const SP=(en)=>({t:'speak',en});
 COURSES.unshift({ id:'a1u', level:'A1', cover:'🌟', title:'A1 · מסלול מובנה (יחידה 1)', sub:'שלום, אני… נעים להכיר', desc:'יחידה ראשונה במסלול החדש: דיאלוג, הסבר קצר בעברית על כלל אחד, מילים בתוך משפטים, תרגילים מגוונים (בחירה, השלמה, סידור משפט, הקלדה, האזנה ודיבור) ומבחן יחידה. לומדים לפי הסדר.', tags:['חדש'], topics:[
  { id:'a1u-u1', icon:'👋', title:'יחידה 1: היכרות', goal:'בסוף היחידה תוכלו להציג את עצמכם, לשאול "מה שמך?" ו"מאיפה אתה?", ולהציג חבר.', lessons:[
-  { id:'a1u-u1-v', type:'video', title:'סרטון: אורי ודוד נפגשים', src:'videos/a1-01.mp4', mins:7, blurb:'אורי מלמד את היחידה בסרטון קצר: שלום, אני… ומאיפה אתה. אחרי הסרטון עוברים לשיעורים ולתרגילים.' },
+  { id:'a1u-u1-v', type:'video', title:'סרטון: אורי ודוד נפגשים', src:'videos/a1-01.mp4', poster:'videos/a1-01.jpg', mins:7, blurb:'אורי ודוד נפגשים, ואתם לומדים להציג את עצמכם באנגלית מהשיחה הראשונה.', learn:[['להגיד שלום ולשאול מה שלומך','Hello! How are you'],['להציג את עצמכם','I am Uri'],['לשאול מאיפה אתה','Where are you from'],['הכלל הראשון: באנגלית תמיד צריך פועל','I am · you are · he is'],['לשמוע שני קולות ולחזור בקול רם','']] },
   { id:'a1u-u1-1', type:'rich', title:'שלום ולהתראות', dialogue:[['Dan','Hello!','שלום!'],['Maya','Hi! Good morning.','היי! בוקר טוב.'],['Dan','Good morning.','בוקר טוב.'],['Maya','Goodbye, Dan.','להתראות, דן.'],['Dan','Bye, Maya!','ביי, מאיה!']],
     rule:{title:'ברכות לפי שעות היום', he:'Hello היא הברכה הרגילה בכל שעה, ו־Hi קלילה וחברית. Good morning אומרים עד הצהריים, Good evening בערב, ו־Good night רק כשנפרדים לפני השינה. Goodbye ו־Bye הן "להתראות".', ex:[['Hello!','שלום!'],['Good morning!','בוקר טוב!'],['Good night!','לילה טוב!']], pit:'Good night היא ברכת פרידה בערב, לא ברכת פגישה. כשנפגשים בערב אומרים Good evening.'},
     vocab:[['hello','שלום','הֶלוֹ'],['hi','היי','האי'],['goodbye','להתראות','גוּד־בַּאי'],['bye','ביי','באי'],['good morning','בוקר טוב','גוּד מוֹרנינג'],['good evening','ערב טוב','גוּד אִיבנינג'],['good night','לילה טוב','גוּד נַאיט'],['please','בבקשה','פְּלִיז'],['thank you','תודה','תֶנְק יוּ'],['sorry','סליחה','סוֹרי']],

@@ -3250,7 +3250,7 @@ const TALKS = [
  ]}
 ];
 
-/* Structured courses: course -> topics -> lessons -> topic quiz -> certificate.
+﻿/* Structured courses: course -> topics -> lessons -> topic quiz -> certificate.
    lesson types: words (cards + quiz + speaking), story (opens a built-in story), talk (opens a conversation) */
 const COURSES = [
  { id:'a1', level:'A1', cover:'🌱', title:'אנגלית למתחילים', sub:'המילים והמשפטים הראשונים', desc:'קורס ראשון למי שמתחיל מאפס: ברכות, משפחה, אוכל, בית, מספרים ופעולות יומיומיות. כל שיעור מלווה בהקראה, הגייה בעברית ותרגול.', tags:['חדש'], topics:[
@@ -3334,7 +3334,7 @@ const TY=(he,ans,x)=>({t:'type',he,ans,x});
 const SP=(en)=>({t:'speak',en});
 COURSES.unshift({ id:'a1u', level:'A1', cover:'🌟', title:'A1 · מסלול מובנה (יחידה 1)', sub:'שלום, אני… נעים להכיר', desc:'יחידה ראשונה במסלול החדש: דיאלוג, הסבר קצר בעברית על כלל אחד, מילים בתוך משפטים, תרגילים מגוונים (בחירה, השלמה, סידור משפט, הקלדה, האזנה ודיבור) ומבחן יחידה. לומדים לפי הסדר.', tags:['חדש'], topics:[
  { id:'a1u-u1', icon:'👋', title:'יחידה 1: היכרות', goal:'בסוף היחידה תוכלו להציג את עצמכם, לשאול "מה שמך?" ו"מאיפה אתה?", ולהציג חבר.', lessons:[
-  { id:'a1u-u1-v', type:'video', title:'סרטון: אורי ודוד נפגשים', src:'videos/a1-01.mp4', mins:7, blurb:'אורי מלמד את היחידה בסרטון קצר: שלום, אני… ומאיפה אתה. אחרי הסרטון עוברים לשיעורים ולתרגילים.' },
+  { id:'a1u-u1-v', type:'video', title:'סרטון: אורי ודוד נפגשים', src:'videos/a1-01.mp4', poster:'videos/a1-01.jpg', mins:7, blurb:'אורי ודוד נפגשים, ואתם לומדים להציג את עצמכם באנגלית מהשיחה הראשונה.', learn:[['להגיד שלום ולשאול מה שלומך','Hello! How are you'],['להציג את עצמכם','I am Uri'],['לשאול מאיפה אתה','Where are you from'],['הכלל הראשון: באנגלית תמיד צריך פועל','I am · you are · he is'],['לשמוע שני קולות ולחזור בקול רם','']] },
   { id:'a1u-u1-1', type:'rich', title:'שלום ולהתראות', dialogue:[['Dan','Hello!','שלום!'],['Maya','Hi! Good morning.','היי! בוקר טוב.'],['Dan','Good morning.','בוקר טוב.'],['Maya','Goodbye, Dan.','להתראות, דן.'],['Dan','Bye, Maya!','ביי, מאיה!']],
     rule:{title:'ברכות לפי שעות היום', he:'Hello היא הברכה הרגילה בכל שעה, ו־Hi קלילה וחברית. Good morning אומרים עד הצהריים, Good evening בערב, ו־Good night רק כשנפרדים לפני השינה. Goodbye ו־Bye הן "להתראות".', ex:[['Hello!','שלום!'],['Good morning!','בוקר טוב!'],['Good night!','לילה טוב!']], pit:'Good night היא ברכת פרידה בערב, לא ברכת פגישה. כשנפגשים בערב אומרים Good evening.'},
     vocab:[['hello','שלום','הֶלוֹ'],['hi','היי','האי'],['goodbye','להתראות','גוּד־בַּאי'],['bye','ביי','באי'],['good morning','בוקר טוב','גוּד מוֹרנינג'],['good evening','ערב טוב','גוּד אִיבנינג'],['good night','לילה טוב','גוּד נַאיט'],['please','בבקשה','פְּלִיז'],['thank you','תודה','תֶנְק יוּ'],['sorry','סליחה','סוֹרי']],
@@ -5424,6 +5424,7 @@ function AuthForm({
   intro
 }) {
   const [mode, setMode] = useState('in');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
   const [busy, setBusy] = useState(false);
@@ -5450,6 +5451,15 @@ function AuthForm({
           t: 'שלחנו לך מייל עם קישור לבחירת סיסמה חדשה.'
         });
       } else if (mode === 'up') {
+        const nm = cleanText(name, 40);
+        if (nm.length < 2) {
+          setMsg({
+            ok: false,
+            t: 'כתבו את השם שלכם (לפחות 2 תווים).'
+          });
+          setBusy(false);
+          return;
+        }
         const {
           data,
           error
@@ -5457,7 +5467,10 @@ function AuthForm({
           email: email.trim(),
           password: pw,
           options: {
-            emailRedirectTo: SITE_URL + '/'
+            emailRedirectTo: SITE_URL + '/',
+            data: {
+              name: nm
+            }
           }
         });
         if (error) throw error;
@@ -5501,7 +5514,21 @@ function AuthForm({
     type: "button",
     "aria-pressed": mode === 'up',
     onClick: () => setMode('up')
-  }, "הרשמה")), /*#__PURE__*/React.createElement("label", {
+  }, "הרשמה")), mode === 'up' && /*#__PURE__*/React.createElement("label", {
+    className: "flex flex-col gap-1"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-sm font-semibold"
+  }, "שם"), /*#__PURE__*/React.createElement("input", {
+    id: "auth-name",
+    type: "text",
+    className: "field",
+    autoComplete: "name",
+    required: true,
+    minLength: 2,
+    maxLength: 40,
+    value: name,
+    onChange: e => setName(e.target.value)
+  })), /*#__PURE__*/React.createElement("label", {
     className: "flex flex-col gap-1"
   }, /*#__PURE__*/React.createElement("span", {
     className: "text-sm font-semibold"
@@ -5828,7 +5855,7 @@ const LEGAL = {
   },
   privacy: {
     title: 'מדיניות פרטיות',
-    body: [['איזה מידע נאסף', 'כשנרשמים לשמירה בענן, נשמרים כתובת המייל (לצורך התחברות), התקדמות הלמידה (מילים מוכרות ומילים בלמידה, היסטוריית תרגול, רצף והישגים), הסיפורים והתמונות שהעליתם, ושם התצוגה שבחרתם. בלי הרשמה, כל המידע נשמר רק בדפדפן שלכם ולא נשלח אלינו.'], ['איפה המידע נשמר', 'המידע נשמר בתשתית ענן מאובטחת של Supabase. כל משתמש מבודד ברמת השורה, באמצעות מנגנון ההרשאות של Supabase: רק אתם יכולים לקרוא ולשנות את ההתקדמות שלכם. סיפורים שבחרתם לפרסם כציבוריים גלויים לכל המשתמשים יחד עם שם התצוגה שבחרתם, ללא כתובת המייל.'], ['שיתוף עם צדדים שלישיים', 'איננו מוכרים את המידע שלכם, ואיננו משתפים אותו עם מפרסמים או עם צדדים שלישיים לצורכי שיווק. המידע משמש רק להפעלת השירות.'], ['שירותים חיצוניים', 'חיפוש מילה שאינה במילון המובנה נשלח לשירותי מילון ותרגום חיצוניים (dictionaryapi.dev ו־MyMemory). שיחה חופשית עם ה־AI שולחת את ההודעות שלכם לספק הבינה המלאכותית של האתר (Groq או Google Gemini) כדי לקבל תשובה, ואיננו שומרים אותן. זיהוי דיבור מתבצע על ידי הדפדפן שלכם. קבוצות לימוד שומרות שם, דמות ונקודות בלבד.'], ...(ANALYTICS_CODE ? [['ספירת כניסות', 'האתר משתמש ב־GoatCounter, שירות סטטיסטיקה ידידותי לפרטיות, כדי לספור כניסות: דפים שנצפו, מדינה וסוג דפדפן. השירות לא משתמש בעוגיות, לא עוקב אחרי אנשים בנפרד, ולא נמכר או משותף לצורכי פרסום. הוא פועל רק באתר עצמו, לא בהתקדמות הלימוד שלכם.']] : []), ['מחיקת חשבון ונתונים', 'אפשר למחוק את החשבון וכל הנתונים בכל רגע: לוחצים על השם שלכם בראש המסך ובוחרים "מחק את החשבון והנתונים שלי". המחיקה סופית. אפשר גם לבקש מחיקה במייל לכתובת שבעמוד "צור קשר".']]
+    body: [['איזה מידע נאסף', 'כשנרשמים לשמירה בענן, נשמרים השם וכתובת המייל שמסרתם (לצורך התחברות וקשר), התקדמות הלמידה (מילים מוכרות ומילים בלמידה, היסטוריית תרגול, רצף והישגים), הסיפורים והתמונות שהעליתם, ושם התצוגה שבחרתם. בלי הרשמה, כל המידע נשמר רק בדפדפן שלכם ולא נשלח אלינו.'], ['איפה המידע נשמר', 'המידע נשמר בתשתית ענן מאובטחת של Supabase. כל משתמש מבודד ברמת השורה, באמצעות מנגנון ההרשאות של Supabase: רק אתם יכולים לקרוא ולשנות את ההתקדמות שלכם. סיפורים שבחרתם לפרסם כציבוריים גלויים לכל המשתמשים יחד עם שם התצוגה שבחרתם, ללא כתובת המייל.'], ['שיתוף עם צדדים שלישיים', 'איננו מוכרים את המידע שלכם, ואיננו משתפים אותו עם מפרסמים או עם צדדים שלישיים לצורכי שיווק. המידע משמש רק להפעלת השירות.'], ['שירותים חיצוניים', 'חיפוש מילה שאינה במילון המובנה נשלח לשירותי מילון ותרגום חיצוניים (dictionaryapi.dev ו־MyMemory). שיחה חופשית עם ה־AI שולחת את ההודעות שלכם לספק הבינה המלאכותית של האתר (Groq או Google Gemini) כדי לקבל תשובה, ואיננו שומרים אותן. זיהוי דיבור מתבצע על ידי הדפדפן שלכם. קבוצות לימוד שומרות שם, דמות ונקודות בלבד.'], ...(ANALYTICS_CODE ? [['ספירת כניסות', 'האתר משתמש ב־GoatCounter, שירות סטטיסטיקה ידידותי לפרטיות, כדי לספור כניסות: דפים שנצפו, מדינה וסוג דפדפן. השירות לא משתמש בעוגיות, לא עוקב אחרי אנשים בנפרד, ולא נמכר או משותף לצורכי פרסום. הוא פועל רק באתר עצמו, לא בהתקדמות הלימוד שלכם.']] : []), ['מחיקת חשבון ונתונים', 'אפשר למחוק את החשבון וכל הנתונים בכל רגע: לוחצים על השם שלכם בראש המסך ובוחרים "מחק את החשבון והנתונים שלי". המחיקה סופית. אפשר גם לבקש מחיקה במייל לכתובת שבעמוד "צור קשר".']]
   },
   access: {
     title: 'הצהרת נגישות',
@@ -11972,7 +11999,7 @@ function LessonRich({
   }, "מתחילים לתרגל")));
 }
 
-/* a video lesson: the unit's video (hosted next to the site), then "I watched it" marks the lesson done */
+/* a video lesson: a calm "lecture" page (poster, what you will learn, speed control, what comes next); "I watched it" marks the lesson done */
 function LessonVideo({
   topic,
   lesson,
@@ -11983,8 +12010,27 @@ function LessonVideo({
 }) {
   const done = lessonDone(lesson, state);
   const [err, setErr] = useState(false);
+  const [rate, setRate] = useState(1);
+  const [play, setPlay] = useState(false);
+  const ref = useRef(null);
+  const idx = topic.lessons.findIndex(l => l.id === lesson.id);
+  const next = topic.lessons.slice(idx + 1);
+  useEffect(() => {
+    if (ref.current) ref.current.playbackRate = rate;
+  }, [rate, play]);
+  const start = () => {
+    setPlay(true);
+    setTimeout(() => {
+      try {
+        if (ref.current) {
+          ref.current.playbackRate = rate;
+          ref.current.play();
+        }
+      } catch (e) {}
+    }, 50);
+  };
   return /*#__PURE__*/React.createElement("div", {
-    className: "flex flex-col gap-4 pb-28 sm:pb-0"
+    className: "flex flex-col gap-5 pb-28 sm:pb-0"
   }, /*#__PURE__*/React.createElement("div", {
     className: "flex items-center gap-3"
   }, /*#__PURE__*/React.createElement("button", {
@@ -11992,41 +12038,159 @@ function LessonVideo({
     onClick: onBack
   }, /*#__PURE__*/React.createElement(IconX, {
     size: 16
-  }), "יציאה")), /*#__PURE__*/React.createElement("section", {
-    className: "card p-5 flex flex-col gap-1"
+  }), "חזרה ליחידה"), /*#__PURE__*/React.createElement("span", {
+    className: "text-sm text-muted me-auto"
+  }, topic.title)), /*#__PURE__*/React.createElement("section", {
+    className: "card",
+    style: {
+      padding: 0,
+      overflow: 'hidden'
+    }
   }, /*#__PURE__*/React.createElement("div", {
-    className: "eyebrow"
-  }, topic.title), /*#__PURE__*/React.createElement("h2", {
-    className: "text-2xl font-extrabold"
-  }, lesson.title), lesson.blurb && /*#__PURE__*/React.createElement("p", {
-    className: "text-muted leading-relaxed"
-  }, lesson.blurb)), /*#__PURE__*/React.createElement("section", {
-    className: "card p-2 sm:p-3 flex flex-col gap-2"
+    style: {
+      position: 'relative',
+      background: '#0F2742',
+      aspectRatio: '16 / 9'
+    }
   }, err ? /*#__PURE__*/React.createElement("p", {
-    className: "p-6 text-center text-muted"
+    className: "p-8 text-center",
+    style: {
+      color: '#CFE0FF'
+    }
   }, "הסרטון לא נטען. בדקו את החיבור לאינטרנט ונסו שוב.") : /*#__PURE__*/React.createElement("video", {
+    ref: ref,
     src: lesson.src,
-    controls: true,
+    poster: lesson.poster,
+    controls: play,
     playsInline: true,
     preload: "metadata",
     onError: () => setErr(true),
+    onEnded: () => {},
     style: {
       width: '100%',
-      borderRadius: 12,
-      background: '#0F2742',
-      aspectRatio: '16 / 9'
+      height: '100%',
+      display: 'block',
+      background: '#0F2742'
     },
     "aria-label": lesson.title
-  })), /*#__PURE__*/React.createElement("p", {
-    className: "text-sm text-muted leading-relaxed"
-  }, "טיפ: אפשר לעצור, לחזור אחורה ולצפות שוב. כשהאורי אומר \"חזרו אחריי\", חזרו בקול רם."), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-primary py-3 px-6 self-center dock-mobile",
+  }), !play && !err && /*#__PURE__*/React.createElement("button", {
+    onClick: start,
+    "aria-label": 'הפעלת הסרטון: ' + lesson.title,
+    style: {
+      position: 'absolute',
+      inset: 0,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: 14,
+      padding: '0 20px 7%',
+      background: 'linear-gradient(to top, rgba(15,39,66,.92) 0%, rgba(15,39,66,.45) 45%, rgba(15,39,66,0) 75%)',
+      border: 0,
+      cursor: 'pointer',
+      color: '#fff'
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: 68,
+      height: 68,
+      borderRadius: '50%',
+      background: '#fff',
+      display: 'grid',
+      placeItems: 'center',
+      boxShadow: '0 10px 30px rgba(0,0,0,.35)'
+    }
+  }, /*#__PURE__*/React.createElement("svg", {
+    width: "26",
+    height: "26",
+    viewBox: "0 0 24 24",
+    "aria-hidden": "true"
+  }, /*#__PURE__*/React.createElement("path", {
+    d: "M8 5v14l11-7z",
+    fill: "#0F2742"
+  }))), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: 800,
+      fontSize: 'clamp(18px,3.4vw,28px)'
+    }
+  }, lesson.title), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: 'clamp(12px,2vw,15px)',
+      opacity: .85
+    },
+    className: "num"
+  }, lesson.mins, " דקות · שיעור וידאו"))), /*#__PURE__*/React.createElement("div", {
+    className: "p-5 sm:p-6 flex flex-col gap-4"
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    className: "eyebrow"
+  }, "שיעור ", idx + 1, " מתוך ", topic.lessons.length, " · ", topic.title), /*#__PURE__*/React.createElement("h2", {
+    className: "text-2xl font-extrabold mt-1"
+  }, lesson.title), lesson.blurb && /*#__PURE__*/React.createElement("p", {
+    className: "text-muted leading-relaxed mt-1"
+  }, lesson.blurb)), lesson.learn && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("h3", {
+    className: "font-extrabold mb-2"
+  }, "מה תלמדו בסרטון"), /*#__PURE__*/React.createElement("ul", {
+    className: "flex flex-col gap-2"
+  }, lesson.learn.map((x, k) => /*#__PURE__*/React.createElement("li", {
+    key: k,
+    className: "flex gap-3 items-start"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "w-6 h-6 rounded-full grid place-items-center shrink-0 mt-0.5",
+    style: {
+      background: 'var(--primary)',
+      color: '#fff'
+    },
+    "aria-hidden": "true"
+  }, /*#__PURE__*/React.createElement(IconCheck, {
+    size: 14
+  })), /*#__PURE__*/React.createElement("span", {
+    className: "leading-relaxed"
+  }, x[0], x[1] && /*#__PURE__*/React.createElement(React.Fragment, null, ': ', /*#__PURE__*/React.createElement("bdi", {
+    dir: "ltr",
+    className: "book font-bold"
+  }, x[1]))))))), /*#__PURE__*/React.createElement("div", {
+    className: "flex items-center gap-2 flex-wrap"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "text-sm text-muted"
+  }, "מהירות:"), [0.75, 1, 1.25].map(r => /*#__PURE__*/React.createElement("button", {
+    key: r,
+    className: "btn btn-ghost px-3 text-sm num",
+    "aria-pressed": rate === r,
+    style: rate === r ? {
+      borderColor: 'var(--primary)',
+      color: 'var(--primary)',
+      fontWeight: 800
+    } : undefined,
+    onClick: () => setRate(r)
+  }, r, "x")), /*#__PURE__*/React.createElement("span", {
+    className: "text-xs text-muted me-auto"
+  })))), next.length > 0 && /*#__PURE__*/React.createElement("section", {
+    className: "card p-5"
+  }, /*#__PURE__*/React.createElement("h3", {
+    className: "font-extrabold mb-2"
+  }, "אחרי הסרטון: מתרגלים"), /*#__PURE__*/React.createElement("ol", {
+    className: "flex flex-col gap-1.5 list-none p-0 m-0"
+  }, next.map((l, k) => /*#__PURE__*/React.createElement("li", {
+    key: l.id,
+    className: "flex gap-3 items-center text-sm"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "w-6 h-6 rounded-full grid place-items-center shrink-0 text-xs num",
+    style: {
+      background: 'var(--sunk)',
+      color: 'var(--muted)'
+    }
+  }, k + 1), /*#__PURE__*/React.createElement("span", {
+    className: "font-semibold"
+  }, l.title)))), /*#__PURE__*/React.createElement("p", {
+    className: "text-sm text-muted mt-4 leading-relaxed"
+  }, "כל שיעור כולל דיאלוג, כלל קצר בעברית, מילים ותרגילים. מומלץ לצפות בסרטון פעם אחת ברצף, ואז לחזור אליו אחרי התרגול.")), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-primary py-3 px-8 self-center dock-mobile",
     onClick: () => {
       actions.completeLesson(lesson.id, []);
       if (!done) celebrate(false);
       onBack();
     }
-  }, done ? 'חזרה ליחידה' : 'סיימתי לצפות, להמשך'));
+  }, done ? 'חזרה ליחידה' : 'סיימתי לצפות, להמשך לתרגול'));
 }
 function CourseView({
   course,
@@ -12377,8 +12541,10 @@ function Courses({
 }
 
 /* ---------- study groups: weekly leaderboard shared through the site's small API ---------- */
-const SITE_URL = 'https://lumi-english.netlify.app';
-const ON_SITE = typeof location !== 'undefined' && /(^|\.)netlify\.app$|^localhost$/.test(location.hostname);
+// the site answers on two addresses: links (join codes, e-mail confirmation, password reset) keep the address the visitor is on
+const NEW_HOST = /(^|\.)lumienglish\.co\.il$/;
+const SITE_URL = typeof location !== 'undefined' && NEW_HOST.test(location.hostname) ? location.origin : 'https://lumi-english.netlify.app';
+const ON_SITE = typeof location !== 'undefined' && (/(^|\.)netlify\.app$|^localhost$/.test(location.hostname) || NEW_HOST.test(location.hostname));
 const GROUP_API = ON_SITE ? '/api/groups' : SITE_URL + '/api/groups';
 let JOIN_CODE = '';
 try {
