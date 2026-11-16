@@ -2242,7 +2242,7 @@ function ExerciseRunner({items, title, onFinish, onExit, voice, copySeen, onCopy
 
 function LessonRich({topic, lesson, state, actions, voice, celebrate, onBack}){
   const [step,setStep]=useState('dialogue'); const [pct,setPct]=useState(null); const [he,setHe]=useState(true);
-  const items=useMemo(()=>{ const idx=topic.lessons.findIndex(l=>l.id===lesson.id); const prev=shuffle(topic.lessons.slice(0,Math.max(idx,0)).flatMap(l=>l.ex.filter(e=>e.t==='copy'))).slice(0,2); const arr=lesson.ex.slice();
+  const items=useMemo(()=>{ const idx=topic.lessons.findIndex(l=>l.id===lesson.id); const prev=shuffle(topic.lessons.slice(0,Math.max(idx,0)).flatMap(l=>(l.ex||[]).filter(e=>e.t==='copy'))).slice(0,2); const arr=lesson.ex.slice();
     prev.forEach(e=>{ const at=Math.floor(arr.length/2)+Math.floor(Math.random()*(arr.length/2)); arr.splice(at,0,e); }); return arr; },[]);
   const STEPS=['dialogue','rule','vocab','ex']; const si=STEPS.indexOf(step);
   const finish=(p)=>{ setPct(p); actions.completeLesson(lesson.id, lesson.vocab.map(v=>v[0]).filter(w=>/^[a-z]+$/.test(w)&&MEANING[w])); if(p>=90) celebrate(false); setStep('result'); };
@@ -2267,11 +2267,27 @@ function LessonRich({topic, lesson, state, actions, voice, celebrate, onBack}){
   </div>);
 }
 
+/* a video lesson: the unit's video (hosted next to the site), then "I watched it" marks the lesson done */
+function LessonVideo({topic, lesson, state, actions, celebrate, onBack}){
+  const done=lessonDone(lesson,state); const [err,setErr]=useState(false);
+  return (<div className="flex flex-col gap-4 pb-28 sm:pb-0">
+    <div className="flex items-center gap-3"><button className="btn btn-ghost px-3 text-sm" onClick={onBack}><IconX size={16}/>יציאה</button></div>
+    <section className="card p-5 flex flex-col gap-1"><div className="eyebrow">{topic.title}</div><h2 className="text-2xl font-extrabold">{lesson.title}</h2>{lesson.blurb&&<p className="text-muted leading-relaxed">{lesson.blurb}</p>}</section>
+    <section className="card p-2 sm:p-3 flex flex-col gap-2">
+      {err?<p className="p-6 text-center text-muted">הסרטון לא נטען. בדקו את החיבור לאינטרנט ונסו שוב.</p>
+        :<video src={lesson.src} controls playsInline preload="metadata" onError={()=>setErr(true)} style={{width:'100%', borderRadius:12, background:'#0F2742', aspectRatio:'16 / 9'}} aria-label={lesson.title}></video>}
+    </section>
+    <p className="text-sm text-muted leading-relaxed">טיפ: אפשר לעצור, לחזור אחורה ולצפות שוב. כשהאורי אומר "חזרו אחריי", חזרו בקול רם.</p>
+    <button className="btn btn-primary py-3 px-6 self-center dock-mobile" onClick={()=>{ actions.completeLesson(lesson.id, []); if(!done) celebrate(false); onBack(); }}>{done?'חזרה ליחידה':'סיימתי לצפות, להמשך'}</button>
+  </div>);
+}
+
 function CourseView({course, state, actions, voice, celebrate, profile, toast, onBack, openStory, openTalk}){
   const [lesson,setLesson]=useState(null); const [quiz,setQuiz]=useState(null); const [res,setRes]=useState(null); const [cert,setCert]=useState(false);
   const cp=courseProgress(course,state); const ns=nextStep(course,state); const cs=csOf(state);
   const go=(t,l)=>{ if(l.type==='story') openStory(l.story); else if(l.type==='talk') openTalk(l.talk); else { setLesson({t,l}); window.scrollTo({top:0}); } };
   if(cert) return <CertificateView course={course} state={state} profile={profile} toast={toast} onBack={()=>setCert(false)}/>;
+  if(lesson&&lesson.l.type==='video') return <LessonVideo key={lesson.l.id} topic={lesson.t} lesson={lesson.l} state={state} actions={actions} celebrate={celebrate} onBack={()=>setLesson(null)}/>;
   if(lesson&&lesson.l.type==='rich') return <LessonRich key={lesson.l.id} topic={lesson.t} lesson={lesson.l} state={state} actions={actions} voice={voice} celebrate={celebrate} onBack={()=>setLesson(null)}/>;
   if(lesson) return <LessonWords key={lesson.l.id} course={course} topic={lesson.t} lesson={lesson.l} state={state} actions={actions} voice={voice} celebrate={celebrate} onBack={()=>setLesson(null)}/>;
   const finishQuiz=pct=>{ const passed=pct>=PASS_PCT; actions.passTopic(quiz.id,pct,course.id); setRes({t:quiz,pct,passed}); setQuiz(null); if(passed) celebrate(pct===100); window.scrollTo({top:0}); };
@@ -2298,8 +2314,8 @@ function CourseView({course, state, actions, voice, celebrate, profile, toast, o
           {passed&&<span className="tag" style={{background:'var(--good-soft)',color:'var(--good)'}}><IconCheck size={12}/>הושלם</span>}</div>
         {open?<ul className="flex flex-col gap-1.5">
           {t.lessons.map(l=>{ const d=lessonDone(l,state); return (<li key={l.id}><button className="w-full flex items-center gap-3 rounded-xl border border-line px-3 py-3 text-start hover:border-primary" data-lesson={l.id} onClick={()=>go(t,l)}>
-            <span className="w-6 h-6 rounded-full grid place-items-center shrink-0 text-xs" style={{background:d?'var(--known)':'var(--sunk)',color:d?'#fff':'var(--muted)'}} aria-hidden="true">{d?'✓':l.type==='story'?'📖':l.type==='talk'?'💬':'Aa'}</span>
-            <span className="flex-1 font-semibold">{l.title}</span><span className="text-xs text-muted">{l.type==='story'?'סיפור':l.type==='talk'?'שיחה':'מילים'}</span></button></li>); })}
+            <span className="w-6 h-6 rounded-full grid place-items-center shrink-0 text-xs" style={{background:d?'var(--known)':'var(--sunk)',color:d?'#fff':'var(--muted)'}} aria-hidden="true">{d?'✓':l.type==='story'?'📖':l.type==='talk'?'💬':l.type==='video'?'▶':'Aa'}</span>
+            <span className="flex-1 font-semibold">{l.title}</span><span className="text-xs text-muted">{l.type==='story'?'סיפור':l.type==='talk'?'שיחה':l.type==='video'?'סרטון':'מילים'}</span></button></li>); })}
           <li><button disabled={!tp.all} data-quiz={t.id} className={`btn ${tp.all?'btn-primary':'btn-ghost'} w-full py-3`} onClick={()=>{ setRes(null); const rich=t.lessons.filter(l=>l.type==='rich'); setQuiz(rich.length?{...t,items:shuffle(rich.flatMap(l=>l.ex.filter(x=>x.t!=='speak'))).slice(0,12)}:t); window.scrollTo({top:0}); }}>{tp.all?(passed?'מבחן יחידה: לנסות שוב':'מבחן יחידה'):'מבחן נושא · נפתח בסיום כל השיעורים'}</button></li></ul>
         :<div className="text-sm text-muted">נפתח אחרי שתעברו את המבחן של "{course.topics[ti-1].title}".</div>}
       </section>); })}
