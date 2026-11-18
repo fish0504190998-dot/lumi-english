@@ -332,7 +332,11 @@ function useVoices(){
 }
 function chooseVoice(voices, name){
   if(!voices.length) return null;
+  // the audience prefers a clear male voice: the owner chose Microsoft Christopher and Brian (Online Natural, Edge); other natural male voices next; then the old defaults
   return voices.find(v=>v.name===name)
+    || voices.find(v=>/Microsoft Christopher Online \(Natural\)/i.test(v.name))
+    || voices.find(v=>/Microsoft Brian Online \(Natural\)/i.test(v.name))
+    || voices.find(v=>/(Guy|Ryan|Eric|Roger|Steffan|Andrew|Davis|Jason|Tony) Online \(Natural\)/i.test(v.name) && /en[-_]/i.test(v.lang))
     || voices.find(v=>/en[-_]US/i.test(v.lang) && v.localService)
     || voices.find(v=>/en[-_]US/i.test(v.lang))
     || voices.find(v=>/en[-_]GB/i.test(v.lang)) || voices[0];
