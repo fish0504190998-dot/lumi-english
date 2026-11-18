@@ -40,7 +40,7 @@
 מבנה מקובל: רמה (CEFR) ← יחידה ← שיעור קצר: קלט (דיאלוג) ← שפה מרכזית ← תרגול ← חידון. הוראה בעברית של ההבדלים (אין is/am/are בהווה, אין a/the). לא להעתיק תוכן מ-eshkolot, Duolingo, Oxford. מקורות חופשיים: Tatoeba (CC BY), NGSL.
 
 ## פתוחים אצל המשתמש
-כתובת תמיכה אמיתית במקום `support@lumi-english.app` (SUPPORT_EMAIL ב-app.jsx); Site URL ב-Supabase; מחיקת מפתח Gemini ישן.
+Site URL ב-Supabase (כתובת התמיכה כבר info@lumienglish.co.il); מחיקת מפתח Gemini ישן.
 
 ## הנחיות
 - לבדוק בטלפון (360px) ובמחשב; ממשק RTL, אנגלית LTR.

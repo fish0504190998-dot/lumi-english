@@ -2,7 +2,7 @@
 /* The publishable key is meant to be public: it ships inside every Supabase web app. Access is decided by the
    row level security rules in supabase-setup.sql and supabase-community.sql, not by hiding this key. */
 const CLOUD_CFG={ url:'https://jiwsiutwvqdcafmiqxox.supabase.co', key:'sb_publishable_EfvswdyANwtEjarf0FhQrA_K6-KgDZj' };
-const SUPPORT_EMAIL='support@lumi-english.app';     // change to your real support address
+const SUPPORT_EMAIL='info@lumienglish.co.il';
 let SB=null;
 try{ if(window.supabase&&window.supabase.createClient) SB=window.supabase.createClient(CLOUD_CFG.url, CLOUD_CFG.key, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true, storageKey:'lumi-auth'}}); }catch(e){ SB=null; }
 const CLOUD_ERR={ 'Invalid login credentials':'המייל או הסיסמה לא נכונים.', 'Email not confirmed':'עוד לא אישרת את המייל. בדקו את תיבת הדואר (גם בספאם) ולחצו על הקישור.',
