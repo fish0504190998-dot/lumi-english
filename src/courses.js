@@ -1,4 +1,6 @@
-﻿/* Structured courses: course -> topics -> lessons -> topic quiz -> certificate.
+﻿/* LIVE_LESSONS: numbers (1-15) of the video-series lessons that are switched on. They play from R2 (<video base>/videos/lessonNN.mp4, poster assets/posters/lessonNN.jpg). Every other lesson shows "בקרוב". To enable lesson 6: upload videos/lesson06.mp4 to R2, add 6 here, rebuild. */
+const LIVE_LESSONS = [1, 2, 3, 4, 5];
+/* Structured courses: course -> topics -> lessons -> topic quiz -> certificate.
    lesson types: words (cards + quiz + speaking), story (opens a built-in story), talk (opens a conversation) */
 const COURSES = [
  { id:'a1', level:'A1', cover:'🌱', title:'אנגלית למתחילים', sub:'המילים והמשפטים הראשונים', desc:'קורס ראשון למי שמתחיל מאפס: ברכות, משפחה, אוכל, בית, מספרים ופעולות יומיומיות. כל שיעור מלווה בהקראה, הגייה בעברית ותרגול.', tags:['חדש'], topics:[
@@ -46,9 +48,8 @@ const COURSES = [
     { id:'a2-health-4', type:'story', title:"סיפור: אצל הרופא", story:'clinic' } ] },
   { id:'a2-weather', icon:'☀️', title:'מזג אוויר וטבע', lessons:[
     { id:'a2-weather-1', type:'words', title:'שמיים ומזג אוויר', words:['sun','moon','star','cloud','rain','snow','wind','hot','cold','warm'] },
-    { id:'a2-weather-2', type:'words', title:'עונות וטבע', words:['summer','winter','spring','autumn','tree','flower','river','lake','beach','mountain'] },
-    { id:'a2-weather-3', type:'story', title:'סיפור: יום גשום', story:'rainy' },
-    { id:'a2-weather-4', type:'story', title:'סיפור: יום בחוף הים', story:'beach' } ] },
+    { id:'a2-weather-2', type:'words', title:'עונות וטבע', words:['summer','winter','spring','autumn','tree','flower','river','lake','mountain'] },
+    { id:'a2-weather-3', type:'story', title:'סיפור: יום גשום', story:'rainy' } ] },
   { id:'a2-feel', icon:'😊', title:'רגשות ותיאורים', lessons:[
     { id:'a2-feel-1', type:'words', title:'איך אני מרגיש', words:['happy','sad','angry','tired','hungry','thirsty','scared','proud','lonely','bored'] },
     { id:'a2-feel-2', type:'words', title:'לתאר דברים', words:['big','small','tall','short','long','young','old','new','beautiful','ugly'] },
@@ -56,7 +57,6 @@ const COURSES = [
   { id:'a2-work', icon:'💼', title:'עבודה ותכנונים', lessons:[
     { id:'a2-work-1', type:'words', title:'בעבודה', words:['work','job','office','meeting','team','project','idea','problem','plan','busy'] },
     { id:'a2-work-2', type:'words', title:'ימי השבוע', words:['monday','tuesday','wednesday','thursday','saturday','sunday','weekend','week','holiday','birthday'] },
-    { id:'a2-work-3', type:'story', title:'סיפור: שיחת טלפון', story:'phonecall' },
     { id:'a2-work-4', type:'story', title:'סיפור: בחדר הכושר', story:'gym' } ] }
  ]},
  { id:'b1', level:'B1', cover:'🌳', title:'סיפורים אמיתיים', sub:'קריאה בשטף מסיפורים שקרו באמת', desc:'שני נושאים של סיפורים אמיתיים וארוכים יותר, עם אוצר מילים מתקדם מכל סיפור ומבחן בסוף כל נושא. מתאים אחרי הקורסים הקודמים.', tags:[], topics:[
@@ -82,7 +82,7 @@ const TY=(he,ans,x)=>({t:'type',he,ans,x});
 const SP=(en)=>({t:'speak',en});
 COURSES.unshift({ id:'a1u', level:'A1', cover:'🌟', title:'A1 · מסלול מובנה (יחידה 1)', sub:'שלום, אני… נעים להכיר', desc:'יחידה ראשונה במסלול החדש: דיאלוג, הסבר קצר בעברית על כלל אחד, מילים בתוך משפטים, תרגילים מגוונים (בחירה, השלמה, סידור משפט, הקלדה, האזנה ודיבור) ומבחן יחידה. לומדים לפי הסדר.', tags:['חדש'], topics:[
  { id:'a1u-u1', icon:'👋', title:'יחידה 1: היכרות', goal:'בסוף היחידה תוכלו להציג את עצמכם, לשאול "מה שמך?" ו"מאיפה אתה?", ולהציג חבר.', lessons:[
-  { id:'a1u-u1-v', type:'video', title:'סרטון: אורי ודוד נפגשים', src:'videos/a1-01.mp4', poster:'videos/a1-01.jpg', mins:7, blurb:'אורי ודוד נפגשים, ואתם לומדים להציג את עצמכם באנגלית מהשיחה הראשונה.', learn:[['להגיד שלום ולשאול מה שלומך','Hello! How are you'],['להציג את עצמכם','I am Uri'],['לשאול מאיפה אתה','Where are you from'],['הכלל הראשון: באנגלית תמיד צריך פועל','I am · you are · he is'],['לשמוע שני קולות ולחזור בקול רם','']] },
+  { id:'a1u-u1-v', type:'video', title:'סרטון: אורי ודוד נפגשים', src:'videos/lesson01.mp4', poster:'assets/posters/lesson01.jpg', mins:7, blurb:'אורי ודוד נפגשים, ואתם לומדים להציג את עצמכם באנגלית מהשיחה הראשונה.', learn:[['להגיד שלום ולשאול מה שלומך','Hello! How are you'],['להציג את עצמכם','I am Uri'],['לשאול מאיפה אתה','Where are you from'],['הכלל הראשון: באנגלית תמיד צריך פועל','I am · you are · he is'],['לשמוע שני קולות ולחזור בקול רם','']] },
   { id:'a1u-u1-1', type:'rich', title:'שלום ולהתראות', dialogue:[['Dan','Hello!','שלום!'],['Maya','Hi! Good morning.','היי! בוקר טוב.'],['Dan','Good morning.','בוקר טוב.'],['Maya','Goodbye, Dan.','להתראות, דן.'],['Dan','Bye, Maya!','ביי, מאיה!']],
     rule:{title:'ברכות לפי שעות היום', he:'Hello היא הברכה הרגילה בכל שעה, ו־Hi קלילה וחברית. Good morning אומרים עד הצהריים, Good evening בערב, ו־Good night רק כשנפרדים לפני השינה. Goodbye ו־Bye הן "להתראות".', ex:[['Hello!','שלום!'],['Good morning!','בוקר טוב!'],['Good night!','לילה טוב!']], pit:'Good night היא ברכת פרידה בערב, לא ברכת פגישה. כשנפגשים בערב אומרים Good evening.'},
     vocab:[['hello','שלום','הֶלוֹ'],['hi','היי','האי'],['goodbye','להתראות','גוּד־בַּאי'],['bye','ביי','באי'],['good morning','בוקר טוב','גוּד מוֹרנינג'],['good evening','ערב טוב','גוּד אִיבנינג'],['good night','לילה טוב','גוּד נַאיט'],['please','בבקשה','פְּלִיז'],['thank you','תודה','תֶנְק יוּ'],['sorry','סליחה','סוֹרי']],

@@ -27,9 +27,6 @@ const DAILY_STORIES = [
  { id:'shirt', cover:'👔', title:'A New Shirt', he:'חולצה חדשה', blurb:'דוד מוצא בדיוק את החולצה הנכונה.', paras:[
   { en:'David needs a new shirt for work. He enters a clothing store in the mall. He looks at many colors and chooses a light blue shirt.', he:'דוד צריך חולצה חדשה לעבודה. הוא נכנס לחנות בגדים בקניון. הוא מסתכל על הרבה צבעים ובוחר חולצה תכלת.' },
   { en:'He tries it on in the fitting room. The size is perfect, and the fabric feels soft. He buys the shirt and leaves the store happy.', he:'הוא מודד אותה בתא המדידה. המידה מושלמת, והבד מרגיש רך. הוא קונה את החולצה ויוצא מהחנות שמח.' } ]},
- { id:'delivery', cover:'🍕', title:'Ordering Food', he:'הזמנת אוכל', blurb:'רחל עייפה מדי לבשל. יש אפליקציה בשביל זה.', paras:[
-  { en:'It is Friday night, and Rachel is too tired to cook. She opens a food app on her phone and orders a vegetable pizza and a small salad.', he:'זה ליל שישי, ורחל עייפה מדי כדי לבשל. היא פותחת אפליקציית אוכל בטלפון ומזמינה פיצה עם ירקות וסלט קטן.' },
-  { en:'Thirty minutes later, the delivery driver rings the doorbell. Rachel thanks him, opens the warm box, and enjoys her easy dinner.', he:'שלושים דקות אחר כך השליח מצלצל בפעמון. רחל מודה לו, פותחת את הקופסה החמה ונהנית מארוחת ערב קלה.' } ]},
  { id:'cleaning', cover:'🧹', title:'Cleaning the House', he:'ניקיון הבית', blurb:'אדם מנקה, והבית מתמלא אור.', paras:[
   { en:'On Sunday morning, Adam cleans his apartment. First, he opens all the windows to let fresh air inside. He washes the dishes in the sink and sweeps the floor.', he:'ביום ראשון בבוקר אדם מנקה את הדירה שלו. קודם הוא פותח את כל החלונות כדי להכניס אוויר צח. הוא שוטף את הכלים בכיור ומטאטא את הרצפה.' },
   { en:'Then, he puts his clothes neatly in the closet. When he finishes, the house looks clean, bright, and peaceful.', he:'אחר כך הוא מסדר את הבגדים שלו בארון. כשהוא מסיים, הבית נראה נקי, מואר ושליו.' } ]},
@@ -38,13 +35,7 @@ const DAILY_STORIES = [
   { en:'The baker puts them in a paper bag. Emma eats one croissant right away because it is still warm.', he:'האופה שם אותם בשקית נייר. אמה אוכלת קרואסון אחד מיד, כי הוא עוד חם.' } ]},
  { id:'gym', cover:'🏋️', title:'Going to the Gym', he:'בחדר הכושר', blurb:'יוני מתאמן, ומרגיש חזק יותר.', paras:[
   { en:'After work, Yoni goes to the gym near his office. He puts on his sports shoes and fills his water bottle. First, he walks on the machine for ten minutes.', he:'אחרי העבודה יוני הולך לחדר הכושר ליד המשרד שלו. הוא נועל את נעלי הספורט וממלא את בקבוק המים. קודם הוא הולך על המכשיר עשר דקות.' },
-  { en:'Then, he lifts light weights and does some easy exercises. He feels tired but strong. At home, he takes a warm shower and sleeps well.', he:'אחר כך הוא מרים משקולות קלות ועושה כמה תרגילים קלים. הוא מרגיש עייף אבל חזק. בבית הוא מתקלח במים חמים וישן טוב.' } ]},
- { id:'phonecall', cover:'📞', title:'A Phone Call', he:'שיחת טלפון', blurb:'לירון מתקשרת לחברה ומתכננת סוף שבוע.', paras:[
-  { en:'Liron calls her friend Gal on Thursday evening. "Hi, Gal! How are you?" she asks. Gal is happy to hear her voice. They talk about work and family.', he:'לירון מתקשרת לחברה שלה גל ביום חמישי בערב. "היי, גל! מה שלומך?" היא שואלת. גל שמחה לשמוע את הקול שלה. הן מדברות על העבודה ועל המשפחה.' },
-  { en:'Then Liron asks, "Do you want to meet on Saturday?" Gal says yes. They plan to drink coffee together at noon. Liron writes it in her calendar.', he:'אחר כך לירון שואלת: "את רוצה להיפגש בשבת?" גל אומרת כן. הן מתכננות לשתות קפה יחד בצהריים. לירון כותבת את זה ביומן שלה.' } ]},
- { id:'beach', cover:'🏖️', title:'A Day at the Beach', he:'יום בחוף הים', blurb:'שמש, מים כחולים וגלידה.', paras:[
-  { en:'On a hot summer day, Omer goes to the beach with his sister. They bring a big towel, sunscreen, and cold drinks. The water is blue and clear.', he:'ביום קיץ חם עומר הולך לחוף הים עם אחותו. הם מביאים מגבת גדולה, קרם הגנה ומשקאות קרים. המים כחולים וצלולים.' },
-  { en:'Omer swims in the sea, and his sister builds a castle in the sand. Later, they buy ice cream and watch the sun go down.', he:'עומר שוחה בים, ואחותו בונה ארמון בחול. אחר כך הם קונים גלידה ומסתכלים על השמש שוקעת.' } ]}
+  { en:'Then, he lifts light weights and does some easy exercises. He feels tired but strong. At home, he takes a warm shower and sleeps well.', he:'אחר כך הוא מרים משקולות קלות ועושה כמה תרגילים קלים. הוא מרגיש עייף אבל חזק. בבית הוא מתקלח במים חמים וישן טוב.' } ]}
 ];
 DAILY_STORIES.forEach(s=>{ s.level=1; s.tags=['יומיום']; });
 

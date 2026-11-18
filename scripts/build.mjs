@@ -37,6 +37,12 @@ for (const f of STATIC) {
   fs.copyFileSync(src, path.join(DIST, f));
 }
 
+// assets/ (Uri and David figures, lesson posters): images only, copied as they are. Video/audio files are never copied (videos come from R2).
+const ASSETS = path.join(ROOT, "assets");
+if (fs.existsSync(ASSETS)) {
+  fs.cpSync(ASSETS, path.join(DIST, "assets"), { recursive: true, filter: (src) => !/\.(mp4|webm|mov|m4v)$/i.test(src) });
+}
+
 // single-page-app fallback (Pages Functions under /api keep priority over this rule)
 fs.writeFileSync(path.join(DIST, "_redirects"), "/* /index.html 200\n");
 fs.writeFileSync(path.join(DIST, "_headers"), [

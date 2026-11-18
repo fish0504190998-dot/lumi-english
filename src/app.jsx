@@ -69,7 +69,7 @@ async function hashPin(pin, salt){
 async function makePin(pin){ const salt=Math.random().toString(36).slice(2)+Date.now().toString(36); return {salt, hash:await hashPin(pin, salt)}; }
 async function checkPin(pin, stored){ if(!stored) return true; const h=await hashPin(pin, stored.salt); return h===stored.hash; }
 const PIN_MIN=4;
-const DEFAULT_STATE={ words:{}, history:{}, goal:30, settings:{pron:true, parallel:false, rate:1, voice:'', font:1, pane:true}, storiesDone:{}, quiz:{}, bestCombo:0, totals:{answered:0, correct:0}, userStories:[], unlocked:{}, customDict:{}, netDict:{}, notes:{}, readToday:{date:'', ids:{}}, courses:{lessons:{},topics:{},certs:{},perfect:0} };
+const DEFAULT_STATE={ words:{}, history:{}, goal:30, settings:{pron:true, rate:1, voice:'', font:1, pane:false}, storiesDone:{}, quiz:{}, bestCombo:0, totals:{answered:0, correct:0}, userStories:[], unlocked:{}, customDict:{}, netDict:{}, notes:{}, readToday:{date:'', ids:{}}, courses:{lessons:{},topics:{},certs:{},perfect:0} };
 function loadState(){
   try{ const raw=localStorage.getItem(LS_KEY); if(raw){ const p=JSON.parse(raw); return {...DEFAULT_STATE, ...p, settings:{...DEFAULT_STATE.settings, ...(p.settings||{})}, totals:{...DEFAULT_STATE.totals, ...(p.totals||{})}}; } }catch(e){}
   return DEFAULT_STATE;
@@ -465,6 +465,8 @@ const IconPen=p=><Svg {...p}><path d="M4 20l1-4L16.5 4.5a2 2 0 0 1 3 3L8 19z"/><
 const IconWave=p=><Svg {...p}><path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 7v10M21 12h0"/></Svg>;
 const IconChat=p=><Svg {...p}><path d="M4 5h16v11H9l-5 4z"/><path d="M8 10h8M8 13h5"/></Svg>;
 const IconUsers=p=><Svg {...p}><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6"/><path d="M16 4.6a3.2 3.2 0 0 1 0 6.3M18 14.3c1.9.9 3 2.9 3 5.7"/></Svg>;
+const IconHome=p=><Svg {...p}><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/></Svg>;
+const IconUser=p=><Svg {...p}><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20.5c0-4 3.4-6.8 7.5-6.8s7.5 2.8 7.5 6.8"/></Svg>;
 const IconTrophy=p=><Svg {...p}><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H4.5a3 3 0 0 0 3.5 4M16 6h3.5a3 3 0 0 1-3.5 4M12 13v4M8.5 20h7"/></Svg>;
 /* brand mark: a white "L" with a warm light dot (Lumi = light) on a sage tile */
 function LogoMark({size=44, radius=12}){
@@ -534,31 +536,41 @@ function Header({known, streak, todayXP, goal, unlocked, onNav, profile, onProfi
       <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
         <button onClick={onProfile} className="flex items-center gap-2.5 rounded-xl ps-1.5 pe-3 min-h-[48px] me-auto text-start" style={{background:'var(--sunk)'}} aria-label={`המשתמש ${profile.name}. לחיצה פותחת את הגדרות המשתמש`}>
           <span className="w-9 h-9 rounded-lg grid place-items-center text-xl bg-surface" aria-hidden="true">{profile.avatar}</span>
-          <span className="leading-tight"><span className="font-bold block">שלום, <bdi>{profile.name}</bdi></span><span className="text-xs text-muted block"><bdi dir="ltr">Lumi English</bdi> · החלפת משתמש</span></span>
+          <span className="leading-tight"><span className="font-bold block">שלום, <bdi>{profile.name}</bdi></span><span className="text-xs text-muted block"><bdi dir="ltr">Lumi English</bdi> · הגדרות</span></span>
         </button>
-        <button onClick={()=>onNav('progress')} className={`stat-chip chip-known ${bump?'pop':''}`} title="מילים שסימנת כמוכרות">
-          <IconCheck size={18}/><span className="leading-tight text-start"><b className="num text-lg block"><Count value={known}/></b><span className="text-[11px] font-semibold">מילים מוכרות</span></span>
-        </button>
-        <button onClick={()=>onNav('progress')} className={`stat-chip chip-streak ${streak>0?'is-on':''}`} title="רצף ימים שבהם הושלם היעד">
-          <span className="flame" aria-hidden="true"><IconFlame size={22}/></span><span className="leading-tight text-start"><b className="num text-lg block"><Count value={streak}/></b><span className="text-[11px] font-semibold">{streak===1?'יום ברצף':'ימים ברצף'}</span></span>
-        </button>
-        <button onClick={()=>onNav('progress')} className={`goal-chip ${todayXP>=goal?'is-done':''}`} aria-label={`יעד יומי: ${Math.min(todayXP,goal)} מתוך ${goal} נקודות`}>
+        {LOCAL_ONLY&&<span className="tag" style={{background:'var(--sun-soft)', color:'var(--ink)'}} title="העותק הזה לא מתחבר לענן ולא שולח שום דבר לשרת">גרסת דוגמה מקומית</span>}
+        <button onClick={()=>onNav('progress')} className={`goal-chip ${todayXP>=goal?'is-done':''}`} title="היעד היומי. לחיצה פותחת את ההתקדמות" aria-label={`יעד יומי: ${Math.min(todayXP,goal)} מתוך ${goal} נקודות`}>
           <span className="flex items-baseline gap-1.5 w-full"><span className="text-[11px] font-bold">יעד יומי</span><b className="num ms-auto text-sm">{Math.min(todayXP,goal)}/{goal}</b></span>
           <span className="goal-track" dir="ltr"><span className="goal-fill bar" style={{width:Math.min(100,todayXP/goal*100)+'%'}}></span></span>
-          <span className="text-[11px] text-muted w-full text-start">{todayXP>=goal?'הושלם היום ✓':todayXP>0?`עוד ${goal-todayXP} נק׳ להיום`:'סיפור קצר אחד ואתם בדרך'}</span>
+          <span className="text-[11px] text-muted w-full text-start">{todayXP>=goal?'הושלם היום ✓':todayXP>0?`עוד ${goal-todayXP} נק׳ להיום`:'סיפור קצר אחד ואתה בדרך'}</span>
         </button>
       </div>
     </div></div>
   </header>);
 }
-function Tabs({tab, setTab, learning}){
-  const tabs=[['courses','קורסים',IconCap],['read','סיפורים',IconBook],['sounds','צלילים',IconWave],['talk','שיחה',IconChat],['practice','תרגול',IconBolt],['progress','התקדמות',IconChart]];
+/* 4 places instead of 6. Each screen ("view") belongs to one place; the old screens live inside them unchanged. */
+const PLACE_OF={home:'home', courses:'learn', read:'learn', sounds:'learn', practice:'train', talk:'train', progress:'me', group:'me', community:'me'};
+const PLACE_SUBS={
+  learn:[['courses','קורסים',IconCap],['read','סיפורים',IconBook],['sounds','צלילים',IconWave]],
+  train:[['practice','כרטיסי חזרה ותרגול',IconBolt],['talk','שיחה',IconChat]],
+  me:[['progress','התקדמות',IconChart],['group','קבוצת לימוד',IconUsers],['community','סיפורי קהילה',IconBook]]
+};
+function Tabs({tab, setTab, due}){
+  const place=PLACE_OF[tab]||'home';
+  const tabs=[['home','בית',IconHome],['learn','לימוד',IconCap],['train','תרגול',IconBolt],['me','אני',IconUser]];
   return (<nav className="sticky z-30 bg-surface border-b border-line" style={{top:'calc(env(safe-area-inset-top,0px) + 64px)'}} aria-label="ניווט">
     <div className="gutter"><div className="max-w-[860px] mx-auto flex gap-1">
-      {tabs.map(([k,l,I])=><button key={k} onClick={()=>setTab(k)} aria-current={tab===k?'page':undefined}
-        className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 flex-1 sm:flex-none px-1 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm font-semibold border-b-2 -mb-px relative ${tab===k?'border-primary text-primary':'border-transparent text-muted hover:text-ink'}`}><I size={17}/>{l}{k==='practice'&&learning>0&&<span className="num text-[10px] rounded-full px-1.5 py-0.5 absolute sm:static top-1 end-1" style={{background:'var(--learn-bg)', color:'var(--ink)'}}>{learning}</span>}</button>)}
+      {tabs.map(([k,l,I])=><button key={k} onClick={()=>setTab(k)} aria-current={place===k?'page':undefined}
+        className={`flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 flex-1 px-1 sm:px-3 py-2 sm:py-3 text-sm font-semibold border-b-2 -mb-px relative ${place===k?'border-primary text-primary':'border-transparent text-muted hover:text-ink'}`}><I size={18}/>{l}{k==='train'&&due>0&&<span className="num text-[11px] rounded-full px-1.5 py-0.5 absolute sm:static top-1 end-1" style={{background:'var(--learn-bg)', color:'var(--ink)'}} title="כרטיסים שמחכים לחזרה">{due}</span>}</button>)}
     </div></div>
   </nav>);
+}
+/* the site's segmented control, used to switch between the screens inside one place */
+function SubNav({tab, setTab}){
+  const subs=PLACE_SUBS[PLACE_OF[tab]]; if(!subs) return null;
+  return (<div className="seg self-start mb-5" role="group" aria-label="בחירת מסך" style={{flexWrap:'wrap', maxWidth:'100%'}}>
+    {subs.map(([k,l,I])=><button key={k} aria-pressed={tab===k} onClick={()=>setTab(k)} className="flex items-center gap-1.5"><I size={16}/>{l}</button>)}
+  </div>);
 }
 
 /* ---------- cloud (Supabase): accounts, progress sync, community stories ---------- */
@@ -567,8 +579,9 @@ function Tabs({tab, setTab, learning}){
 const CLOUD_CFG={ url:'https://jiwsiutwvqdcafmiqxox.supabase.co', key:'sb_publishable_EfvswdyANwtEjarf0FhQrA_K6-KgDZj' };
 const ANALYTICS_CODE='';   // GoatCounter site code (the part before .goatcounter.com). Empty = no visit counting and no policy section.
 const SUPPORT_EMAIL='info@lumienglish.co.il';
+const LOCAL_ONLY=false;   // kept from the redesign copy so the shared code compiles; false = real site: Supabase, community, study groups and the AI chat work as in production (no local-sample badge)
 let SB=null;
-try{ if(!/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname) && window.supabase&&window.supabase.createClient) SB=window.supabase.createClient(CLOUD_CFG.url, CLOUD_CFG.key, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true, storageKey:'lumi-auth'}}); }catch(e){ SB=null; }
+try{ if(!LOCAL_ONLY && !/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname) && window.supabase&&window.supabase.createClient) SB=window.supabase.createClient(CLOUD_CFG.url, CLOUD_CFG.key, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true, storageKey:'lumi-auth'}}); }catch(e){ SB=null; }
 const CLOUD_ERR={ 'Invalid login credentials':'המייל או הסיסמה לא נכונים.', 'Email not confirmed':'עוד לא אישרת את המייל. בדקו את תיבת הדואר (גם בספאם) ולחצו על הקישור.',
   'User already registered':'כבר יש חשבון עם המייל הזה. נסו להתחבר.', 'Password should be at least 6 characters':'הסיסמה צריכה לפחות 6 תווים.' };
 const cloudMsg=e=>{ const m=(e&&e.message)||''; for(const k in CLOUD_ERR) if(m.includes(k)) return CLOUD_ERR[k]; if(/fetch|network|Failed to/i.test(m)) return 'אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.'; if(/rate|too many/i.test(m)) return 'יותר מדי ניסיונות. חכו כמה דקות ונסו שוב.'; return 'משהו השתבש: '+m; };
@@ -585,7 +598,7 @@ function cleanText(s, max){ return String(s||'').replace(/<[^>]*>/g,' ').replace
 
 function AuthForm({onDone, intro}){
   const [mode,setMode]=useState('in'); const [name,setName]=useState(''); const [email,setEmail]=useState(''); const [pw,setPw]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState(null);
-  if(!SB) return <p className="text-sm text-muted">שמירה בענן זמינה באתר <bdi dir="ltr">lumienglish.co.il</bdi>.</p>;
+  if(!SB) return <p className="text-sm text-muted">{LOCAL_ONLY?'בגרסת הדוגמה המקומית ההתחברות כבויה. באתר האמיתי היא עובדת כרגיל.':<>שמירה בענן זמינה באתר <bdi dir="ltr">lumienglish.co.il</bdi>.</>}</p>;
   const submit=async e=>{ e.preventDefault(); setBusy(true); setMsg(null);
     try{
       if(mode==='forgot'){ const {error}=await SB.auth.resetPasswordForEmail(email.trim(),{redirectTo:SITE_URL+'/'}); if(error) throw error; setMsg({ok:true, t:'שלחנו לך מייל עם קישור לבחירת סיסמה חדשה.'}); }
@@ -738,7 +751,7 @@ function CloudCard({state, actions, toast, onClose}){
   const del=async()=>{ setBusy(true); try{ const {error}=await SB.rpc('delete_my_account'); if(error) throw error; await SB.auth.signOut().catch(()=>{}); actions.setCloud(null); COMMUNITY_AT=0; toast('החשבון והנתונים בענן נמחקו'); onClose&&onClose(); }catch(e){ toast(cloudMsg(e)); setBusy(false); } };
   return (<div className="border-t border-line pt-4 flex flex-col gap-3">
     <div className="font-semibold flex items-center gap-2">☁️ שמירה בענן{user&&<span className="tag" style={{background:'var(--known-bg)', color:'var(--known)'}}>מחובר</span>}</div>
-    {!SB ? <p className="text-sm text-muted">שמירה בענן זמינה באתר <bdi dir="ltr">lumienglish.co.il</bdi>.</p>
+    {!SB ? <p className="text-sm text-muted">{LOCAL_ONLY?'בגרסת הדוגמה המקומית השמירה בענן כבויה. ההתקדמות נשמרת רק בדפדפן הזה.':<>שמירה בענן זמינה באתר <bdi dir="ltr">lumienglish.co.il</bdi>.</>}</p>
     : !user ? <AuthForm intro="עם חשבון ההתקדמות שלכם נשמרת בענן, וזמינה בכל מכשיר. בלי חשבון, הכול נשמר רק בדפדפן הזה." onDone={()=>{}}/>
     : <>
       <p className="text-sm text-muted leading-relaxed">מחוברים כ־<bdi dir="ltr" className="font-bold text-ink">{user.email}</bdi>. {linked?<>ההתקדמות מסונכרנת אוטומטית{state.cloud.at?<> · עודכן לאחרונה ב־<span className="num">{new Date(state.cloud.at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</span></>:null}.</>:'ההתקדמות של המשתמש הזה עדיין לא מחוברת לחשבון.'}</p>
@@ -754,12 +767,13 @@ function CloudCard({state, actions, toast, onClose}){
 }
 
 /* ---------- free conversation with AI (Gemini through the site's /api/talk function) ---------- */
-const AI_OK=!/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname);
+const AI_OK=!LOCAL_ONLY && !/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname);
 const aiApi=()=>ON_SITE?'/api/talk':SITE_URL+'/api/talk';   // evaluated lazily: ON_SITE and SITE_URL are defined further down
 const AI_SCEN=[['free','💬','שיחה חופשית'],['smalltalk','👋','מה נשמע?'],['cafe','☕','בבית קפה'],['travel','🗺️','טיולים'],['shop','👕','בחנות'],['job','💼','ראיון עבודה'],['doctor','🩺','אצל הרופא']];
 const AI_ERR={ not_configured:'ה־AI עוד לא הופעל באתר. בעל האתר צריך להוסיף מפתח לשירות ה־AI.', anon_limit:'הגעתם למגבלה היומית של אורחים. התחברו לחשבון כדי להמשיך (למשתמשים רשומים יש יותר הודעות).', user_limit:'הגעתם למגבלה היומית. נמשיך מחר!',
   site_limit:'השיחה עם ה־AI עמוסה היום. נסו שוב מחר.', busy:'ה־AI עמוס כרגע. נסו שוב בעוד רגע.', bad_key:'המפתח של שירות ה־AI לא תקין. בעל האתר צריך ליצור מפתח חדש ולהדביק אותו ב־Cloudflare.', no_model:'ה־AI לא זמין כרגע. נסו שוב מאוחר יותר.', upstream:'ה־AI לא הגיב. נסו שוב בעוד רגע.', empty:'ה־AI לא הגיב. נסו שוב.', bad_messages:'משהו השתבש בשיחה. התחילו שיחה חדשה.', net:'אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.', no_credits:'שיחת ה־AI לא זמינה כרגע: הקרדיט בחשבון שירות ה־AI של האתר נגמר. שאר האפליקציה ושיחות ההכנה ממשיכות לעבוד.' };
 async function aiCall(body){
+  if(LOCAL_ONLY) throw new Error('local');
   const headers={'content-type':'application/json'}; const tok=SESSION&&SESSION.access_token; if(tok) headers.authorization='Bearer '+tok;
   let r; try{ r=await fetch(aiApi(),{method:'POST', headers, body:JSON.stringify(body)}); }catch(e){ throw new Error('net'); }
   let j=null; try{ j=await r.json(); }catch(e){} if(!r.ok||!j||j.error){ const er=new Error((j&&j.error)||'net'); er.detail=(j&&j.detail)||String(r.status); throw er; } return j;
@@ -808,7 +822,7 @@ function AiChat({scenario, level, name, voice, actions, settings, onBack}){
     <div className="talk-composer card p-2 flex items-center gap-2" dir="ltr">
       <button className={`btn w-14 h-14 shrink-0 ${listening?'pop':''}`} style={{borderRadius:'50%', background:listening?'var(--bad)':'var(--primary)', color:'var(--primary-ink)'}} onClick={mic} disabled={busy&&!listening} aria-label={listening?'עצירת ההקשבה':'דברו באנגלית'} aria-pressed={listening}><IconMic size={24}/></button>
       <form className="flex-1 min-w-0 flex items-center gap-2" onSubmit={e=>{ e.preventDefault(); submit(text,false); }}>
-        <input id="ai-input" dir="ltr" className="field book text-lg flex-1 min-w-0" style={{minHeight:'48px'}} autoComplete="off" maxLength={400} placeholder={listening?'Listening…':'Speak or type in English'} value={text} onChange={e=>setText(e.target.value)}/>
+        <input id="ai-input" dir="ltr" className="field book text-lg flex-1 min-w-0" style={{minHeight:'48px'}} autoComplete="off" maxLength={400} placeholder={listening?'מקשיב…':'דבר או הקלד באנגלית'} value={text} onChange={e=>setText(e.target.value)}/>
         <button className="btn btn-primary h-12 px-4 shrink-0" disabled={!text.trim()||busy} aria-label="שליחה"><span dir="rtl">שלח</span></button></form>
     </div>
   </div>);
@@ -817,9 +831,9 @@ function AiTalkCard({known, onStart}){
   const [lv,setLv]=useState(levelFor(known)); const session=useSession();
   return (<section className="card ai-card p-5 sm:p-6 flex flex-col gap-4">
     <div className="flex items-center gap-3"><span className="w-12 h-12 rounded-2xl grid place-items-center text-2xl shrink-0" style={{background:'var(--primary-soft)'}} aria-hidden="true">🤖</span>
-      <div><div className="eyebrow">חדש</div><h2 className="text-xl sm:text-2xl font-extrabold">שיחה חופשית עם לומי (AI)</h2></div></div>
-    <p className="text-sm text-muted leading-relaxed">אפשר לדבר או להקליד כל דבר, ולומי עונה, שואלת ומתקנת בעדינות. היא מתאימה את האנגלית לרמה שלכם.</p>
-    {!AI_OK ? <p className="text-sm rounded-xl p-3" style={{background:'var(--sun-soft)'}}>השיחה עם ה־AI זמינה באתר <bdi dir="ltr">lumienglish.co.il</bdi>.</p> : <>
+      <div><div className="eyebrow">למתקדמים</div><h2 className="text-xl sm:text-2xl font-extrabold">שיחה חופשית עם לומי (בינה מלאכותית)</h2></div></div>
+    <p className="text-sm text-muted leading-relaxed">אפשר לדבר או להקליד כל דבר, ולומי עונה, שואלת ומתקנת בעדינות. היא מתאימה את האנגלית לרמה שלך.</p>
+    {!AI_OK ? <p className="text-sm rounded-xl p-3" style={{background:'var(--sun-soft)'}}>{LOCAL_ONLY?'בגרסת הדוגמה המקומית השיחה החופשית כבויה, כדי שלא יהיו עלויות. באתר האמיתי היא עובדת כרגיל.':<>השיחה עם ה־AI זמינה באתר <bdi dir="ltr">lumienglish.co.il</bdi>.</>}</p> : <>
       <div className="flex flex-wrap gap-2" role="group" aria-label="בחירת נושא לשיחה">{AI_SCEN.map(([k,e,l])=><button key={k} className="filter-pill flex items-center gap-1.5" onClick={()=>onStart(k,lv)}><span aria-hidden="true">{e}</span>{l}</button>)}</div>
       <div className="flex items-center gap-2 flex-wrap text-sm"><span className="text-muted">רמת האנגלית:</span>
         <div className="seg" role="group" aria-label="רמת האנגלית">{LEVELS.map(L=><button key={L.n} aria-pressed={lv===L.n} onClick={()=>setLv(L.n)}>שלב {L.n}</button>)}</div></div>
@@ -832,20 +846,20 @@ function StoryCard({story, state, locked, onOpen, onLocked}){
   const st=storyStats(story, state); const mins=readMinutes(st.d.words);
   return (<button onClick={locked?onLocked:onOpen} aria-disabled={locked||undefined}
     className={`story-card card card-btn text-start flex flex-col ${locked?'is-locked':''} ${st.done?'is-read':''}`}>
-    <div className="flex gap-4 items-start p-4 pb-3">
-      <div className="relative shrink-0"><StoryCover story={story} size={64} radius={16}/>
-        {locked&&<span className="absolute -bottom-1.5 -end-1.5 w-6 h-6 rounded-full bg-surface border border-line grid place-items-center text-muted"><IconLock size={12}/></span>}</div>
-      <div className="flex-1 min-w-0 flex flex-col gap-1">
-        <div className="flex items-start gap-2">
-          <div dir="ltr" className="story-title book text-left flex-1 min-w-0">{story.title}</div>
-          {st.done&&<span className="read-badge shrink-0"><IconCheck size={12}/>נקרא</span>}
-        </div>
-        {(story.he||story.blurb)&&<div className="text-sm text-muted leading-snug line-clamp-2">{story.he}{story.he&&story.blurb?' · ':''}{story.blurb}</div>}
-        {story.author&&<div className="meta">מאת <bdi>{story.author}</bdi></div>}
-        <div className="meta">שלב <span className="num">{story.level}</span> · <span className="num">{mins}</span> דק׳ קריאה · <span className="num">{st.d.words}</span> מילים{(story.tags||[]).length?' · '+story.tags.join(' · '):''}</div>
-      </div>
+    <div className={`lx-story-tile lx-lv${((story.level||1)-1)%4+1}`}>
+      {story.image?<img src={story.image} alt={`תמונת שער של הסיפור ${story.title}`} className="lx-story-img"/>
+        :<span className="lx-story-emoji" role="img" aria-label="איור הסיפור">{story.cover||'📖'}</span>}
+      <span className="lx-lvchip">שלב <span className="num">{story.level}</span></span>
+      {st.done&&<span className="read-badge lx-read"><IconCheck size={12}/>נקרא</span>}
+      {locked&&<span className="lx-lock"><IconLock size={14}/></span>}
     </div>
-    <div className="px-4 pb-4 mt-auto flex flex-col gap-2">
+    <div className="px-4 pt-3 flex flex-col gap-1">
+      <div dir="ltr" className="story-title lx-story-title book text-left">{story.title}</div>
+      {(story.he||story.blurb)&&<div className="text-sm text-muted lx-clamp1">{story.he}{story.he&&story.blurb?' · ':''}{story.blurb}</div>}
+      {story.author&&<div className="meta">מאת <bdi>{story.author}</bdi></div>}
+      <div className="meta"><span className="num">{mins}</span> דק׳ קריאה · <span className="num">{st.d.words}</span> מילים{(story.tags||[]).length?' · '+story.tags.slice(0,2).join(' · '):''}</div>
+    </div>
+    <div className="p-4 pt-3 mt-auto flex flex-col gap-2">
       <div className="flex flex-wrap gap-1.5">
         {st.newW>0?<StatusPill kind="new" n={st.newW} label={st.newW===1?'מילה חדשה':'מילים חדשות'}/>:<StatusPill kind="known" label="אין מילים חדשות"/>}
         {st.learnW>0&&<StatusPill kind="learning" n={st.learnW}/>}
@@ -862,7 +876,7 @@ function HeroCard({state, stories, known, openStory}){
   const recs=useMemo(()=>recommendStories(stories, state, known),[stories, state.words, state.storiesDone, known, state.unlocked]);
   const [i,setI]=useState(0);
   const story=last||recs[i%Math.max(1,recs.length)];
-  if(!story) return (<section className="hero card p-5 sm:p-6"><div className="text-xl font-extrabold">סיימת את כל הסיפורים הפתוחים! 🎉</div><p className="text-muted mt-1">פתחו שלב חדש, או הוסיפו סיפור משלכם.</p></section>);
+  if(!story) return (<section className="hero card p-5 sm:p-6"><div className="text-xl font-extrabold">סיימת את כל הסיפורים הפתוחים! 🎉</div><p className="text-muted mt-1">פתח שלב חדש, או הוסף סיפור משלך.</p></section>);
   const st=storyStats(story, state);
   return (<section className="hero card p-5 sm:p-6 flex flex-col sm:flex-row gap-5 sm:items-center">
     <StoryCover story={story} size={96} radius={22}/>
@@ -876,7 +890,7 @@ function HeroCard({state, stories, known, openStory}){
       </div>
     </div>
     <div className="flex sm:flex-col gap-2 shrink-0">
-      <button className="btn btn-go px-6 text-lg" style={{minHeight:'52px'}} onClick={()=>openStory(story.id)}><IconPlay size={18}/>{last?'המשך לקרוא':'בואו נקרא'}</button>
+      <button className="btn btn-go px-6 text-lg" style={{minHeight:'52px'}} onClick={()=>openStory(story.id)}><IconPlay size={18}/>{last?'המשך לקרוא':'בוא נקרא'}</button>
       {!last&&recs.length>1&&<button className="btn btn-ghost px-4 text-sm" onClick={()=>setI(x=>x+1)}>הצע סיפור אחר</button>}
     </div>
   </section>);
@@ -905,7 +919,7 @@ const SORTS=[['level','לפי שלב'],['short','קצרים קודם'],['long','
 function AddStoryTile({onAdd}){
   return (<button onClick={onAdd} className="add-tile text-center flex flex-col items-center justify-center gap-2 p-6">
     <span className="w-12 h-12 rounded-full grid place-items-center" style={{background:'var(--primary-soft)', color:'var(--primary)'}}><IconPlus size={24}/></span>
-    <span className="font-bold text-lg">הוסף סיפור חדש</span><span className="text-sm text-muted">הדביקו טקסט, העלו קובץ או תמונת שער</span>
+    <span className="font-bold text-lg">הוסף סיפור משלך</span><span className="text-sm text-muted">הדבק טקסט באנגלית או העלה קובץ</span>
   </button>);
 }
 function CommunityCard({story, state, session, onOpen, onReport, onEdit, onDelete}){
@@ -920,12 +934,14 @@ function CommunityCard({story, state, session, onOpen, onReport, onEdit, onDelet
       </> : <button className="hit px-2 min-h-[44px] text-muted underline ms-auto" onClick={onReport} aria-label={`דיווח על תוכן: ${story.title}`}>דווח על תוכן</button>}
     </div></div>);
 }
-function Library({state, known, actions, openStory, onAdd, toast, stories, community, session, onReport, onEdit, onDeleteCommunity}){
+function Library({state, known, actions, openStory, onAdd, toast, stories, community, session, onReport, onEdit, onDeleteCommunity, mode}){
   const lv=levelFor(known);
-  const [view,setView]=useState('mine');
+  const view=mode==='community'?'community':'mine';     // the community library now lives under "אני"
+  useEffect(()=>{ if(view==='community') loadCommunity(true); },[view]);
+  const [tools,setTools]=useState(false);
   const [q,setQ]=useState(''); const [filter,setFilter]=useState('all'); const [sort,setSort]=useState('level'); const [lvF,setLvF]=useState(0);
   const recIds=useMemo(()=>new Set(recommendStories(stories, state, known).slice(0,6).map(s=>s.id)),[stories, state.words, state.storiesDone, known, state.unlocked]);
-  const active=q.trim()||filter!=='all'||sort!=='level'||lvF;
+  const active=!!(q.trim()||filter!=='all'||sort!=='level'||lvF);   // a boolean: a bare 0 here used to print a stray "0" under the title
   const list=useMemo(()=>{ if(!active) return [];
     const t=q.trim().toLowerCase();
     let r=stories.filter(s=>!t || [s.title,s.he,s.blurb,...(s.tags||[])].join(' ').toLowerCase().includes(t));
@@ -935,32 +951,27 @@ function Library({state, known, actions, openStory, onAdd, toast, stories, commu
     const by={level:(a,b)=>a.level-b.level, short:(a,b)=>S(a).d.words-S(b).d.words, long:(a,b)=>S(b).d.words-S(a).d.words, mostnew:(a,b)=>S(b).newW-S(a).newW, leastnew:(a,b)=>S(a).newW-S(b).newW}[sort];
     return [...r].sort(by); },[active, q, filter, sort, lvF, stories, state.words, state.storiesDone, recIds]);
   const card=s=>{ const open=isOpenLevel(s.level, known, state.unlocked)||s.user||s.community; const need=LEVELS[s.level-1].min-known;
-    return <StoryCard key={s.id} story={s} state={state} locked={!open} onOpen={()=>openStory(s.id)} onLocked={()=>toast(`הסיפור נעול. חסרות ${need} מילים מוכרות, או לחצו "בא לי אתגר, פתח עכשיו" בכותרת של שלב ${s.level}.`)}/>; };
+    return <StoryCard key={s.id} story={s} state={state} locked={!open} onOpen={()=>openStory(s.id)} onLocked={()=>toast(`הסיפור נעול. חסרות ${need} מילים מוכרות, או לחץ "בא לי אתגר, פתח עכשיו" בכותרת של שלב ${s.level}.`)}/>; };
   return (<div className="flex flex-col gap-6">
-    <div className="seg self-start" role="tablist" aria-label="תצוגת הספרייה">
-      <button role="tab" aria-selected={view==='mine'} aria-pressed={view==='mine'} onClick={()=>setView('mine')}>הספרייה שלי</button>
-      <button role="tab" aria-selected={view==='community'} aria-pressed={view==='community'} onClick={()=>{ setView('community'); loadCommunity(true); }}>סיפורי קהילה 🌍</button>
-    </div>
     {view==='community' ? <section className="flex flex-col gap-4" aria-label="סיפורי קהילה">
       <div className="flex items-center gap-3 flex-wrap"><h1 className="page-title me-auto">סיפורי קהילה 🌍</h1>
         <button className="btn btn-primary px-4 text-sm" onClick={onAdd}><IconPlus size={18}/>פרסם סיפור</button></div>
-      <p className="text-sm text-muted leading-relaxed">סיפורים שמשתמשים כתבו ושיתפו עם כולם. לחצו על סיפור כדי לקרוא. מצאתם תוכן לא הולם או מוגן בזכויות יוצרים? השתמשו ב"דווח על תוכן".</p>
+      <p className="text-sm text-muted leading-relaxed">סיפורים שמשתמשים כתבו ושיתפו עם כולם. לחץ על סיפור כדי לקרוא. מצאת תוכן לא הולם או מוגן בזכויות יוצרים? לחץ על "דווח על תוכן".</p>
       <label className="flex items-center gap-2 rounded-xl border-[1.5px] border-line bg-surface px-3 h-12 focus-within:border-primary" htmlFor="comm-search"><IconSearch size={18}/>
         <input id="comm-search" className="flex-1 min-w-0 bg-transparent outline-none text-base h-full" placeholder="חיפוש לפי כותרת, נושא או שם הכותב" value={q} onChange={e=>setQ(e.target.value)}/></label>
-      {!SB ? <div className="card p-6 text-center text-muted">סיפורי קהילה זמינים באתר <bdi dir="ltr">lumienglish.co.il</bdi>.</div>
+      {!SB ? <div className="card p-6 text-center text-muted">{LOCAL_ONLY?'בגרסת הדוגמה המקומית סיפורי הקהילה כבויים (לא נטען ולא מתפרסם שום דבר). באתר האמיתי הם עובדים כרגיל.':<>סיפורי קהילה זמינים באתר <bdi dir="ltr">lumienglish.co.il</bdi>.</>}</div>
       : COMMUNITY_ERR&&!community.length ? <div className="card p-6 text-center flex flex-col gap-3 items-center" role="alert"><span style={{color:'var(--bad)'}}>{COMMUNITY_ERR}</span><button className="btn btn-line px-4" onClick={()=>loadCommunity(true)}>ניסיון חוזר</button></div>
       : (()=>{ const t=q.trim().toLowerCase(); const list=community.filter(s=>!t||[s.title,s.author,...(s.tags||[])].join(' ').toLowerCase().includes(t));
-          return list.length ? <div className="grid gap-4 md:grid-cols-2">{list.map(s=><CommunityCard key={s.id} story={s} state={state} session={session} onOpen={()=>openStory(s.id)} onReport={()=>onReport(s)} onEdit={()=>onEdit(s)} onDelete={()=>onDeleteCommunity(s)}/>)}</div>
+          return list.length ? <div className="grid gap-4 md:grid-cols-2 lx-cards">{list.map(s=><CommunityCard key={s.id} story={s} state={state} session={session} onOpen={()=>openStory(s.id)} onReport={()=>onReport(s)} onEdit={()=>onEdit(s)} onDelete={()=>onDeleteCommunity(s)}/>)}</div>
             : <div className="card p-6 text-center text-muted">{t?'לא נמצאו סיפורים.':'עוד אין סיפורי קהילה. היו הראשונים לפרסם!'}</div>; })()}
     </section> : <>
     <HeroCard state={state} stories={stories} known={known} openStory={openStory}/>
-    <LevelTracker state={state} stories={stories} known={known}/>
     <section className="flex flex-col gap-3">
       <div className="flex items-center gap-3 flex-wrap">
         <h1 className="page-title me-auto">הספרייה שלך</h1>
-        <button className="btn btn-primary px-4 text-sm" onClick={onAdd}><IconPlus size={18}/>הוסף סיפור חדש</button>
+        <button className="btn btn-ghost px-4 text-sm" aria-expanded={tools||!!active} onClick={()=>{ if(tools||active){ setTools(false); setQ(''); setFilter('all'); setSort('level'); setLvF(0); } else setTools(true); }}><IconSearch size={18}/>{tools||active?'סגירת החיפוש':'חיפוש וסינון'}</button>
       </div>
-      <div className="flex flex-col gap-2.5">
+      {(tools||active)&&<div className="flex flex-col gap-2.5 rise">
         <label className="flex items-center gap-2 rounded-xl border-[1.5px] border-line bg-surface px-3 h-12 focus-within:border-primary" htmlFor="lib-search">
           <IconSearch size={18}/><input id="lib-search" className="flex-1 min-w-0 bg-transparent outline-none text-base h-full" placeholder="חיפוש סיפור לפי שם או נושא (חיות, נסיעות, עבודה…)" value={q} onChange={e=>setQ(e.target.value)}/>
           {q&&<button className="hit text-muted" onClick={()=>setQ('')} aria-label="ניקוי החיפוש"><IconX size={16}/></button>}
@@ -973,19 +984,19 @@ function Library({state, known, actions, openStory, onAdd, toast, stories, commu
           </div>
         </div>
         <div className="flex gap-3 text-xs text-muted flex-wrap items-center"><span>מקרא:</span><StatusPill kind="new" label="חדשה"/><StatusPill kind="learning" label="בלמידה"/><StatusPill kind="known" label="מוכרת"/></div>
-      </div>
+      </div>}
     </section>
 
     {active ? <section className="flex flex-col gap-3">
       <div className="flex items-center gap-3"><h2 className="section-title me-auto">תוצאות</h2><span className="meta num">{list.length} סיפורים</span>
         <button className="hit text-primary font-semibold text-sm" onClick={()=>{ setQ(''); setFilter('all'); setSort('level'); setLvF(0); }}>ניקוי הסינון</button></div>
-      {list.length?<div className="grid gap-4 md:grid-cols-2">{list.map(card)}</div>
+      {list.length?<div className="grid gap-4 md:grid-cols-2 lx-cards">{list.map(card)}</div>
         :<div className="card p-6 text-center text-muted">לא נמצאו סיפורים. נסו מילה אחרת או סינון אחר.</div>}
     </section> : <>
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center gap-3"><h2 className="section-title me-auto">הסיפורים שלי</h2>{state.userStories.length>0&&<span className="meta num">{state.userStories.length}</span>}</div>
-        <div className="grid gap-4 md:grid-cols-2">{state.userStories.map(card)}<AddStoryTile onAdd={onAdd}/></div>
-      </section>
+      {state.userStories.length>0&&<section className="flex flex-col gap-3">
+        <div className="flex items-center gap-3"><h2 className="section-title me-auto">הסיפורים שלי</h2><span className="meta num">{state.userStories.length}</span></div>
+        <div className="grid gap-4 md:grid-cols-2 lx-cards">{state.userStories.map(card)}</div>
+      </section>}
       {LEVELS.map(L=>{ const open=L.n<=lv || state.unlocked[L.n]; const ls=STORIES.filter(s=>s.level===L.n); const need=L.min-known; const read=ls.filter(s=>state.storiesDone[s.id]).length;
         return (<section key={L.n} className="flex flex-col gap-3">
           <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
@@ -997,9 +1008,10 @@ function Library({state, known, actions, openStory, onAdd, toast, stories, commu
               <button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>{ actions.unlock(L.n); toast(`שלב ${L.n} נפתח. בהצלחה!`); }}>בא לי אתגר, פתח עכשיו</button></>}
             {open&&L.n>lv&&<><span className="tag">נפתח ידנית</span><button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>{ actions.lock(L.n); toast(`שלב ${L.n} ננעל שוב. הוא ייפתח לבד כשתגיעו ל־${L.min} מילים מוכרות.`); }}><IconLock size={14}/>נעילה מחדש</button></>}
           </div>
-          <div className="grid gap-4 md:grid-cols-2">{ls.map(card)}</div>
+          <div className="grid gap-4 md:grid-cols-2 lx-cards">{ls.map(card)}</div>
         </section>); })}
     </>}
+      <AddStoryTile onAdd={onAdd}/>
     </>}
   </div>);
 }
@@ -1061,7 +1073,7 @@ function AddStory({state, onClose, onSave, profile, editing, onPublished, toast}
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-3 flex-wrap"><label htmlFor="add-text" className="font-bold me-auto">1. הטקסט באנגלית</label>
             <label className="btn btn-line px-3 py-1.5 text-sm cursor-pointer">העלאת קובץ <bdi dir="ltr">.txt</bdi><input id="add-file" type="file" accept=".txt,text/plain" className="sr-only" onChange={onFile}/></label></div>
-          <textarea id="add-text" dir="ltr" className="field book text-left" rows={8} placeholder="Paste any English text here: an article, a page from a book, or a story you asked an AI to write…" value={text} onChange={e=>{ setText(e.target.value); setErr(''); }}></textarea>
+          <textarea id="add-text" dir="ltr" className="field book text-left" rows={8} placeholder="הדבק כאן טקסט באנגלית: כתבה, עמוד מספר או סיפור…" value={text} onChange={e=>{ setText(e.target.value); setErr(''); }}></textarea>
           {stats.words>0&&<div className="analysis grid grid-cols-2 sm:grid-cols-4 gap-2 text-center" aria-live="polite">
             {[[stats.words.toLocaleString('he-IL'),'מילים'],[readMinutes(stats.words)+' דק׳','זמן קריאה משוער'],[`שלב ${auto}`,LEVELS[auto-1].name],[stats.fresh,'מילים חדשות לך']].map(([v,l])=><div key={l} className="rounded-xl bg-sunk py-2 px-1"><div className="num font-extrabold text-lg">{v}</div><div className="text-[11px] text-muted leading-tight">{l}</div></div>)}
           </div>}
@@ -1148,7 +1160,7 @@ function DictBar({state, onOpen, onAdd, onHome, voiceRef, onListening}){
       if(!t){ setVmsg('לא זיהיתי מילה בעברית. נסו שוב, לאט וברור.'); return; }
       setQ(t); const r=searchDict(t); if(r.length){ go(r[0]); } else online(t); return; }
     const t=String(text||'').toLowerCase().replace(/[^a-z' -]/g,' ').trim(); const w=t.split(/\s+/)[0];
-    if(!w){ setVmsg(isHebrew(String(text||''))?'שמעתי עברית. כדי לחפש בעברית, החליפו את שפת המיקרופון ל"עב".':'לא זיהיתי מילה באנגלית. נסו שוב, לאט וברור.'); return; } setQ(t); go(w); };
+    if(!w){ setVmsg(isHebrew(String(text||''))?'שמעתי עברית. כדי לחפש בעברית, החלף את שפת המיקרופון ל"עברית".':'לא זיהיתי מילה באנגלית. נסה שוב, לאט וברור.'); return; } setQ(t); go(w); };
   const stopRef=useRef(null);
   const voice=()=>{
     setVmsg('');
@@ -1160,16 +1172,15 @@ function DictBar({state, onOpen, onAdd, onHome, voiceRef, onListening}){
   useEffect(()=>{ onListening(listening); },[listening]);
   return (<div className="sticky z-40 bg-surface border-b border-line" style={{top:'env(safe-area-inset-top,0px)'}}>
     <div className="gutter"><div className="max-w-[860px] mx-auto h-16 flex items-center gap-2">
-      <button onClick={onHome} className="w-11 h-11 rounded-xl shrink-0 hidden min-[400px]:block" aria-label="חזרה לספרייה" title="חזרה לספרייה"><LogoMark size={44}/></button>
+      <button onClick={onHome} className="w-11 h-11 rounded-xl shrink-0 hidden min-[400px]:block" aria-label="חזרה לדף הבית" title="חזרה לדף הבית"><LogoMark size={44}/></button>
       <div ref={boxRef} className="relative flex-1 min-w-0">
         <div className="flex items-center gap-1 rounded-xl border-[1.5px] bg-bg ps-2.5 pe-1 h-12" style={{borderColor:open?'var(--primary)':'var(--line)'}}>
           <span className="text-muted shrink-0"><IconSearch size={18}/></span>
           <input id="dict-search" ref={inputRef} dir="auto" autoComplete="off" spellCheck={false} role="combobox" aria-expanded={open&&rows>0} aria-controls="dict-results" aria-label="חיפוש במילון"
-            className="flex-1 min-w-0 h-full bg-transparent outline-none px-2 text-base" placeholder={listening?(micLang==='he'?'מקשיב… אמרו מילה בעברית':'Listening… say a word'):'חיפוש במילון'}
+            className="flex-1 min-w-0 h-full bg-transparent outline-none px-2 text-base" placeholder={listening?(micLang==='he'?'מקשיב… אמור מילה בעברית':'מקשיב… אמור מילה באנגלית'):'חיפוש מילה במילון'}
             value={q} onChange={e=>{ setQ(e.target.value); setOpen(true); setVmsg(''); }} onFocus={()=>setOpen(true)} onKeyDown={onKey}/>
           {q&&<button className="hit w-8 h-8 grid place-items-center text-muted rounded-lg" onClick={()=>{ setQ(''); inputRef.current&&inputRef.current.focus(); }} aria-label="ניקוי"><IconX size={16}/></button>}
-          <kbd className="hidden lg:block text-[11px] text-muted border border-line rounded px-1.5 py-0.5 num" dir="ltr">/</kbd>
-          <button className="hit h-8 px-1.5 rounded-md text-xs font-bold shrink-0 num" style={{background:'var(--sunk)', color:'var(--ink)', minWidth:'2rem'}} onClick={()=>setMicLang(micLang==='he'?'en':'he')} aria-label={`שפת המיקרופון: ${micLang==='he'?'עברית':'אנגלית'}. לחיצה מחליפה`} title="שפת המיקרופון">{micLang==='he'?'עב':'EN'}</button>
+          <button className="hit h-8 px-1.5 rounded-md text-xs font-bold shrink-0" style={{background:'var(--sunk)', color:'var(--ink)', minWidth:'2.8rem'}} onClick={()=>setMicLang(micLang==='he'?'en':'he')} aria-label={`שפת המיקרופון: ${micLang==='he'?'עברית':'אנגלית'}. לחיצה מחליפה`} title="באיזו שפה תדבר למיקרופון. לחיצה מחליפה">{micLang==='he'?'עברית':'אנגלית'}</button>
           <button className={`hit w-10 h-10 grid place-items-center rounded-lg shrink-0 ${listening?'pop':''}`} style={listening?{background:'var(--bad)', color:'var(--surface)'}:{background:'var(--primary)', color:'var(--primary-ink)'}} onClick={voice} aria-label={listening?'עצירת ההקשבה':`חיפוש קולי: אמרו מילה ב${micLang==='he'?'עברית':'אנגלית'}`} aria-pressed={listening} title="חיפוש קולי"><IconMic size={18}/></button>
         </div>
         {(typed||vmsg)&&<div id="dict-results" role="listbox" className={`dropdown dict-drop absolute inset-x-0 top-full mt-1.5 card overflow-hidden ${(open&&(rows>0||typed))||vmsg?'show':''}`} style={{maxHeight:'70vh', overflowY:'auto'}}>
@@ -1186,7 +1197,6 @@ function DictBar({state, onOpen, onAdd, onHome, voiceRef, onListening}){
           {open&&typed&&!rows&&!vmsg&&<div className="px-4 py-3 text-sm text-muted">לא נמצאו מילים מתאימות.</div>}
         </div>}
       </div>
-      <span className="hidden sm:block shrink-0"><button className="btn btn-primary h-11 px-4 text-sm" onClick={onAdd} aria-label="הוסף סיפור חדש"><IconPlus size={18}/>הוסף סיפור חדש</button></span>
     </div></div>
   </div>);
 }
@@ -1331,11 +1341,11 @@ function PracticePane({story, text, setText, voice, toast, dictation, setDictati
           <button className="btn btn-line w-11 h-11" onClick={()=>play(si+1)} disabled={si>=sentences.length-1} aria-label="המשפט הבא"><IconNext size={16}/></button>
         </div>
         <span className="text-sm text-muted num">משפט {si+1} מתוך {sentences.length}</span>
-      </div> : <p className="text-sm text-muted">הפעילו את הסיפור בנגן שבתחתית המסך, וכתבו כאן את מה שאתם שומעים.</p>}
+      </div> : <p className="text-sm text-muted">הפעל את הסיפור בנגן שבתחתית המסך, וכתוב כאן את מה שאתה שומע.</p>}
     </div>}
 
     <textarea id="practice-text" ref={areaRef} dir="auto" spellCheck={false} autoCapitalize="sentences" className="practice-text field book" rows={dictation?6:9}
-      placeholder={dictation?(scope==='sentence'?'כתבו כאן את המשפט ששמעתם, כל משפט בשורה חדשה':'כתבו כאן את הסיפור כפי ששמעתם אותו'):'Write here…'}
+      placeholder={dictation?(scope==='sentence'?'כתוב כאן את המשפט ששמעת, כל משפט בשורה חדשה':'כתוב כאן את הסיפור כפי ששמעת אותו'):'כתוב כאן באנגלית…'}
       value={text} onChange={e=>{ setText(e.target.value); if(undo) setUndo(null); }}></textarea>
 
     <div className="flex items-center gap-2 flex-wrap">
@@ -1431,7 +1441,7 @@ function FlashSession({keys, state, actions, voice, title, onDone, celebrate}){
       <div className="flex items-center justify-center gap-3" dir="ltr">
         <span className="book text-5xl sm:text-6xl font-bold">{k}</span>
       </div>
-      {!flipped ? <span className="text-muted text-sm mt-4">נסו להיזכר מה זה אומר, או בחרו תשובה למטה</span>
+      {!flipped ? <span className="text-muted text-sm mt-4">נסה להיזכר מה פירוש המילה, או בחר תשובה למטה</span>
       : <div className="flex flex-col items-center gap-2 mt-4 rise">
           <div className="text-3xl font-extrabold"><Bi>{info.he||'(אין תרגום)'}</Bi></div>
           <div className="text-xl" style={{color:'var(--primary)'}}>{info.pron}</div>
@@ -1449,7 +1459,6 @@ function FlashSession({keys, state, actions, voice, title, onDone, celebrate}){
       {[[0,'שכחתי','bad'],[1,'קשה','learn'],[2,'ידעתי','primary'],[3,'קל','known']].map(([g,l,c])=><button key={g} className={`btn grade grade-${c} flex-col py-2`} style={{minHeight:'60px'}} onClick={()=>grade(g)}>
         <span className="font-extrabold">{l}</span><span className="text-[11px] opacity-80 num">{gradeLabel(card,g)}</span></button>)}
     </div> : <button className="btn btn-primary py-3 dock-mobile" onClick={()=>setFlipped(true)}>הצגת התשובה</button>}
-    <p className="text-xs text-muted text-center hidden sm:block">מקשים: רווח להפוך · <bdi dir="ltr">1–4</bdi> לדרג</p>
   </div>);
 }
 
@@ -1505,10 +1514,14 @@ function Reader({story, stories, state, actions, voice, voices, back, toast, onW
   const [kbd,setKbd]=useState(false);
   useEffect(()=>{ const k=e=>{ if(e.key==='Tab') setKbd(true); }, m=()=>setKbd(false); window.addEventListener('keydown',k); window.addEventListener('mousedown',m); window.addEventListener('touchstart',m,{passive:true});
     return ()=>{ window.removeEventListener('keydown',k); window.removeEventListener('mousedown',m); window.removeEventListener('touchstart',m); }; },[]);
-  const split=settings.pane!==false||dictation;
+  const split=settings.pane===true||dictation;
+  // Hebrew translation: on by default when the story has a ready translation; an explicit choice of the learner wins
+  const hasHe=story.paras.some(p=>p.he);
+  const parallel=settings.parallel===undefined?hasHe:!!settings.parallel;
+  const [moreSet,setMoreSet]=useState(false);
   const note=(state.notes&&state.notes[story.id])||'';
   const setDictation=v=>{ setDictationRaw(v); if(v){ player.stop(); const s=window.getSelection&&window.getSelection(); s&&s.removeAllRanges(); } };
-  const copyToPractice=(t)=>{ actions.setNote(story.id, (note&&!note.endsWith('\n')?note+'\n':note)+t+'\n'); if(settings.pane===false) actions.setSetting('pane',true);
+  const copyToPractice=(t)=>{ actions.setNote(story.id, (note&&!note.endsWith('\n')?note+'\n':note)+t+'\n'); if(settings.pane!==true) actions.setSetting('pane',true);
     copyText(t); toast('הועתק לאזור הכתיבה'); const el=areaRef.current; if(el) setTimeout(()=>{ el.scrollTop=el.scrollHeight; },60); };
   const player=useStoryPlayer(story, settings.rate, voice, {
     onPara:(p)=>actions.markRead(story,[p]),
@@ -1535,23 +1548,26 @@ function Reader({story, stories, state, actions, voice, voices, back, toast, onW
       <span className="text-sm text-muted num ms-auto">{knownCount}/{d.keys.length} מילים מוכרות</span>
     </div>
 
-    <section className="card p-4 flex flex-wrap gap-x-6 gap-y-3 items-center">
-      <div className="flex items-center gap-3 flex-wrap">
-        <Toggle id="tg-pron" checked={settings.pron} onChange={v=>actions.setSetting('pron',v)} label="הצג עזרי הגייה" hint={settings.pronAll?'תעתיק עברי מתחת לכל מילה':'תעתיק עברי מתחת למילים קשות'}/>
-        {settings.pron&&<div className="seg" role="group" aria-label="מתחת לאילו מילים">
+    <section className="card p-4 flex flex-col gap-3">
+      <div className="flex flex-wrap gap-x-6 gap-y-3 items-center">
+        <Toggle id="tg-par" checked={parallel} onChange={v=>actions.setSetting('parallel',v)} label="תרגום לעברית" hint="תרגום מלא מתחת לכל פסקה"/>
+        <Toggle id="tg-pron" checked={settings.pron} onChange={v=>actions.setSetting('pron',v)} label="עזרי הגייה" hint={settings.pronAll?'תעתיק עברי מתחת לכל מילה':'תעתיק עברי מתחת למילים קשות'}/>
+        <button className="btn btn-ghost px-3 py-1.5 text-sm ms-auto" aria-expanded={moreSet} onClick={()=>setMoreSet(x=>!x)}>{moreSet?'סגירת ההגדרות':'עוד הגדרות קריאה'}</button>
+      </div>
+      {moreSet&&<div className="flex flex-wrap gap-x-6 gap-y-3 items-center border-t border-line pt-4 rise">
+        {settings.pron&&<div className="flex items-center gap-2 flex-wrap"><span className="text-sm text-muted">הגייה מתחת ל:</span><div className="seg" role="group" aria-label="מתחת לאילו מילים">
           <button aria-pressed={!settings.pronAll} onClick={()=>actions.setSetting('pronAll',false)}>מילים קשות</button>
           <button aria-pressed={!!settings.pronAll} onClick={()=>actions.setSetting('pronAll',true)}>כל המילים</button>
-        </div>}
-      </div>
-      <Toggle id="tg-par" checked={settings.parallel} onChange={v=>actions.setSetting('parallel',v)} label="מצב תרגום מקביל" hint="תרגום מלא מתחת לכל פסקה"/>
-      <Toggle id="tg-pane" checked={split} onChange={v=>{ actions.setSetting('pane',v); if(!v) setDictationRaw(false); }} label="אזור כתיבה" hint="תצוגה מפוצלת: סיפור וכתיבה"/>
-      <div className="flex items-center gap-2 ms-auto">
-        <span className="text-sm text-muted">גודל</span>
-        <div className="seg" role="group" aria-label="גודל אותיות" dir="ltr">
-          <button onClick={()=>actions.setSetting('font',Math.max(0,settings.font-1))} disabled={settings.font<=0} aria-label="הקטנת אותיות" className="book">A−</button>
-          <button onClick={()=>actions.setSetting('font',Math.min(3,settings.font+1))} disabled={settings.font>=3} aria-label="הגדלת אותיות" className="book text-lg">A+</button>
+        </div></div>}
+        <Toggle id="tg-pane" checked={split} onChange={v=>{ actions.setSetting('pane',v); if(!v) setDictationRaw(false); }} label="אזור כתיבה והכתבה" hint="תצוגה מפוצלת: סיפור וכתיבה"/>
+        <div className="flex items-center gap-2 ms-auto">
+          <span className="text-sm text-muted">גודל אות</span>
+          <div className="seg" role="group" aria-label="גודל אות" dir="ltr">
+            <button onClick={()=>actions.setSetting('font',Math.max(0,settings.font-1))} disabled={settings.font<=0} aria-label="הקטנת האותיות" title="הקטנת האותיות" className="book">A−</button>
+            <button onClick={()=>actions.setSetting('font',Math.min(3,settings.font+1))} disabled={settings.font>=3} aria-label="הגדלת האותיות" title="הגדלת האותיות" className="book text-lg">A+</button>
+          </div>
         </div>
-      </div>
+      </div>}
     </section>
 
     <div className={split?'split-view':''}>
@@ -1580,7 +1596,7 @@ function Reader({story, stories, state, actions, voice, voices, back, toast, onW
                   return glue ? <span key={i} className="whitespace-nowrap">{el}{glue}</span> : el; })}
                 <button className="hit inline-grid place-items-center align-middle ms-2 w-8 h-8 rounded-full" style={isCur?{background:'var(--karaoke)',color:'var(--karaoke-ink)'}:{background:'var(--sunk)',color:'var(--muted)'}} onClick={()=>player.playPara(p)} aria-label={`הקראת פסקה ${p+1}`} title="הקראת הפסקה הזו"><IconSpeaker size={14}/></button>
               </p>
-              {settings.parallel&&!dictation&&(para.he ? <p dir="rtl" className="para-he rise">{para.he}</p>
+              {parallel&&!dictation&&(para.he ? <p dir="rtl" className="para-he rise">{para.he}</p>
                 : <div dir="rtl" className="para-he text-sm flex items-center gap-2 flex-wrap">
                     <button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>translatePara(p)} disabled={trans[p]==='loading'}>{trans[p]==='loading'?'מתרגם…':'תרגם פסקה (מקוון)'}</button>
                     {trans[p]==='fail'&&<span>התרגום המקוון לא זמין כרגע. לחיצה על מילה עדיין מציגה תרגום מהמילון.</span>}
@@ -1590,7 +1606,7 @@ function Reader({story, stories, state, actions, voice, voices, back, toast, onW
 
         <div className="finish-box mt-12 rounded-2xl p-5 flex flex-col sm:flex-row gap-3 sm:items-center">
           <div className="flex-1"><div className="text-xl font-extrabold">{doneToday?'קראת את הסיפור הזה היום ✓':'הגעת לסוף הסיפור'}</div>
-            <div className="text-sm text-muted">{doneToday?'אפשר לראות שוב את הסיכום ולתרגל את המילים הקשות.':'לחצו כדי לראות מה למדת ולתרגל את המילים הקשות.'}</div></div>
+            <div className="text-sm text-muted">{doneToday?'אפשר לראות שוב את הסיכום ולתרגל את המילים הקשות.':'לחץ כדי לראות מה למדת ולתרגל את המילים הקשות.'}</div></div>
           <button className="btn btn-go px-6 py-3 text-lg" onClick={()=>{ if(!doneToday){ player.stop(); actions.finishStory(story,false); } setSummary(true); }}><IconCheck/>סיימתי לקרוא</button>
         </div>
         {story.community&&<div className="mt-5 flex items-center gap-3 flex-wrap text-sm">
@@ -1625,10 +1641,10 @@ function Reader({story, stories, state, actions, voice, voices, back, toast, onW
           <div dir="ltr" className="book font-semibold text-sm truncate hidden sm:block text-left">{story.title}</div>
           <div className="text-xs text-muted num whitespace-nowrap">{synth?<>פסקה {player.curP+1}/{story.paras.length}<span className="hidden sm:inline">{player.playing?' · מוקרא עכשיו':''}</span></>:'אין תמיכה בהקראה'}</div>
         </div>
-        <div className="hidden sm:block"><div className="seg" role="group" aria-label="מהירות הקראה" dir="ltr">
-          {[[1,'1.0x','רגיל'],[0.75,'0.75x','איטי'],[0.5,'0.5x','איטי מאוד']].map(([r,l,t])=><button key={r} aria-pressed={settings.rate===r} title={t} onClick={()=>actions.setSetting('rate',r)}>{l}</button>)}
+        <div className="hidden sm:block"><div className="seg" role="group" aria-label="מהירות הקראה">
+          {[[1,'רגיל','מהירות רגילה'],[0.75,'איטי','קצת יותר לאט'],[0.5,'לאט מאוד','חצי מהירות']].map(([r,l,t])=><button key={r} aria-pressed={settings.rate===r} title={t} onClick={()=>actions.setSetting('rate',r)}>{l}</button>)}
         </div></div>
-        <div className="sm:hidden"><button className="btn btn-ghost px-3 num" dir="ltr" onClick={()=>actions.setSetting('rate', settings.rate===1?0.75:settings.rate===0.75?0.5:1)} aria-label={`מהירות הקראה ${settings.rate}. לחיצה מחליפה מהירות`}>{settings.rate===1?'1.0x':settings.rate+'x'}</button></div>
+        <div className="sm:hidden"><button className="btn btn-ghost px-3" onClick={()=>actions.setSetting('rate', settings.rate===1?0.75:settings.rate===0.75?0.5:1)} aria-label={`מהירות הקראה: ${settings.rate===1?'רגיל':settings.rate===0.75?'איטי':'לאט מאוד'}. לחיצה מחליפה מהירות`}>{settings.rate===1?'רגיל':settings.rate===0.75?'איטי':'לאט מאוד'}</button></div>
         {voices.length>1&&<select id="voice-select" className="rounded-xl bg-sunk px-2 py-2 text-xs max-w-[150px] hidden sm:block" value={(voice&&voice.name)||''} onChange={e=>actions.setSetting('voice',e.target.value)} aria-label="קול הקראה" dir="ltr">
           {voices.map(v=><option key={v.name} value={v.name}>{v.name.replace(/Microsoft |Google /,'')} ({v.lang})</option>)}
         </select>}
@@ -1701,9 +1717,9 @@ function SrsCard({state, onStart}){
   return (<section className="card srs-card p-5 sm:p-6 flex flex-col sm:flex-row gap-4 sm:items-center">
     <span className="w-14 h-14 rounded-2xl grid place-items-center shrink-0 text-2xl" style={{background:'var(--primary-soft)'}} aria-hidden="true">🧠</span>
     <div className="flex-1 min-w-0">
-      <div className="eyebrow">חזרה מרווחת (<bdi dir="ltr">SRS</bdi>)</div>
+      <div className="eyebrow">כרטיסי חזרה</div>
       <h2 className="text-2xl font-extrabold">{due.length?<><span className="num">{due.length}</span> מילים מחכות לחזרה</>:'אין מילים לחזרה כרגע'}</h2>
-      <p className="text-sm text-muted">{due.length?'כל מילה חוזרת בדיוק כשמתחילים לשכוח אותה. כמה דקות ביום מספיקות.':next?`החזרה הבאה ${relTime(next)}. בינתיים אפשר לקרוא סיפור.`:learning?'':'שמרו מילים לתרגול מתוך הסיפורים, והן יופיעו כאן.'}
+      <p className="text-sm text-muted">{due.length?'כל מילה חוזרת בדיוק כשמתחילים לשכוח אותה. כמה דקות ביום מספיקות.':next?`החזרה הבאה ${relTime(next)}. בינתיים אפשר לקרוא סיפור.`:learning?'':'לחץ על מילים בסיפורים או סיים שיעור, והמילים יופיעו כאן.'}
         {' '}<span className="num">{learning}</span> בלמידה · <span className="num">{reviews}</span> חזרות עד היום</p>
     </div>
     <div className="flex flex-col gap-2 shrink-0">
@@ -1757,7 +1773,7 @@ function Practice({state, stories, known, actions, voice, celebrate, goRead, onW
   const answer=(opt)=>{
     if(picked!==null) return;
     const ok=opt.key===q.key; setPicked(opt.key);
-    actions.recordAnswer(q.key, ok);
+    actions.recordAnswer(q.key, ok); actions.markDaily('practice');
     if(ok){ const nc=combo+1; setCombo(nc); setMsg(pick(CHEERS)); setStats(s=>({n:s.n+1, c:s.c+1, best:Math.max(s.best,nc), xp:s.xp+3})); celebrate(nc>=3 && nc%3===0); actions.noteCombo(nc); if(q.type==='meaning') speakText(q.key,.9,voice); }
     else { setCombo(0); setMsg(pick(COMFORT)); setStats(s=>({...s, n:s.n+1, xp:s.xp+1})); }
   };
@@ -1772,7 +1788,7 @@ function Practice({state, stories, known, actions, voice, celebrate, goRead, onW
       else if(picked!==null && e.key==='Enter'){ e.preventDefault(); next(); } };
     window.addEventListener('keydown',h); return ()=>window.removeEventListener('keydown',h); });
 
-  if(phase==='speak') return <SpeakGame pool={pool} state={state} actions={actions} voice={voice} celebrate={celebrate} onDone={()=>setPhase('intro')}/>;
+  if(phase==='speak') return <SpeakGame pool={pool} state={state} actions={actions} voice={voice} celebrate={celebrate} onDone={()=>{ actions.markDaily('practice'); setPhase('intro'); }}/>;
   if(phase==='intro') return (<div className="flex flex-col gap-4"><SrsCard state={state} onStart={onSrs}/><section className="card p-6 sm:p-8 flex flex-col gap-5">
     <div className="flex items-center gap-4 flex-wrap">
       <div className="w-14 h-14 rounded-xl grid place-items-center" style={{background:'var(--learn-bg)'}}><IconBolt size={28}/></div>
@@ -1780,22 +1796,22 @@ function Practice({state, stories, known, actions, voice, celebrate, goRead, onW
         <p className="text-muted mt-1">שאלות קצרות על המילים הצהובות, אלה ששמרת לתרגול.</p></div>
     </div>
     <div className="grid sm:grid-cols-3 gap-3">
-      <button className="btn-line rounded-xl p-4 flex gap-3 items-start text-start cursor-pointer" onClick={()=>pool.length&&setPhase('speak')} disabled={!pool.length}><IconMic size={22}/><span className="flex-1"><span className="font-semibold block">תגיד את המילה</span><span className="text-sm text-muted block">רואים מילה ואומרים אותה בקול. האפליקציה בודקת אם אמרתם נכון.</span><span className="text-sm font-semibold text-primary block mt-1">למשחק הדיבור ←</span></span></button>
+      <button className="btn-line rounded-xl p-4 flex gap-3 items-start text-start cursor-pointer" onClick={()=>pool.length&&setPhase('speak')} disabled={!pool.length}><IconMic size={22}/><span className="flex-1"><span className="font-semibold block">תגיד את המילה</span><span className="text-sm text-muted block">רואים מילה ואומרים אותה בקול. האתר בודק אם אמרת נכון.</span><span className="text-sm font-semibold text-primary block mt-1">למשחק הדיבור ←</span></span></button>
       <button className="btn-line rounded-xl p-4 flex gap-3 items-start text-start cursor-pointer" onClick={()=>start('meaning')} disabled={!pool.length}><IconBook size={22}/><span className="flex-1"><span className="font-semibold block">מה הפירוש?</span><span className="text-sm text-muted block">רואים מילה באנגלית ובוחרים את התרגום מתוך 4.</span><span className="text-sm font-semibold text-primary block mt-1">תרגול רק מהסוג הזה ←</span></span></button>
       <button className="btn-line rounded-xl p-4 flex gap-3 items-start text-start cursor-pointer" onClick={()=>start('listen')} disabled={!pool.length}><IconEar size={22}/><span className="flex-1"><span className="font-semibold block">אתגר שמיעה</span><span className="text-sm text-muted block">שומעים מילה בלי לראות אותה ובוחרים מה נאמר.</span><span className="text-sm font-semibold text-primary block mt-1">תרגול רק מהסוג הזה ←</span></span></button>
     </div>
     {learning.length>0 ? <>
-      <div className="flex flex-wrap gap-2" dir="ltr">{learning.slice(0,24).map(k=><button key={k} className="word chip w-learn book text-base" onClick={()=>onWord(k,k)} title="פתיחת המילה במילון">{k}</button>)}{learning.length>24&&<span className="text-muted text-sm self-center">+{learning.length-24}</span>}</div>
       <button className="btn btn-primary py-4 px-6 text-lg self-start" onClick={()=>start('mix')}><IconPlay/>מתחילים, שני הסוגים ({learning.length} מילים)</button>
+      <details><summary className="hit text-sm text-primary font-semibold cursor-pointer">הצגת המילים שבתרגול</summary>
+        <div className="flex flex-wrap gap-2 mt-2" dir="ltr">{learning.slice(0,24).map(k=><button key={k} className="word chip w-learn book text-base" onClick={()=>onWord(k,k)} title="פתיחת המילה במילון">{k}</button>)}{learning.length>24&&<span className="text-muted text-sm self-center">+{learning.length-24}</span>}</div></details>
     </> : <div className="rounded-xl p-5 border-2 border-dashed border-line flex flex-col gap-3">
       <div className="font-semibold">עוד לא שמרת מילים לתרגול</div>
-      <p className="text-sm text-muted">בינתיים אפשר לתרגל מילים מהסיפורים של השלב שלך. כשתלחצו על מילים בסיפור הן ייצבעו בצהוב, והתרגול יתמקד בהן.</p>
+      <p className="text-sm text-muted">בינתיים אפשר לתרגל מילים מהסיפורים של השלב שלך. כשתלחץ על מילים בסיפור הן ייצבעו בצהוב, והתרגול יתמקד בהן.</p>
       <div className="flex gap-2 flex-wrap">
         <button className="btn btn-primary py-3 px-5" onClick={()=>start('mix')} disabled={!pool.length}><IconPlay/>מתחילים תרגול</button>
         <button className="btn btn-ghost py-3 px-5" onClick={goRead}><IconBook/>לסיפורים</button>
       </div>
     </div>}
-    <div className="text-xs text-muted hidden sm:block">טיפ: אפשר לענות עם המקשים <bdi dir="ltr">1–4</bdi> ולהמשיך עם <bdi dir="ltr">Enter</bdi>.</div>
   </section></div>);
 
   if(phase==='done') return (<section className="card p-6 sm:p-8 flex flex-col gap-5 items-start rise">
@@ -2046,7 +2062,7 @@ function TalkChat({talk, voice, actions, onBack, onNext, settings, defaultName})
     {!finished&&<div className="talk-composer card p-2 flex items-center gap-2" dir="ltr">
       <button className={`btn w-14 h-14 shrink-0 ${listening?'pop':''}`} style={{borderRadius:'50%', background:listening?'var(--bad)':'var(--primary)', color:'var(--primary-ink)'}} onClick={mic} aria-label={listening?'עצירת ההקשבה':'דברו באנגלית'} aria-pressed={listening}><IconMic size={24}/></button>
       <form className="flex-1 min-w-0 flex items-center gap-2" onSubmit={e=>{ e.preventDefault(); submit(text,false); }}>
-        <input id="talk-input" dir="ltr" className="field book text-lg flex-1 min-w-0" style={{minHeight:'48px'}} autoComplete="off" placeholder={listening?'Listening…':'Speak or type your answer'} value={text} onChange={e=>setText(e.target.value)}/>
+        <input id="talk-input" dir="ltr" className="field book text-lg flex-1 min-w-0" style={{minHeight:'48px'}} autoComplete="off" placeholder={listening?'מקשיב…':'דבר או הקלד את התשובה באנגלית'} value={text} onChange={e=>setText(e.target.value)}/>
         <button className="btn btn-primary h-12 px-4 shrink-0" disabled={!text.trim()} aria-label="שליחה"><span dir="rtl">שלח</span></button>
       </form>
     </div>}
@@ -2062,16 +2078,16 @@ function Talk({state, actions, voice, profileName, known}){
   return (<div className="flex flex-col gap-5">
     <section className="card p-5 sm:p-6 flex flex-col gap-3">
       <h1 className="text-2xl sm:text-3xl font-bold">מדברים אנגלית</h1>
-      <p className="text-muted leading-relaxed">שיחות קצרות מהחיים. לומי אומרת משפט, ואתם עונים בקול (כפתור המיקרופון) או בהקלדה. אם תשובה לא מתאימה, תקבלו דוגמאות לתשובות טובות.</p>
-      <p className="text-xs text-muted">המיקרופון עובד ב־Chrome וב־Edge. בפעם הראשונה הדפדפן יבקש הרשאה.</p>
+      <p className="text-muted leading-relaxed">שיחות קצרות מהחיים. לומי אומרת משפט, ואתה עונה בקול (כפתור המיקרופון) או בהקלדה. אם התשובה לא מתאימה, תקבל דוגמאות לתשובות טובות.</p>
+      <p className="text-sm text-muted">המיקרופון עובד בדפדפנים כרום ואדג'. בפעם הראשונה הדפדפן יבקש רשות.</p>
     </section>
-    <AiTalkCard known={known} onStart={(scen,lv)=>{ setAi({scen,lv,id:Math.random()}); window.scrollTo({top:0}); }}/>
     <h2 className="section-title">שיחות מוכנות</h2>
     <div className="grid gap-3 sm:grid-cols-2">{TALKS.map(x=>(<button key={x.id} onClick={()=>{ setId(x.id); window.scrollTo({top:0}); }} className="card card-btn card-lift p-4 flex items-center gap-4 text-start">
       <span className="w-14 h-14 rounded-xl grid place-items-center text-3xl bg-sunk shrink-0" aria-hidden="true">{x.cover}</span>
-      <span className="flex-1 min-w-0"><span dir="ltr" className="book font-bold text-lg block text-left">{x.title}</span><span className="text-sm text-muted block">{x.he} · <span className="num">{x.steps.length}</span> שאלות · שלב <span className="num">{x.level}</span></span></span>
+      <span className="flex-1 min-w-0"><span className="font-bold text-lg block">{x.he}</span><span className="text-sm text-muted block"><bdi dir="ltr" className="book">{x.title}</bdi> · <span className="num">{x.steps.length}</span> שאלות · שלב <span className="num">{x.level}</span></span></span>
       {done[x.id]?<span className="tag" style={{background:'var(--good-soft)', color:'var(--good)'}}><IconCheck size={12}/>בוצע</span>:<IconChevL size={18}/>}
     </button>))}</div>
+    <AiTalkCard known={known} onStart={(scen,lv)=>{ setAi({scen,lv,id:Math.random()}); window.scrollTo({top:0}); }}/>
   </div>);
 }
 
@@ -2261,41 +2277,41 @@ function LessonRich({topic, lesson, state, actions, voice, celebrate, onBack}){
       <div className="flex-1 flex gap-1.5" dir="ltr">{STEPS.map((s,k)=><span key={s} className="flex-1 h-2.5 rounded-full" style={{background:k<=si?'var(--primary)':'var(--sunk)'}}></span>)}</div></div>
     <section className="card p-5 flex flex-col gap-1"><div className="eyebrow">{topic.title}</div><h2 className="text-2xl font-extrabold">{lesson.title}</h2></section>
     {step==='dialogue'&&<><section className="card p-4 flex flex-col gap-3" aria-label="דיאלוג">
-      <div className="flex items-center gap-2"><h3 className="font-extrabold me-auto">① דיאלוג: הקשיבו וקראו</h3><button className="btn btn-ghost px-3 text-sm" onClick={()=>speakText(lesson.dialogue.map(d=>d[1]).join(' '),.9,voice)}><IconSpeaker size={16}/>הכול</button><button className="btn btn-ghost px-3 text-sm" aria-pressed={he} onClick={()=>setHe(x=>!x)}>עברית {he?'✓':''}</button></div>
+      <div className="flex items-center gap-2"><h3 className="font-extrabold me-auto">① דיאלוג: הקשב וקרא</h3><button className="btn btn-ghost px-3 text-sm" onClick={()=>speakText(lesson.dialogue.map(d=>d[1]).join(' '),.9,voice)}><IconSpeaker size={16}/>הכול</button><button className="btn btn-ghost px-3 text-sm" aria-pressed={he} onClick={()=>setHe(x=>!x)}>עברית {he?'✓':''}</button></div>
       {lesson.dialogue.map((d,k)=><button key={k} onClick={()=>speakText(d[1],.9,voice)} className="rounded-xl border border-line p-3 text-start hover:border-primary flex gap-3 items-start"><span className="tag shrink-0 mt-1">{d[0]}</span><span className="flex-1 min-w-0"><bdi dir="ltr" className="book text-lg font-semibold block text-left">{d[1]}</bdi>{he&&<span className="text-sm text-muted block"><Bi>{d[2]}</Bi></span>}</span><IconSpeaker size={16}/></button>)}
     </section><button className="btn btn-primary py-3 px-6 self-center dock-mobile" onClick={()=>setStep('rule')}>הבנתי, לכלל</button></>}
     {step==='rule'&&<><section className="card p-5 flex flex-col gap-3" aria-label="הכלל"><h3 className="font-extrabold">② {lesson.rule.title}</h3><p className="leading-relaxed"><Bi>{lesson.rule.he}</Bi></p>
       <ul className="flex flex-col gap-2">{lesson.rule.ex.map((x,k)=><li key={k}><button onClick={()=>speakText(x[0],.9,voice)} className="w-full rounded-xl bg-sunk p-3 text-start flex gap-3 items-center"><span className="flex-1"><bdi dir="ltr" className="book font-bold text-lg block text-left">{x[0]}</bdi><span className="text-sm text-muted"><Bi>{x[1]}</Bi></span></span><IconSpeaker size={16}/></button></li>)}</ul>
-      <div className="rounded-xl p-3 text-sm leading-relaxed" style={{background:'var(--learn-bg)'}}><b>שימו לב: </b><Bi>{lesson.rule.pit}</Bi></div></section>
+      <div className="rounded-xl p-3 text-sm leading-relaxed" style={{background:'var(--learn-bg)'}}><b>שים לב: </b><Bi>{lesson.rule.pit}</Bi></div></section>
       <button className="btn btn-primary py-3 px-6 self-center dock-mobile" onClick={()=>setStep('vocab')}>למילים</button></>}
     {step==='vocab'&&<><h3 className="font-extrabold">③ מילים וביטויים חדשים</h3><ul className="grid gap-2 sm:grid-cols-2">{lesson.vocab.map(v=><li key={v[0]}><button className="card card-btn card-lift p-3 w-full flex items-center gap-3 text-start" onClick={()=>speakText(v[0],.9,voice)} aria-label={'השמעת '+v[0]}><span className="flex-1 min-w-0"><bdi dir="ltr" className="book font-bold text-xl block text-left">{v[0]}</bdi><span className="text-sm block"><Bi>{v[1]}</Bi></span><span className="text-xs text-muted block">{v[2]}</span></span><IconSpeaker size={18}/></button></li>)}</ul>
       <button className="btn btn-primary py-3 px-6 self-center dock-mobile" onClick={()=>setStep('ex')}>מתחילים לתרגל</button></>}
   </div>);
 }
 
-/* videos live on R2 (not in the Pages build). Base address: window.__VIDEO_BASE_URL__ (injected by scripts/build.mjs from env VITE_VIDEO_BASE_URL), default https://lumienglish.co.il.
-   videoUrl('videos/a1-01.mp4') -> <base>/videos/a1-01.mp4 (a leading "videos/" or "/" is normalised; full http(s) addresses are kept) */
+/* video files live on R2 (not in the Pages build). Base address: window.__VIDEO_BASE_URL__ (injected by scripts/build.mjs from env VITE_VIDEO_BASE_URL), default https://lumienglish.co.il.
+   videoUrl('videos/a1-01.mp4') -> <base>/videos/a1-01.mp4 (a leading "videos/" or "/" is normalised; full http(s) addresses and "assets/..." files, which ship with the site, are kept as they are) */
 const VIDEO_BASE_URL=String((typeof window!=='undefined' && window.__VIDEO_BASE_URL__) || 'https://lumienglish.co.il').replace(/\/+$/,'');
-const videoUrl=(p)=>{ p=String(p||''); if(!p) return ''; if(/^(https?:)?\/\//i.test(p)) return p; return VIDEO_BASE_URL+'/videos/'+p.replace(/^\/+/,'').replace(/^videos\//,''); };
+const videoUrl=(p)=>{ p=String(p||''); if(!p) return ''; if(/^(https?:)?\/\//i.test(p)||/^assets\//.test(p)) return p; return VIDEO_BASE_URL+'/videos/'+p.replace(/^\/+/,'').replace(/^videos\//,''); };
 /* a video lesson: a calm "lecture" page (poster, what you will learn, speed control, what comes next); "I watched it" marks the lesson done */
-function LessonVideo({topic, lesson, state, actions, celebrate, onBack}){
+function LessonVideo({topic, lesson, state, actions, celebrate, onBack, eyebrow, backLabel}){
   const done=lessonDone(lesson,state); const [err,setErr]=useState(false); const [rate,setRate]=useState(1); const [play,setPlay]=useState(false); const ref=useRef(null);
   const idx=topic.lessons.findIndex(l=>l.id===lesson.id); const next=topic.lessons.slice(idx+1);
   useEffect(()=>{ if(ref.current) ref.current.playbackRate=rate; },[rate,play]);
   const start=()=>{ setPlay(true); setTimeout(()=>{ try{ if(ref.current){ ref.current.playbackRate=rate; ref.current.play(); } }catch(e){} },50); };
   return (<div className="flex flex-col gap-5 pb-28 sm:pb-0">
-    <div className="flex items-center gap-3"><button className="btn btn-ghost px-3 text-sm" onClick={onBack}><IconX size={16}/>חזרה ליחידה</button><span className="text-sm text-muted me-auto">{topic.title}</span></div>
+    <div className="flex items-center gap-3"><button className="btn btn-ghost px-3 text-sm" onClick={onBack}><IconX size={16}/>{backLabel||'חזרה ליחידה'}</button><span className="text-sm text-muted me-auto">{topic.title}</span></div>
     <section className="card" style={{padding:0, overflow:'hidden'}}>
       <div style={{position:'relative', background:'#0F2742', aspectRatio:'16 / 9'}}>
         {err?<p className="p-8 text-center" style={{color:'#CFE0FF'}}>הסרטון לא נטען. בדקו את החיבור לאינטרנט ונסו שוב.</p>
-          :<video ref={ref} src={videoUrl(lesson.src)} poster={videoUrl(lesson.poster)||undefined}controls={play} playsInline preload="metadata" onError={()=>setErr(true)} onEnded={()=>{}} style={{width:'100%', height:'100%', display:'block', background:'#0F2742'}} aria-label={lesson.title}></video>}
+          :<video ref={ref} src={videoUrl(lesson.src)} poster={videoUrl(lesson.poster)||undefined} controls={play} playsInline preload="metadata" onError={()=>setErr(true)} onEnded={()=>{}} style={{width:'100%', height:'100%', display:'block', background:'#0F2742'}} aria-label={lesson.title}></video>}
         {!play&&!err&&<button onClick={start} aria-label={'הפעלת הסרטון: '+lesson.title} style={{position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', gap:14, padding:'0 20px 7%', background:'linear-gradient(to top, rgba(15,39,66,.92) 0%, rgba(15,39,66,.45) 45%, rgba(15,39,66,0) 75%)', border:0, cursor:'pointer', color:'#fff'}}>
           <span style={{width:68, height:68, borderRadius:'50%', background:'#fff', display:'grid', placeItems:'center', boxShadow:'0 10px 30px rgba(0,0,0,.35)'}}><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="#0F2742"/></svg></span>
           <span style={{fontWeight:800, fontSize:'clamp(18px,3.4vw,28px)'}}>{lesson.title}</span>
           <span style={{fontSize:'clamp(12px,2vw,15px)', opacity:.85}} className="num">{lesson.mins} דקות · שיעור וידאו</span></button>}
       </div>
       <div className="p-5 sm:p-6 flex flex-col gap-4">
-        <div><div className="eyebrow">שיעור {idx+1} מתוך {topic.lessons.length} · {topic.title}</div><h2 className="text-2xl font-extrabold mt-1">{lesson.title}</h2>{lesson.blurb&&<p className="text-muted leading-relaxed mt-1">{lesson.blurb}</p>}</div>
+        <div><div className="eyebrow">{eyebrow||<>שיעור {idx+1} מתוך {topic.lessons.length} · {topic.title}</>}</div><h2 className="text-2xl font-extrabold mt-1">{lesson.title}</h2>{lesson.blurb&&<p className="text-muted leading-relaxed mt-1">{lesson.blurb}</p>}</div>
         {lesson.learn&&<div><h3 className="font-extrabold mb-2">מה תלמדו בסרטון</h3><ul className="flex flex-col gap-2">{lesson.learn.map((x,k)=><li key={k} className="flex gap-3 items-start"><span className="w-6 h-6 rounded-full grid place-items-center shrink-0 mt-0.5" style={{background:'var(--primary)', color:'#fff'}} aria-hidden="true"><IconCheck size={14}/></span><span className="leading-relaxed">{x[0]}{x[1]&&<>{': '}<bdi dir="ltr" className="book font-bold">{x[1]}</bdi></>}</span></li>)}</ul></div>}
         <div className="flex items-center gap-2 flex-wrap"><span className="text-sm text-muted">מהירות:</span>
           {[0.75,1,1.25].map(r=><button key={r} className="btn btn-ghost px-3 text-sm num" aria-pressed={rate===r} style={rate===r?{borderColor:'var(--primary)', color:'var(--primary)', fontWeight:800}:undefined} onClick={()=>setRate(r)}>{r}x</button>)}
@@ -2304,12 +2320,13 @@ function LessonVideo({topic, lesson, state, actions, celebrate, onBack}){
     </section>
     {next.length>0&&<section className="card p-5"><h3 className="font-extrabold mb-2">אחרי הסרטון: מתרגלים</h3><ol className="flex flex-col gap-1.5 list-none p-0 m-0">{next.map((l,k)=><li key={l.id} className="flex gap-3 items-center text-sm"><span className="w-6 h-6 rounded-full grid place-items-center shrink-0 text-xs num" style={{background:'var(--sunk)', color:'var(--muted)'}}>{k+1}</span><span className="font-semibold">{l.title}</span></li>)}</ol>
       <p className="text-sm text-muted mt-4 leading-relaxed">כל שיעור כולל דיאלוג, כלל קצר בעברית, מילים ותרגילים. מומלץ לצפות בסרטון פעם אחת ברצף, ואז לחזור אליו אחרי התרגול.</p></section>}
-    <button className="btn btn-primary py-3 px-8 self-center dock-mobile" onClick={()=>{ actions.completeLesson(lesson.id, []); if(!done) celebrate(false); onBack(); }}>{done?'חזרה ליחידה':'סיימתי לצפות, להמשך לתרגול'}</button>
+    <button className="btn btn-primary py-3 px-8 self-center dock-mobile" onClick={()=>{ actions.completeLesson(lesson.id, []); if(!done) celebrate(false); onBack(); }}>{done?(backLabel||'חזרה ליחידה'):(backLabel?'סיימתי לצפות':'סיימתי לצפות, להמשך לתרגול')}</button>
   </div>);
 }
 
-function CourseView({course, state, actions, voice, celebrate, profile, toast, onBack, openStory, openTalk}){
-  const [lesson,setLesson]=useState(null); const [quiz,setQuiz]=useState(null); const [res,setRes]=useState(null); const [cert,setCert]=useState(false);
+function CourseView({course, state, actions, voice, celebrate, profile, toast, onBack, openStory, openTalk, jump}){
+  // opened from the home page: go straight into the lesson ("בוא נמשיך")
+  const [lesson,setLesson]=useState(()=>{ if(!jump||!jump.lid) return null; const t=course.topics.find(x=>x.id===jump.tid); const l=t&&t.lessons.find(x=>x.id===jump.lid); return l&&l.type!=='story'&&l.type!=='talk'?{t,l}:null; }); const [quiz,setQuiz]=useState(null); const [res,setRes]=useState(null); const [cert,setCert]=useState(false);
   const cp=courseProgress(course,state); const ns=nextStep(course,state); const cs=csOf(state);
   const go=(t,l)=>{ if(l.type==='story') openStory(l.story); else if(l.type==='talk') openTalk(l.talk); else { setLesson({t,l}); window.scrollTo({top:0}); } };
   if(cert) return <CertificateView course={course} state={state} profile={profile} toast={toast} onBack={()=>setCert(false)}/>;
@@ -2318,7 +2335,7 @@ function CourseView({course, state, actions, voice, celebrate, profile, toast, o
   if(lesson) return <LessonWords key={lesson.l.id} course={course} topic={lesson.t} lesson={lesson.l} state={state} actions={actions} voice={voice} celebrate={celebrate} onBack={()=>setLesson(null)}/>;
   const finishQuiz=pct=>{ const passed=pct>=PASS_PCT; actions.passTopic(quiz.id,pct,course.id); setRes({t:quiz,pct,passed}); setQuiz(null); if(passed) celebrate(pct===100); window.scrollTo({top:0}); };
   if(quiz&&quiz.items) return <ExerciseRunner items={quiz.items} title={'מבחן יחידה: '+quiz.title} voice={voice} copySeen={state.copySeen} onCopy={actions.noteCopy} onExit={()=>setQuiz(null)} onFinish={finishQuiz}/>;
-  if(quiz) return <QuizRunner words={topicQuizWords(quiz)} title={'מבחן נושא: '+quiz.title} n={10} state={state} actions={actions} voice={voice} celebrate={celebrate} onExit={()=>setQuiz(null)} onFinish={finishQuiz}/>;
+  if(quiz) return <QuizRunner words={topicQuizWords(quiz)} title={'מבחן יחידה: '+quiz.title} n={10} state={state} actions={actions} voice={voice} celebrate={celebrate} onExit={()=>setQuiz(null)} onFinish={finishQuiz}/>;
   return (<div className="flex flex-col gap-5">
     <button className="btn btn-ghost px-3 text-sm self-start" onClick={onBack}>← כל הקורסים</button>
     <section className="card p-5 sm:p-6 flex flex-col gap-3">
@@ -2326,41 +2343,112 @@ function CourseView({course, state, actions, voice, celebrate, profile, toast, o
         <div className="min-w-0"><div className="eyebrow">רמה {course.level}</div><h1 className="text-2xl sm:text-3xl font-bold">{course.title}</h1><p className="text-sm text-muted">{course.sub}</p></div></div>
       <p className="text-muted leading-relaxed">{course.desc}</p>
       <div className="flex items-center gap-3"><div className="flex-1 h-2.5 rounded-full bg-sunk overflow-hidden" dir="ltr"><div className="h-full bar" style={{width:cp.pct+'%', background:'var(--primary)'}}></div></div><span className="num text-sm font-bold">{cp.pct}%</span></div>
-      <div className="text-xs text-muted"><span className="num">{cp.lessons}/{cp.total}</span> שיעורים · <span className="num">{cp.passed}/{cp.topics}</span> מבחני נושא · כ־<span className="num">{course.minutes}</span> דקות</div>
-      <ol className="text-sm text-muted grid gap-1 sm:grid-cols-3 list-none p-0"><li>① לומדים שיעור</li><li>② עוברים מבחן נושא ({PASS_PCT}% ומעלה)</li><li>③ מסיימים וזוכים בתעודה</li></ol>
+      <div className="text-xs text-muted"><span className="num">{cp.lessons}/{cp.total}</span> שיעורים · <span className="num">{cp.passed}/{cp.topics}</span> מבחני יחידה · כ־<span className="num">{course.minutes}</span> דקות</div>
+      <ol className="text-sm text-muted grid gap-1 sm:grid-cols-3 list-none p-0"><li>① לומדים שיעור</li><li>② עוברים מבחן יחידה ({PASS_PCT}% ומעלה)</li><li>③ מסיימים וזוכים בתעודה</li></ol>
       {cp.complete?<div className="flex gap-2 flex-wrap"><button className="btn btn-primary px-6" onClick={()=>{ if(!cs.certs[course.id]) actions.issueCert(course.id,courseAvg(course,state)); setCert(true); }}><IconTrophy size={18}/>לתעודת הסיום</button></div>
         : ns&&<button className="btn btn-primary px-6 self-start" onClick={()=>ns.quiz?setQuiz(ns.topic):go(ns.topic,ns.lesson)}>{cp.lessons===0?'מתחילים':'המשך'}: {ns.quiz?'מבחן '+ns.topic.title:ns.lesson.title}</button>}
     </section>
     {res&&<section className="card p-5 rise flex flex-col gap-2" role="status" style={{borderColor:res.passed?'var(--known)':'var(--bad)'}}>
-      <div className="font-extrabold text-xl">{res.passed?'עברתם את מבחן הנושא!':'כמעט! צריך '+PASS_PCT+'% כדי להמשיך'}</div><div className="num">{res.pct}% · {res.t.title}</div>
-      {!res.passed&&<div className="text-sm text-muted">חזרו על מילות הנושא ונסו שוב. אפשר כמה פעמים שרוצים.</div>}</section>}
+      <div className="font-extrabold text-xl">{res.passed?'עברת את מבחן היחידה!':'כמעט! צריך '+PASS_PCT+'% כדי להמשיך'}</div><div className="num">{res.pct}% · {res.t.title}</div>
+      {!res.passed&&<div className="text-sm text-muted">חזור על המילים של היחידה ונסה שוב. אפשר כמה פעמים שרוצים.</div>}</section>}
     {course.topics.map((t,ti)=>{ const tp=topicProgress(t,state); const open=topicUnlocked(course,ti,state); const passed=tp.passed;
       return (<section key={t.id} className={`card p-4 sm:p-5 flex flex-col gap-3 ${open?'':'opacity-60'}`} data-topic={t.id} data-open={open?'1':'0'}>
-        <div className="flex items-center gap-3"><span className="text-2xl" aria-hidden="true">{open?t.icon:'🔒'}</span><div className="me-auto"><h2 className="font-extrabold text-lg">{t.title}</h2><div className="text-xs text-muted"><span className="num">{tp.done}/{tp.total}</span> שיעורים{passed?` · עברתם ${cs.topics[t.id].pct}%`:''}</div></div>
+        <div className="flex items-center gap-3"><span className="text-2xl" aria-hidden="true">{open?t.icon:'🔒'}</span><div className="me-auto"><h2 className="font-extrabold text-lg">{t.title}</h2><div className="text-xs text-muted"><span className="num">{tp.done}/{tp.total}</span> שיעורים{passed?` · עברת ב־${cs.topics[t.id].pct}%`:''}</div></div>
           {passed&&<span className="tag" style={{background:'var(--good-soft)',color:'var(--good)'}}><IconCheck size={12}/>הושלם</span>}</div>
         {open?<ul className="flex flex-col gap-1.5">
           {t.lessons.map(l=>{ const d=lessonDone(l,state); return (<li key={l.id}><button className="w-full flex items-center gap-3 rounded-xl border border-line px-3 py-3 text-start hover:border-primary" data-lesson={l.id} onClick={()=>go(t,l)}>
-            <span className="w-6 h-6 rounded-full grid place-items-center shrink-0 text-xs" style={{background:d?'var(--known)':'var(--sunk)',color:d?'#fff':'var(--muted)'}} aria-hidden="true">{d?'✓':l.type==='story'?'📖':l.type==='talk'?'💬':l.type==='video'?'▶':'Aa'}</span>
+            <span className="w-6 h-6 rounded-full grid place-items-center shrink-0 text-xs" style={{background:d?'var(--known)':'var(--sunk)',color:d?'#fff':'var(--muted)'}} aria-hidden="true">{d?'✓':l.type==='story'?'📖':l.type==='talk'?'💬':l.type==='video'?'▶':'🔤'}</span>
             <span className="flex-1 font-semibold">{l.title}</span><span className="text-xs text-muted">{l.type==='story'?'סיפור':l.type==='talk'?'שיחה':l.type==='video'?'סרטון':'מילים'}</span></button></li>); })}
-          <li><button disabled={!tp.all} data-quiz={t.id} className={`btn ${tp.all?'btn-primary':'btn-ghost'} w-full py-3`} onClick={()=>{ setRes(null); const rich=t.lessons.filter(l=>l.type==='rich'); setQuiz(rich.length?{...t,items:shuffle(rich.flatMap(l=>l.ex.filter(x=>x.t!=='speak'))).slice(0,12)}:t); window.scrollTo({top:0}); }}>{tp.all?(passed?'מבחן יחידה: לנסות שוב':'מבחן יחידה'):'מבחן נושא · נפתח בסיום כל השיעורים'}</button></li></ul>
-        :<div className="text-sm text-muted">נפתח אחרי שתעברו את המבחן של "{course.topics[ti-1].title}".</div>}
+          <li><button disabled={!tp.all} data-quiz={t.id} className={`btn ${tp.all?'btn-primary':'btn-ghost'} w-full py-3`} onClick={()=>{ setRes(null); const rich=t.lessons.filter(l=>l.type==='rich'); setQuiz(rich.length?{...t,items:shuffle(rich.flatMap(l=>l.ex.filter(x=>x.t!=='speak'))).slice(0,12)}:t); window.scrollTo({top:0}); }}>{tp.all?(passed?'מבחן יחידה: לנסות שוב':'מבחן יחידה'):'מבחן יחידה · נפתח בסיום כל השיעורים'}</button></li></ul>
+        :<div className="text-sm text-muted">נפתח אחרי שתעבור את המבחן של "{course.topics[ti-1].title}".</div>}
       </section>); })}
   </div>);
 }
 
-function Courses({state, actions, voice, celebrate, profile, toast, openStory, openTalk}){
-  const [id,setId]=useState(null); const [q,setQ]=useState('');
+/* ---------- Uri and the video series (posters are real frames from the lesson videos, in assets/posters) ---------- */
+const SERIES=[
+  {n:1, name:'שלב 1 · יסודות', lessons:['היכרות','משפחה ועבודה','מה זה?','היום שלי','לא ושאלות']},
+  {n:2, name:'שלב 2 · הווה ושאלות', lessons:['מה אתה עושה עכשיו?','בבית על השולחן בשש','שאלות שימושיות','רוצה צריך חייב','בשוק: מחירים']},
+  {n:3, name:'שלב 3 · עבר ועתיד', lessons:['הייתי והיית','מה עשיתי בשבוע שעבר','פעלים שמשנים צורה','לא עשיתי? האם עשית?','תוכניות לעתיד']}];
+// lessons listed in LIVE_LESSONS (top of src/courses.js) play real files from R2 (<video base>/videos/lessonNN.mp4, minutes measured with ffprobe); every other lesson (6-15 for now) shows "בקרוב" until the owner adds its number to LIVE_LESSONS.
+// lesson 1 is also the video lesson of the structured course (so its completion counts there); 2-5 open the series player.
+const SERIES_META={1:{cid:'a1u', tid:'a1u-u1', lid:'a1u-u1-v', mins:7}, 2:{mins:10}, 3:{mins:9}, 4:{mins:10}, 5:{mins:10}};   // minutes per lesson; a lesson without an entry defaults to 10
+const SERIES_LIVE=Object.fromEntries(LIVE_LESSONS.map(n=>[n, SERIES_META[n]||{mins:10}]));
+const pad2=n=>String(n).padStart(2,'0');
+const posterSrc=n=>'assets/posters/lesson'+pad2(n)+'.jpg';
+const SERIES_ALL=SERIES.flatMap(s=>s.lessons.map((title,i)=>({n:(s.n-1)*5+i+1, title, stage:s, m:i+1})));
+const seriesJump=n=>{ const l=SERIES_LIVE[n]; return l&&l.cid?{cid:l.cid, tid:l.tid, lid:l.lid}:{series:n}; };
+const seriesChip=n=>{ const x=SERIES_ALL[n-1]; return 'שלב '+x.stage.n+' · שיעור '+x.m; };
+function seriesLesson(n){ const x=SERIES_ALL[n-1]; return {id:'series-'+pad2(n), type:'video', title:x.title, src:'videos/lesson'+pad2(n)+'.mp4', poster:posterSrc(n), mins:SERIES_LIVE[n].mins, blurb:'שיעור '+x.m+' בשלב '+x.stage.n+' של הסדרה של אורי.'}; }
+function seriesDone(n,state){ const l=SERIES_LIVE[n]; if(!l) return false;
+  if(!l.cid) return !!csOf(state).lessons['series-'+pad2(n)];
+  const c=COURSES.find(x=>x.id===l.cid); const t=c&&c.topics.find(x=>x.id===l.tid); const ls=t&&t.lessons.find(x=>x.id===l.lid); return !!ls&&lessonDone(ls,state); }
+function PlayBadge({size=52}){ return <span className="lx-play" style={{width:size, height:size}} aria-hidden="true"><svg width={size*.42} height={size*.42} viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>; }
+function PosterCard({n, title, done, onOpen}){
+  const live=!!SERIES_LIVE[n]; const st=SERIES_ALL[n-1].stage.n;
+  return (<button className={`lx-pc lx-st${st} ${live?'is-live':'is-soon'} ${done?'is-done':''}`} onClick={onOpen} data-series={n} aria-label={`שלב ${st}, ${seriesChip(n).split(' · ')[1]}: ${title}${live?'':' (הסרטון יעלה בקרוב)'}`}>
+    <span className="lx-pc-img"><img src={posterSrc(n)} alt="" loading="lazy" draggable="false"/><PlayBadge size={52}/>
+      <span className="lx-chip">{seriesChip(n)}</span>
+      {!live&&<span className="lx-ribbon">בקרוב</span>}
+      {done&&<span className="lx-pc-done" aria-label="הושלם"><IconCheck size={15}/></span>}</span>
+    <span className="lx-pc-body"><b className="lx-pc-title">{title}</b>
+      <span className="meta">{live?<>כ־<span className="num">{SERIES_LIVE[n].mins}</span> דקות · שיעור וידאו</>:'שיעור וידאו'}</span>
+      {live&&<span className="lx-pc-bar" aria-hidden="true"><span style={{width:done?'100%':'0%'}}></span></span>}</span>
+  </button>);
+}
+function SoonDialog({item, onClose}){
+  useEffect(()=>{ const k=e=>{ if(e.key==='Escape') onClose(); }; window.addEventListener('keydown',k); return ()=>window.removeEventListener('keydown',k); },[]);
+  return (<div className="overlay fixed inset-0 z-50 flex items-center justify-center gutter" style={{background:'color-mix(in srgb,var(--ink) 45%,transparent)'}} onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-label={item.title} className="card w-full overflow-hidden rise" style={{maxWidth:'30rem'}} onClick={e=>e.stopPropagation()}>
+      <div className="lx-pc-img" style={{borderRadius:0}}><img src={posterSrc(item.n)} alt=""/></div>
+      <div className="p-5 flex flex-col gap-2"><div className="eyebrow">שיעור {item.n} · {item.stage.name}</div><h2 className="text-xl font-extrabold">{item.title}</h2>
+        <p className="text-muted leading-relaxed">הסרטון יעלה בקרוב. בינתיים אפשר להמשיך בשיעורי התרגול, בסיפורים ובכרטיסי החזרה.</p>
+        <button className="btn btn-primary px-6 self-start mt-2" onClick={onClose}>הבנתי</button></div></div></div>);
+}
+// the whole series as a gallery, grouped by the three stages
+function VideoGallery({state, onLive, onSoon}){
+  return (<div className="flex flex-col gap-5">{SERIES.map(s=>{ const items=SERIES_ALL.filter(x=>x.stage===s); const d=items.filter(x=>seriesDone(x.n,state)).length; const sub=s.name.split(' · ')[1];
+    return (<section key={s.n} className={`lx-stage lx-st${s.n}`} aria-label={s.name}>
+      <div className="lx-stage-head">
+        <span className="lx-stage-badge">שלב <span className="num">{s.n}</span></span>
+        <div className="me-auto min-w-0"><h3 className="lx-stage-sub">{sub}</h3>
+          <div className="meta"><span className="num">{d}</span> מתוך <span className="num">{items.length}</span> שיעורים{s.n>1&&<> · הסרטונים בבדיקה, יעלו בקרוב</>}</div></div>
+        <span className="lx-stage-bar" aria-hidden="true"><span style={{width:(d/items.length*100)+'%'}}></span></span>
+      </div>
+      <div className="lx-pc-grid">{items.map(x=><PosterCard key={x.n} n={x.n} title={x.title} done={seriesDone(x.n,state)} onOpen={()=>SERIES_LIVE[x.n]?onLive(x.n):onSoon(x)}/>)}</div>
+    </section>); })}</div>);
+}
+// Uri: the transparent figure in a soft circle, with a speech bubble
+function UriBubble({children, size='md'}){
+  return (<div className={`lx-uri-stage lx-uri-${size}`}><span className="lx-uri-fig"><img src="assets/uri.png" alt="אורי, המורה שלך" className="lx-uri-img" draggable="false"/></span><div className="lx-bubble">{children}</div></div>);
+}
+
+function Courses({state, actions, voice, celebrate, profile, toast, openStory, openTalk, jump}){
+  const [id,setId]=useState(jump?jump.cid:null); const [q,setQ]=useState(''); const [lj,setLj]=useState(null); const [soon,setSoon]=useState(null);
+  const [play,setPlay]=useState(jump&&jump.series||null);     // a series lesson (2-5) playing in the series player
   const course=COURSES.find(c=>c.id===id);
-  if(course) return <CourseView course={course} state={state} actions={actions} voice={voice} celebrate={celebrate} profile={profile} toast={toast} onBack={()=>{ setId(null); window.scrollTo({top:0}); }} openStory={openStory} openTalk={openTalk}/>;
+  const used=useRef(false); const jj=lj||(used.current?null:jump);   // the home page jump is used once, on the first render only
+  if(play&&SERIES_LIVE[play]&&!course){ const lesson=seriesLesson(play); const x=SERIES_ALL[play-1];
+    return <div className="lx-narrow"><LessonVideo key={lesson.id} topic={{title:x.stage.name, lessons:[lesson]}} lesson={lesson} state={state} actions={actions} celebrate={celebrate} eyebrow={seriesChip(play)+' · '+x.stage.name.split(' · ')[1]} backLabel="חזרה לשיעורים" onBack={()=>{ setPlay(null); window.scrollTo({top:0}); }}/></div>; }
+  if(course){ used.current=true; return <div className="lx-narrow"><CourseView course={course} state={state} actions={actions} voice={voice} celebrate={celebrate} profile={profile} toast={toast} onBack={()=>{ setId(null); setLj(null); window.scrollTo({top:0}); }} openStory={openStory} openTalk={openTalk} jump={jj&&jj.cid===course.id?jj:null}/></div>; }
   const list=COURSES.filter(c=>!q.trim()||(c.title+' '+c.sub+' '+c.level).includes(q.trim()));
-  return (<div className="flex flex-col gap-5">
-    <section className="card p-5 sm:p-6 flex flex-col gap-3">
-      <h1 className="text-2xl sm:text-3xl font-bold">קורסים</h1>
-      <p className="text-muted leading-relaxed">מסלול לימוד מסודר: קורס ← נושאים ← שיעורים ← מבחן נושא ← תעודת סיום. כל שיעור משלב מילים, הקראה, חידון, ולפעמים סיפור או שיחה.</p>
-      <label className="relative block"><span className="sr-only">חיפוש קורס</span><input value={q} onChange={e=>setQ(e.target.value)} placeholder="חיפוש קורס או רמה (A1, A2…)" className="field w-full" /></label>
+  return (<div className="flex flex-col gap-6">
+    <section className="card hero lx-courses-head p-5 sm:p-6">
+      <div className="flex flex-col gap-2 min-w-0 flex-1">
+        <div className="eyebrow">הסדרה של אורי</div>
+        <h1 className="text-2xl sm:text-3xl font-extrabold">15 שיעורי וידאו, שלב אחרי שלב</h1>
+        <p className="text-muted leading-relaxed">אורי מלמד אנגלית מההתחלה: שלום ושמות, משפחה ועבודה, שאלות, עבר ועתיד. כל שיעור קצר, בעברית ובלי לחץ. אחרי כל שיעור מתרגלים מילים, משפטים וסיפורים.</p></div>
+      <span className="lx-uri-avatar lx-hide-sm" aria-hidden="true"><img src="assets/uri.png" alt="" draggable="false"/></span>
     </section>
+    <VideoGallery state={state} onLive={n=>{ const j=seriesJump(n); if(j.cid){ setLj(j); setId(j.cid); } else setPlay(n); window.scrollTo({top:0}); }} onSoon={setSoon}/>
+    {soon&&<SoonDialog item={soon} onClose={()=>setSoon(null)}/>}
+    <div className="flex flex-col gap-3 mt-2">
+      <div className="flex items-center gap-3 flex-wrap"><h2 className="section-title me-auto">קורסי תרגול ומילים</h2>
+        {COURSES.length>6&&<label className="relative block"><span className="sr-only">חיפוש קורס</span><input value={q} onChange={e=>setQ(e.target.value)} placeholder="חיפוש קורס או רמה (A1, A2…)" className="field w-full" /></label>}</div>
+      <p className="text-sm text-muted leading-relaxed">מסלול לימוד מסודר: קורס ← נושאים ← שיעורים ← מבחן יחידה ← תעודת סיום. כל שיעור משלב מילים, הקראה, חידון, ולפעמים סיפור או שיחה.</p>
+    </div>
     <div className="grid gap-3 sm:grid-cols-2">{list.map(c=>{ const p=courseProgress(c,state); return (<button key={c.id} data-course={c.id} onClick={()=>{ setId(c.id); window.scrollTo({top:0}); }} className="card card-btn card-lift p-4 flex flex-col gap-3 text-start">
-      <div className="flex items-center gap-3"><span className="w-14 h-14 rounded-xl grid place-items-center text-3xl bg-sunk shrink-0" aria-hidden="true">{c.cover}</span>
+      <div className="flex items-center gap-3"><span className="w-14 h-14 rounded-xl grid place-items-center text-3xl lx-lv1 shrink-0" aria-hidden="true">{c.cover}</span>
         <span className="flex-1 min-w-0"><span className="font-extrabold text-lg block">{c.title}</span><span className="text-sm text-muted block">{c.sub}</span></span><span className="tag num">{c.level}</span></div>
       <div className="flex items-center gap-2"><div className="flex-1 h-2 rounded-full bg-sunk overflow-hidden" dir="ltr"><div className="h-full bar" style={{width:p.pct+'%', background:'var(--primary)'}}></div></div><span className="num text-xs font-bold">{p.pct}%</span></div>
       <div className="text-xs text-muted flex gap-2 flex-wrap"><span className="num">{c.topics.length}</span> נושאים · <span className="num">{c.lessonCount}</span> שיעורים{p.complete&&<span style={{color:'var(--known)'}} className="font-bold">· הושלם 🎓</span>}</div>
@@ -2377,8 +2465,9 @@ const SITE_URL=(typeof location!=='undefined' && NEW_HOST.test(location.hostname
 const ON_SITE=typeof location!=='undefined' && (/^localhost$/.test(location.hostname) || NEW_HOST.test(location.hostname));
 const GROUP_API=ON_SITE?'/api/groups':SITE_URL+'/api/groups';
 let JOIN_CODE=''; try{ const m=(location.search+location.hash).match(/join[=-]([A-Za-z2-9]{6})/); if(m) JOIN_CODE=m[1].toUpperCase(); }catch(e){}
-const GERR={not_found:'לא מצאתי קבוצה עם הקוד הזה. בדקו שהקוד נכון.', bad_code:'קוד קבוצה הוא 6 אותיות ומספרים באנגלית.', full:'הקבוצה מלאה (עד 40 חברים).', not_member:'החיבור שלך לקבוצה כבר לא בתוקף. הצטרפו שוב עם הקוד.', bad_name:'צריך שם.', bad_group_name:'צריך לתת שם לקבוצה.', net:ON_SITE?'אין חיבור לשרת כרגע. בדקו את האינטרנט ונסו שוב.':'קבוצות עובדות רק באתר lumienglish.co.il. פתחו את האפליקציה שם.'};
+const GERR={not_found:'לא מצאתי קבוצה עם הקוד הזה. בדקו שהקוד נכון.', bad_code:'קוד קבוצה הוא 6 אותיות ומספרים באנגלית.', full:'הקבוצה מלאה (עד 40 חברים).', not_member:'החיבור שלך לקבוצה כבר לא בתוקף. הצטרפו שוב עם הקוד.', bad_name:'צריך שם.', bad_group_name:'צריך לתת שם לקבוצה.', local:'בגרסת הדוגמה המקומית קבוצות לימוד כבויות. באתר האמיתי הן עובדות כרגיל.', net:ON_SITE?'אין חיבור לשרת כרגע. בדקו את האינטרנט ונסו שוב.':'קבוצות עובדות רק באתר lumienglish.co.il. פתחו את האפליקציה שם.'};
 async function groupCall(body){
+  if(LOCAL_ONLY) throw new Error('local');
   let r; try{ r=await fetch(GROUP_API, body?{method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)}:undefined); }catch(e){ throw new Error('net'); }
   let j=null; try{ j=await r.json(); }catch(e){} if(!r.ok) throw new Error((j&&j.error)||'net'); return j;
 }
@@ -2414,7 +2503,8 @@ function GroupCard({state, actions, profile, known, streak, toast}){
       <input id="g-code" dir="ltr" className="field text-left num text-xl tracking-widest uppercase" maxLength={6} placeholder="ABC123" value={code} onChange={e=>setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,''))} autoFocus/>
       <div className="flex gap-2"><button className="btn btn-primary px-5" disabled={code.length!==6||busy}>{busy?'מצטרף…':'הצטרפות'}</button><button type="button" className="btn btn-ghost px-4" onClick={()=>setMode('')}>ביטול</button></div></form>}
     {err&&<div className="rounded-xl p-3 text-sm" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{err}</Bi></div>}
-    <p className="text-xs text-muted">בקבוצה רואים רק שם, דמות ונקודות. הסיפורים, הכתיבה והסיסמה שלכם לא נשלחים לשום מקום.</p>
+    {LOCAL_ONLY&&<p className="text-sm rounded-xl p-3" style={{background:'var(--sun-soft)'}}>בגרסת הדוגמה המקומית קבוצות לימוד כבויות. באתר האמיתי הן עובדות כרגיל.</p>}
+    <p className="text-xs text-muted">בקבוצה רואים רק שם, דמות ונקודות. הסיפורים, הכתיבה והסיסמה שלך לא נשלחים לשום מקום.</p>
   </section>);
 
   const week=weekStartKey();
@@ -2506,7 +2596,7 @@ function BackupCard({state, actions, profile, toast}){
     <h2 className="section-title">גיבוי ושחזור</h2>
     <div className="rounded-xl p-3 text-sm leading-relaxed" style={{background:'var(--sun-soft)'}}><b>חשוב לדעת: </b>ההתקדמות שלך שמורה רק בדפדפן הזה. ניקוי נתוני הגלישה, החלפת דפדפן או מכשיר חדש מתחילים מאפס. מומלץ להוריד גיבוי מדי פעם (כולל הסיפורים והתמונות שהוספת).</div>
     <div className="flex gap-2 flex-wrap items-center">
-      <button className="btn btn-primary px-5" onClick={exportJson}>הורד גיבוי (<bdi dir="ltr">JSON</bdi>)</button>
+      <button className="btn btn-primary px-5" onClick={exportJson}>הורדת קובץ גיבוי</button>
       <button className="btn btn-line px-5" onClick={()=>fileRef.current&&fileRef.current.click()}>שחזר מגיבוי</button>
       <input ref={fileRef} id="backup-file" type="file" accept="application/json,.json" className="sr-only" onChange={onFile}/>
       <span className="meta num">גודל הנתונים: {(size/1024).toFixed(0)} KB</span>
@@ -2541,7 +2631,6 @@ function Progress({state, stories, actions, streak, known, profile, toast, voice
   const doneCount=stories.filter(s=>state.storiesDone[s.id]).length;
 
   return (<div className="flex flex-col gap-4">
-    <GroupCard state={state} actions={actions} profile={profile} known={known} streak={streak} toast={toast}/>
     <div className="grid gap-4 md:grid-cols-[1.3fr_1fr]">
       <section className="card p-5 sm:p-6 flex items-center gap-5 flex-wrap">
         <Ring value={todayH.xp} max={state.goal} size={124} stroke={13}>
@@ -2559,9 +2648,10 @@ function Progress({state, stories, actions, streak, known, profile, toast, voice
       <section className="card p-5 sm:p-6 flex flex-col justify-center gap-1">
         <div className="flex items-center gap-3" style={{color:'var(--coral)'}}><IconFlame size={40}/><span className="num text-6xl font-bold leading-none"><Count value={streak}/></span></div>
         <div className="text-xl font-bold mt-2">{streak===0?'מתחילים רצף היום':streak===1?'יום אחד ברצף':`${streak} ימים ברצף`}</div>
-        <div className="text-sm text-muted">{todayH.met?'הרצף של היום בטוח. נתראה מחר!':streak>0?'השלימו את היעד היום כדי לשמור על הרצף.':'השלימו את היעד היומי ותדליקו את הלהבה.'} · שיא: <span className="num">{best}</span></div>
+        <div className="text-sm text-muted">{todayH.met?'הרצף של היום בטוח. נתראה מחר!':streak>0?'השלם את היעד היום כדי לשמור על הרצף.':'השלם את היעד היומי ותדליק את הלהבה.'} · שיא: <span className="num">{best}</span></div>
       </section>
     </div>
+    <LevelTracker state={state} stories={stories} known={known}/>
 
     <section className="card p-5 sm:p-6 flex flex-col gap-5">
       <div className="flex items-center gap-2">
@@ -2598,13 +2688,13 @@ function Progress({state, stories, actions, streak, known, profile, toast, voice
         <div key={l} className="rounded-xl bg-sunk p-4"><div className="num text-3xl font-bold" style={{color:c}} dir="ltr">{typeof v==='number'?<Count value={v}/>:v}</div><div className="text-sm text-muted">{l}</div></div>)}
     </section>
 
-    <section className="card p-5 sm:p-6">
-      <h2 className="text-lg font-bold mb-3">איך צוברים נקודות</h2>
-      <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
+    <details className="card p-5 sm:p-6">
+      <summary className="text-lg font-bold cursor-pointer">איך צוברים נקודות</summary>
+      <ul className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm mt-2">
         {[['לחיצה על מילה חדשה','+1'],['סימון מילה כ"כבר מכיר"','+2'],['האזנה לסיפור עד הסוף','+5'],['סיום קריאת סיפור','+10'],['תשובה נכונה בתרגול','+3'],['תשובה שגויה (גם ניסיון שווה!)','+1']].map(([a,b])=>
           <li key={a} className="flex justify-between gap-3 border-b border-line py-1.5"><span>{a}</span><b className="num" dir="ltr">{b}</b></li>)}
       </ul>
-    </section>
+    </details>
 
     <BackupCard state={state} actions={actions} profile={profile} toast={toast}/>
     <div className="flex items-center gap-3 flex-wrap text-sm">
@@ -2617,31 +2707,42 @@ function Progress({state, stories, actions, streak, known, profile, toast, voice
 /* ---------- learner profiles ---------- */
 function ProfileForm({first, onCreate, onCancel}){
   const [name,setName]=useState(''); const [avatar,setAvatar]=useState(AVATARS[0]); const [goal,setGoal]=useState(30); const [pin,setPin]=useState('');
+  const [more,setMore]=useState(false);     // avatar, daily goal and password are optional: folded away behind "עוד אפשרויות" (defaults: first avatar, regular goal, no password)
   const pinOk=pin.length===0||pin.length>=PIN_MIN;
   const ok=name.trim().length>0&&pinOk;
-  return (<div dir="rtl" className="min-h-full font-he grid place-items-center gutter" style={{paddingBlock:'32px'}}>
-    <form className="card w-full p-6 sm:p-8 flex flex-col gap-5 rise" style={{maxWidth:'30rem'}} onSubmit={e=>{ e.preventDefault(); if(ok) onCreate({name:name.trim().slice(0,24), avatar, goal, pin}); }}>
-      <div className="flex items-center gap-3">
-        <div className="shrink-0"><LogoMark size={52} radius={14}/></div>
-        <div><h1 className="text-2xl font-bold">{first?<>ברוכים הבאים ל־<bdi dir="ltr">Lumi English</bdi></>:'משתמש חדש'}</h1>
-          <p className="text-muted text-sm">{first?'כמה פרטים קצרים, ומתחילים לקרוא.':'לכל משתמש יש התקדמות, מילים וכתיבה משלו.'}</p></div>
+  const POINTS=[[<IconBook size={18}/>,'הכול בעברית'],[<IconSpeaker size={18}/>,'אפשר לשמוע כל משפט'],[<IconLock size={18}/>,'בלי הרשמה ובלי סיסמה']];
+  const form=(<form className="card lx-welcome-card p-6 sm:p-8 flex flex-col gap-4 rise" onSubmit={e=>{ e.preventDefault(); if(ok) onCreate({name:name.trim().slice(0,24), avatar, goal, pin}); }}>
+      <div><h2 className="text-2xl font-bold"><label htmlFor="pf-name">{first?'איך קוראים לך?':'איך קוראים למשתמש החדש?'}</label></h2>
+        {!first&&<p className="text-muted text-sm mt-1">לכל משתמש יש התקדמות, מילים וכתיבה משלו.</p>}</div>
+      <input id="pf-name" dir="auto" className="field text-xl" style={{paddingBlock:'.85rem'}} autoFocus autoComplete="given-name" maxLength={24} placeholder="הקלידו את השם שלכם" value={name} onChange={e=>setName(e.target.value)}/>
+      <button className="btn btn-primary py-4 px-6 text-xl w-full" style={{minHeight:'56px'}} disabled={!ok}><IconPlay size={18}/>{first?'מתחילים':'יצירת משתמש'}</button>
+      {onCancel&&<button type="button" className="btn btn-ghost py-3 px-5" onClick={onCancel}>ביטול</button>}
+      <button type="button" className="hit text-muted underline text-sm self-start" aria-expanded={more} onClick={()=>setMore(m=>!m)}>{more?'פחות אפשרויות':'עוד אפשרויות'}</button>
+      {more&&<div className="flex flex-col gap-4 rise border-t border-line pt-4">
+        <div className="flex flex-col gap-2"><span className="font-semibold">בחרו דמות</span>
+          <div className="flex flex-wrap gap-1.5">{AVATARS.map(e=><button type="button" key={e} aria-pressed={avatar===e} aria-label={'דמות '+e} onClick={()=>setAvatar(e)} className="w-11 h-11 rounded-xl text-2xl grid place-items-center" style={{background:avatar===e?'var(--primary-soft)':'var(--sunk)', boxShadow:avatar===e?'0 0 0 2px var(--primary) inset':'none'}}>{e}</button>)}</div></div>
+        <div className="flex flex-col gap-2"><span className="font-semibold">כמה רוצים ללמוד כל יום?</span>
+          <div className="seg self-start" style={{flexWrap:'wrap'}} role="group" aria-label="יעד יומי">{[[20,'קליל, כ־5 דקות'],[30,'רגיל, כ־10 דקות'],[50,'רציני, כ־15 דקות']].map(([g,l])=><button type="button" key={g} aria-pressed={goal===g} onClick={()=>setGoal(g)}>{l}</button>)}</div>
+          <span className="text-xs text-muted">אפשר לשנות את זה בכל רגע בלשונית ההתקדמות.</span></div>
+        <div className="flex flex-col gap-2"><label htmlFor="pf-pin" className="font-semibold">סיסמה <span className="text-muted font-normal text-sm">(לא חובה)</span></label>
+          <input id="pf-pin" type="password" dir="ltr" className="field text-left" autoComplete="new-password" maxLength={32} placeholder="••••" value={pin} onChange={e=>setPin(e.target.value)}/>
+          <span className="text-xs" style={{color:pinOk?'var(--muted)':'var(--bad)'}}>{pinOk?'עם סיסמה, אף אחד אחר לא יוכל להיכנס למשתמש שלך. אין דרך לשחזר סיסמה שנשכחה.':`סיסמה צריכה לפחות ${PIN_MIN} תווים.`}</span></div>
+      </div>}
+      <p className="text-xs text-muted">ההתקדמות נשמרת רק בדפדפן הזה. את הדמות, היעד והסיסמה אפשר להגדיר אחר כך תחת "אני".</p>
+    </form>);
+  if(!first) return (<div dir="rtl" className="min-h-full font-he grid place-items-center gutter" style={{paddingBlock:'32px'}}><div className="w-full" style={{maxWidth:'30rem'}}>{form}</div></div>);
+  return (<div dir="rtl" className="min-h-full font-he lx-welcome gutter">
+    <div className="lx-welcome-grid">
+      <div className="lx-welcome-uri rise">
+        <UriBubble size="lg"><b className="block">שלום, אני אורי.</b>בוא נלמד אנגלית ביחד</UriBubble>
       </div>
-      <div className="flex flex-col gap-2"><label htmlFor="pf-name" className="font-semibold">איך קוראים לך?</label>
-        <input id="pf-name" dir="auto" className="field text-lg" autoFocus autoComplete="given-name" maxLength={24} placeholder="השם שלך" value={name} onChange={e=>setName(e.target.value)}/></div>
-      <div className="flex flex-col gap-2"><span className="font-semibold">בחרו דמות</span>
-        <div className="flex flex-wrap gap-1.5">{AVATARS.map(e=><button type="button" key={e} aria-pressed={avatar===e} aria-label={'דמות '+e} onClick={()=>setAvatar(e)} className="w-11 h-11 rounded-xl text-2xl grid place-items-center" style={{background:avatar===e?'var(--primary-soft)':'var(--sunk)', boxShadow:avatar===e?'0 0 0 2px var(--primary) inset':'none'}}>{e}</button>)}</div></div>
-      <div className="flex flex-col gap-2"><span className="font-semibold">כמה רוצים ללמוד כל יום?</span>
-        <div className="seg self-start" style={{flexWrap:'wrap'}} role="group" aria-label="יעד יומי">{[[20,'קליל, כ־5 דקות'],[30,'רגיל, כ־10 דקות'],[50,'רציני, כ־15 דקות']].map(([g,l])=><button type="button" key={g} aria-pressed={goal===g} onClick={()=>setGoal(g)}>{l}</button>)}</div>
-        <span className="text-xs text-muted">אפשר לשנות את זה בכל רגע בלשונית ההתקדמות.</span></div>
-      <div className="flex flex-col gap-2"><label htmlFor="pf-pin" className="font-semibold">סיסמה <span className="text-muted font-normal text-sm">(לא חובה)</span></label>
-        <input id="pf-pin" type="password" dir="ltr" className="field text-left" autoComplete="new-password" maxLength={32} placeholder="••••" value={pin} onChange={e=>setPin(e.target.value)}/>
-        <span className="text-xs" style={{color:pinOk?'var(--muted)':'var(--bad)'}}>{pinOk?'עם סיסמה, אף אחד אחר לא יוכל להיכנס למשתמש שלך. אין דרך לשחזר סיסמה שנשכחה.':`סיסמה צריכה לפחות ${PIN_MIN} תווים.`}</span></div>
-      <div className="flex gap-2 flex-wrap">
-        <button className="btn btn-primary py-3 px-6 text-lg" disabled={!ok}>{first?'מתחילים':'יצירת משתמש'}</button>
-        {onCancel&&<button type="button" className="btn btn-ghost py-3 px-5" onClick={onCancel}>ביטול</button>}
+      <div className="lx-welcome-text rise">
+        <div className="lx-welcome-brand"><LogoMark size={44} radius={13}/><h1 className="lx-welcome-title">ברוכים הבאים ל־<bdi dir="ltr">Lumi English</bdi></h1></div>
+        <p className="lx-welcome-lead">לומדים אנגלית בקצב שלך: סרטונים, סיפורים ותרגול קצר.</p>
+        {form}
+        <ul className="lx-points">{POINTS.map(([ic,t])=><li key={t}><span className="lx-point-ic" aria-hidden="true">{ic}</span><b>{t}</b></li>)}</ul>
       </div>
-      <p className="text-xs text-muted">הפרטים וההתקדמות נשמרים רק בדפדפן הזה, בלי סיסמה ובלי הרשמה. במכשיר אחר או בדפדפן אחר מתחילים מחדש.</p>
-    </form>
+    </div>
   </div>);
 }
 function ProfilePicker({list, onPick, onAdd, onForget}){
@@ -2720,6 +2821,118 @@ function ProfileSheet({profile, count, onClose, onRename, onSwitch, onAdd, onDel
     </div>
   </div>);
 }
+/* ---------- home: where the site opens. Built only from existing state and screens ---------- */
+function homeNext(state){       // the next step in the course the learner is in (the structured course first)
+  const open=COURSES.filter(c=>!courseProgress(c,state).complete);
+  const course=open.find(c=>courseProgress(c,state).lessons>0)||open[0]; if(!course) return null;
+  const ns=nextStep(course,state); return ns?{course, ...ns}:null;
+}
+const LESSON_KIND={video:'שיעור וידאו', rich:'שיעור', story:'סיפור', talk:'שיחה', words:'מילים'};
+function Home({state, stories, known, streak, profile, go, openStory, openTalk, openCourse, startReview}){
+  const tk=todayKey(); const t0=(()=>{ const d=new Date(); d.setHours(0,0,0,0); return d.getTime(); })();
+  const nx=homeNext(state);
+  const [greetPick]=useState(()=>Math.floor(Math.random()*3));
+  const last=state.lastStory&&stories.find(s=>s.id===state.lastStory.id);
+  const recs=useMemo(()=>recommendStories(stories, state, known),[stories, state.words, state.storiesDone, known, state.unlocked]);
+  const shortStory=useMemo(()=>recs.slice(0,6).sort((a,b)=>storyData(a).words-storyData(b).words)[0]||null,[recs]);
+  const fallback=last||recs[0]||null;
+  // the "סיפור מומלץ" card in the side column: not the same story as the one already offered in the main column
+  const featured=recs.find(s=>(!shortStory||s.id!==shortStory.id)&&(nx||!fallback||s.id!==fallback.id))||null;
+
+  // "בוא נמשיך": the next lesson, or (without a course step) the last opened story
+  let cont=null;
+  if(nx){ const cp=courseProgress(nx.course,state); const l=nx.lesson;
+    cont={ eyebrow:'בוא נמשיך · '+nx.course.title, title:nx.quiz?'מבחן יחידה: '+nx.topic.title:l.title, sub:nx.quiz?'סיימת את כל השיעורים ביחידה':nx.topic.title+' · '+(LESSON_KIND[l.type]||'שיעור'),
+      icon:<span className="w-24 h-24 rounded-2xl grid place-items-center text-5xl bg-sunk shrink-0" aria-hidden="true">{nx.course.cover}</span>, pct:cp.pct,
+      btn:cp.lessons===0?'מתחילים':'המשך',
+      posterN:(!nx.quiz&&l.type==='video'&&Number(Object.keys(SERIES_LIVE).find(k=>SERIES_LIVE[k].lid===l.id)))||0,
+      run:()=>{ if(nx.quiz) openCourse({cid:nx.course.id}); else if(l.type==='story') openStory(l.story); else if(l.type==='talk') openTalk(l.talk); else openCourse({cid:nx.course.id, tid:nx.topic.id, lid:l.id}); } };
+  } else if(fallback){ const st=storyStats(fallback,state);
+    cont={ eyebrow:last?'בוא נמשיך · הסיפור שהתחלת':'בוא נמשיך · סיפור מומלץ', title:fallback.title, en:true, sub:(fallback.he?fallback.he+' · ':'')+readMinutes(st.d.words)+' דק׳ קריאה',
+      icon:<StoryCover story={fallback} size={96} radius={22}/>, pct:null, btn:last?'המשך לקרוא':'בוא נקרא', run:()=>openStory(fallback.id) };
+  }
+
+  // "הדקות של היום": three short steps that open existing screens
+  const due=dueWords(state);
+  const reviewedToday=Object.values(state.srs||{}).some(c=>c&&c.last>=t0);
+  const readToday=Object.values(state.storiesDone||{}).some(d=>d&&d.date===tk);
+  const practicedToday=!!(state.daily&&state.daily.date===tk&&state.daily.practice) || Object.values(state.talkDone||{}).includes(tk);
+  const steps=[
+    { icon:'🧠', done:reviewedToday&&!due.length, title:due.length?<><span className="num">{due.length}</span> כרטיסים מחכים לחזרה</>:'כרטיסי חזרה',
+      sub:due.length?'כל מילה חוזרת בדיוק כשמתחילים לשכוח אותה':reviewedToday?'חזרת על כל הכרטיסים של היום':'אין כרטיסים שמחכים כרגע', run:()=>due.length?startReview(due.slice(0,30)):go('practice') },
+    // the lesson itself is the big "בוא נמשיך" button above, so this step is a short story (when the course step is a story, it is that story)
+    nx&&!nx.quiz&&nx.lesson.type==='story'
+      ? { icon:'📖', done:readToday, title:'הסיפור של השיעור', sub:nx.lesson.title, run:cont.run }
+      : { icon:'📖', done:readToday, title:'סיפור קצר אחד', sub:shortStory?<bdi dir="ltr" className="book">{shortStory.title}</bdi>:'מהספרייה', run:()=>shortStory?openStory(shortStory.id):go('read') },
+    { icon:'🗣️', done:practicedToday, title:'תרגול קצר: מילים ומשפטים', sub:'שתי דקות, או שיחה מוכנה עם לומי', run:()=>go('practice') }
+  ];
+  const doneN=steps.filter(s=>s.done).length;
+
+  // compact progress row: the same numbers the site already computes
+  const ws=new Date(); const weekStart=addDays(ws,-ws.getDay());
+  const activeDays=Array.from({length:7},(_,i)=>state.history[dayKey(addDays(weekStart,i))]).filter(h=>h&&(h.xp>0||h.words>0)).length;
+
+  // Uri's speech bubble: a different line on different visits (picked once per visit)
+  const nm=profile.name; const started=known>0||Object.keys((state.courses&&state.courses.lessons)||{}).length>0;
+  const lines=doneN===3?[[`כל הכבוד, ${nm}!`,'סיימת את הדקות של היום. אפשר לנוח, או לקרוא עוד סיפור.']]
+    :streak>=2?[[`${streak} ימים ברצף, ${nm}!`,'בוא נמשיך ונשמור על הרצף.']]
+    :!started?[[`שלום, ${nm}! אני אורי.`,'בוא נתחיל בשיעור הראשון.']]
+    :[[`ברוך שובך, ${nm}!`,'נמשיך מהשיעור האחרון?'],[`שמח לראות אותך, ${nm}.`,'כמה דקות של אנגלית, ומתקדמים.'],[`מוכן להמשיך, ${nm}?`,'אני כאן, מתחילים כשתרצה.']];
+  const line=lines[greetPick%lines.length];
+  const heroN=cont&&cont.posterN||0;
+  const teaser=SERIES_ALL.filter(x=>x.n!==heroN&&!seriesDone(x.n,state)).slice(0,2);
+
+  return (<div className="flex flex-col gap-5">
+    <div className="lx-home-grid">
+    <div className="lx-home-main">
+    <div className="lx-uri-stage lx-uri-banner"><span className="lx-uri-avatar"><img src="assets/uri.png" alt="אורי, המורה שלך" draggable="false"/></span>
+      <div className="lx-bubble"><h1 className="lx-bubble-title">{line[0]}</h1><p className="text-muted">{line[1]}</p></div></div>
+
+    {cont&&<section className={`hero card p-5 sm:p-6 flex flex-col sm:flex-row gap-5 sm:items-center ${heroN?'lx-hero-poster':''}`}>
+      {heroN?<button className="lx-poster-big" onClick={cont.run} aria-label={'הפעלת השיעור: '+cont.title}><img src={posterSrc(heroN)} alt="" draggable="false"/><PlayBadge size={64}/><span className={`lx-chip lx-st${SERIES_ALL[heroN-1].stage.n}`}>{seriesChip(heroN)}</span></button>:cont.icon}
+      <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+        <div className="eyebrow">{cont.eyebrow}</div>
+        {cont.en?<div dir="ltr" className="book text-2xl sm:text-3xl font-bold text-left leading-tight">{cont.title}</div>:<div className="text-2xl sm:text-3xl font-extrabold leading-tight">{cont.title}</div>}
+        <div className="text-muted">{cont.sub}</div>
+        {cont.pct!==null&&<div className="flex items-center gap-3 mt-1"><div className="flex-1 h-2.5 rounded-full bg-sunk overflow-hidden" dir="ltr"><div className="h-full bar" style={{width:cont.pct+'%', background:'var(--primary)'}}></div></div><span className="num text-sm font-bold">{cont.pct}%</span></div>}
+        {heroN>0&&<button className="btn btn-go px-6 text-lg self-start mt-2" style={{minHeight:'52px'}} onClick={cont.run}><IconPlay size={18}/>{cont.btn}</button>}
+      </div>
+      {!heroN&&<button className="btn btn-go px-6 text-lg shrink-0" style={{minHeight:'52px'}} onClick={cont.run}><IconPlay size={18}/>{cont.btn}</button>}
+    </section>}
+
+    <section className="card p-5 sm:p-6 flex flex-col gap-3" aria-label="הדקות של היום">
+      <div className="flex items-center gap-3"><h2 className="section-title me-auto">הדקות של היום</h2><span className="meta num">{doneN}/3</span></div>
+      <ul className="flex flex-col gap-2">
+        {steps.map((s,i)=><li key={i}><button onClick={s.run} className="w-full flex items-center gap-3 rounded-xl border border-line px-3 py-3 text-start hover:border-primary">
+          <span className="w-10 h-10 rounded-xl grid place-items-center text-xl shrink-0" style={{background:s.done?'var(--known-bg)':'var(--sunk)'}} aria-hidden="true">{s.icon}</span>
+          <span className="flex-1 min-w-0"><span className="font-semibold block">{s.title}</span><span className="text-sm text-muted block truncate">{s.sub}</span></span>
+          {s.done?<span className="tag" style={{background:'var(--good-soft)', color:'var(--good)'}}><IconCheck size={12}/>בוצע היום</span>:<IconChevL size={18}/>}
+        </button></li>)}
+      </ul>
+    </section>
+    </div>
+
+    <aside className="lx-home-side flex flex-col gap-5" aria-label="ההתקדמות והמלצה">
+    <section className="lx-stats">
+      <button className="rounded-xl tint-known p-4 text-start" onClick={()=>go('progress')}><div className="num text-3xl font-extrabold"><Count value={known}/></div><div className="text-sm">מילים מוכרות</div></button>
+      <button className="rounded-xl bg-sunk p-4 text-start" onClick={()=>go('progress')}><div className="num text-3xl font-extrabold">{activeDays}<span className="text-muted text-base font-semibold">/7</span></div><div className="text-sm text-muted">ימים פעילים השבוע</div></button>
+      {streak>=2&&<button className="rounded-xl bg-sunk p-4 text-start" onClick={()=>go('progress')}><div className="num text-3xl font-extrabold flex items-center gap-2" style={{color:'var(--coral)'}}><IconFlame size={26}/><Count value={streak}/></div><div className="text-sm text-muted">ימים ברצף</div></button>}
+    </section>
+
+    {teaser.length>0&&<section className="flex flex-col gap-2" aria-label="הסדרה של אורי">
+      <div className="flex items-center gap-3"><h2 className="section-title me-auto">הסדרה של אורי</h2><button className="hit text-primary font-semibold text-sm" onClick={()=>go('courses')}>לכל 15 השיעורים</button></div>
+      <div className="grid grid-cols-2 gap-3">{teaser.map(x=><PosterCard key={x.n} n={x.n} title={x.title} done={false} onOpen={()=>SERIES_LIVE[x.n]?openCourse(seriesJump(x.n)):go('courses')}/>)}</div>
+    </section>}
+
+    {featured&&<section className="flex flex-col gap-2" aria-label="סיפור מומלץ">
+      <div className="flex items-center gap-3"><h2 className="section-title me-auto">סיפור מומלץ</h2><button className="hit text-primary font-semibold text-sm" onClick={()=>go('read')}>לכל הסיפורים</button></div>
+      <StoryCard story={featured} state={state} onOpen={()=>openStory(featured.id)}/>
+    </section>}
+    </aside>
+    </div>
+  </div>);
+}
+
 function Root(){
   const [profiles,setProfiles]=useState(loadProfiles);
   const [active,setActive]=useState(()=>{ const p=loadProfiles(); return p.list.length===1&&!p.list[0].pin?p.list[0].id:null; });
@@ -2747,7 +2960,10 @@ function Root(){
 function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetPin}){
   const [state,setState]=useState(loadState);
   const [profileOpen,setProfileOpen]=useState(false);
-  const [tab,setTab]=useState('read');
+  const [tab,setTab]=useState('home');    // the site opens on the home page
+  const lastSub=useRef({learn:'courses', train:'practice', me:'progress'});
+  if(PLACE_OF[tab]&&PLACE_OF[tab]!=='home') lastSub.current[PLACE_OF[tab]]=tab;
+  const [courseJump,setCourseJump]=useState(null);
   useEffect(()=>{ if(!ANALYTICS_CODE||!PROD_HOST.test(location.hostname)||document.getElementById('gc-count')) return; const s=document.createElement('script'); s.id='gc-count'; s.async=true; s.src='https://gc.zgo.at/count.js'; s.setAttribute('data-goatcounter','https://'+ANALYTICS_CODE+'.goatcounter.com/count'); document.head.appendChild(s); },[]);
   const [storyId,setStoryId]=useState(null);
   const [adding,setAdding]=useState(false);
@@ -2771,7 +2987,8 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
   const toast=useCallback((m)=>{ const id=Math.random(); setToastMsg({m,id});
     setTimeout(()=>setToastMsg(t=>t&&t.id===id?{...t,out:true}:t),3600); setTimeout(()=>setToastMsg(t=>t&&t.id===id?null:t),3850); },[]);
   NOTIFY=toast;
-  useEffect(()=>{ const t=setTimeout(()=>toast(JOIN_CODE&&!state.group?`הוזמנת לקבוצת לימוד! הקוד ${JOIN_CODE} כבר ממולא`:`שלום ${profile.name}, טוב לראות אותך!`),500); if(JOIN_CODE&&!state.group) setTab('progress'); return ()=>clearTimeout(t); },[]);
+  // the greeting toast on every visit was removed (the home page greets by name); only the group invitation is announced
+  useEffect(()=>{ if(!(JOIN_CODE&&!state.group)) return; const t=setTimeout(()=>toast(`הוזמנת לקבוצת לימוד! הקוד ${JOIN_CODE} כבר ממולא`),500); setTab('group'); return ()=>clearTimeout(t); },[]);
   const reading=useRef(false);
   const celebrate=useCallback((big)=>{ if(!reading.current) setBurst({id:Math.random(), big}); },[]);
   useEffect(()=>{ if(!burst) return; const t=setTimeout(()=>setBurst(null), burst.big?3200:2000); return ()=>clearTimeout(t); },[burst]);
@@ -2823,6 +3040,7 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
     noteCopy:(en)=>setState(s=>({...s, copySeen:{...(s.copySeen||{}),[en]:((s.copySeen||{})[en]||0)+1}})),
     finishTalk:(id)=>setState(s=>{ const td=s.talkDone||{}; const first=!td[id]||td[id]!==todayKey(); return withXP({...s, talkDone:{...td,[id]:todayKey()}}, first?10:0); }),
     noteCombo:(n)=>setState(s=>n>s.bestCombo?{...s, bestCombo:n}:s),
+    markDaily:(k)=>setState(s=>{ const d=todayKey(); const cur=s.daily&&s.daily.date===d?s.daily:{date:d}; if(cur[k]) return s; return {...s, daily:{...cur,[k]:true}}; }),   // home page "today" checklist
     setNote:(id,t)=>setState(s=>({...s, notes:{...(s.notes||{}),[id]:t}})),
     setGroup:(g)=>setState(s=>({...s, group:g})),
     setCloud:(c)=>setState(s=>{ const n={...s}; if(c) n.cloud=c; else delete n.cloud; return n; }),
@@ -2838,21 +3056,34 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
   const streak=computeStreak(state.history);
   const story=stories.find(s=>s.id===storyId);
   reading.current=tab==='read'&&!!story;   // no confetti over the page while reading
-  const changeTab=(t)=>{ setTab(t); try{ synth&&synth.cancel(); }catch(e){} window.scrollTo({top:0}); };
+  // a place ("learn", "practice", "me") opens on the screen the learner used last inside it
+  const changeTab=(t)=>{ const v=lastSub.current[t]||t; setTab(v); try{ synth&&synth.cancel(); }catch(e){} window.scrollTo({top:0}); };
   const openTalk=(id)=>{ PENDING_TALK=id; setTab('talk'); window.scrollTo({top:0}); };
   const openStory=(id)=>{ setStoryId(id); setTab('read'); window.scrollTo({top:0}); };
+  const openCourse=(j)=>{ setCourseJump({...j, id:Math.random()}); setTab('courses'); window.scrollTo({top:0}); };
+  const due=dueWords(state).length;
+  const place=PLACE_OF[tab]||'home';
+  const showSub=place!=='home' && !(tab==='read'&&story) && !(tab==='practice'&&flash);
 
   return (<div dir="rtl" className="min-h-full font-he" style={{overflowX:'clip'}}>
-    <DictBar state={state} onOpen={openCard} onAdd={()=>setAdding(true)} onHome={()=>{ setStoryId(null); changeTab('read'); }} voiceRef={voiceRef} onListening={setListening}/>
+    <DictBar state={state} onOpen={openCard} onAdd={()=>setAdding(true)} onHome={()=>{ setStoryId(null); changeTab('home'); }} voiceRef={voiceRef} onListening={setListening}/>
     <Header known={known} streak={streak} todayXP={todayH.xp} goal={state.goal} unlocked={state.unlocked} onNav={changeTab} profile={profile} onProfile={()=>setProfileOpen(true)}/>
-    <Tabs tab={tab} setTab={changeTab} learning={learning}/>
+    <Tabs tab={tab} setTab={changeTab} due={due}/>
     <a href="#main" className="skip-link">דילוג לתוכן הראשי</a>
     <main id="main" tabIndex={-1} className="gutter" style={{paddingBlock:'24px 24px'}}>
-      <div className="mx-auto" style={{maxWidth:tab==='read'&&story&&state.settings.pane!==false?'1240px':'860px', transition:'max-width .3s ease'}}>
+      <div className="mx-auto" style={{maxWidth:tab==='read'&&story&&state.settings.pane===true?'1240px':(tab==='home'||tab==='courses'||tab==='community'||(tab==='read'&&!story))?'1120px':'860px', transition:'max-width .3s ease'}}>
+        {showSub&&<div className="flex items-center gap-3 flex-wrap mb-5">
+          <SubNav tab={tab} setTab={t=>{ setTab(t); try{ synth&&synth.cancel(); }catch(e){} }}/>
+          {place==='me'&&<button className="btn btn-ghost px-4 text-sm ms-auto" onClick={()=>setProfileOpen(true)}><IconUser size={18}/>הגדרות וחשבון</button>}
+        </div>}
+        {tab==='home' && <Home state={state} stories={stories.filter(s=>!s.community)} known={known} streak={streak} profile={profile} go={changeTab} openStory={openStory} openTalk={openTalk} openCourse={openCourse}
+          startReview={keys=>{ setFlash({keys, title:'חזרה מרווחת', id:Math.random()}); changeTab('practice'); }}/>}
+        {tab==='group' && <GroupCard state={state} actions={actions} profile={profile} known={known} streak={streak} toast={toast}/>}
+        {tab==='community' && <Library mode="community" state={state} known={known} actions={actions} openStory={openStory} onAdd={()=>setAdding(true)} toast={toast} stories={stories} community={community} session={session} onReport={setReporting} onEdit={s=>setAdding({edit:s})} onDeleteCommunity={async s=>{ try{ await deleteCommunityStory(s.cid); toast('הסיפור נמחק'); }catch(e){ toast(cloudMsg(e)); } }}/>}
         {tab==='read' && (story
           ? <Reader key={story.id} story={story} stories={stories} state={state} actions={actions} voice={voice} voices={voices} back={()=>{ setStoryId(null); window.scrollTo({top:0}); }} toast={toast} session={session} onReport={setReporting} onEdit={s=>setAdding({edit:s})} onDeleteCommunity={async s=>{ try{ await deleteCommunityStory(s.cid); toast('הסיפור נמחק'); }catch(e){ toast(cloudMsg(e)); } }} onWord={openCard} onPractice={(keys,title)=>{ setFlash({keys,title:'מילים קשות מ־'+title,id:Math.random()}); setStoryId(null); changeTab('practice'); }}/>
           : <Library state={state} known={known} actions={actions} openStory={openStory} onAdd={()=>setAdding(true)} toast={toast} stories={stories} community={community} session={session} onReport={setReporting} onEdit={s=>setAdding({edit:s})} onDeleteCommunity={async s=>{ try{ await deleteCommunityStory(s.cid); toast('הסיפור נמחק'); }catch(e){ toast(cloudMsg(e)); } }}/>)}
-        {tab==='courses' && <Courses state={state} actions={actions} voice={voice} celebrate={celebrate} profile={profile} toast={toast} openStory={openStory} openTalk={openTalk}/>}
+        {tab==='courses' && <Courses key={courseJump?courseJump.id:'courses'} jump={courseJump} state={state} actions={actions} voice={voice} celebrate={celebrate} profile={profile} toast={toast} openStory={openStory} openTalk={openTalk}/>}
         {tab==='sounds' && <Sounds state={state} actions={actions} voice={voice} celebrate={celebrate} onWord={openCard}/>}
         {tab==='talk' && <Talk state={state} actions={actions} voice={voice} profileName={profile.name} known={known}/>}
         {tab==='practice' && (flash ? <FlashSession key={flash.id} keys={flash.keys} title={flash.title} state={state} actions={actions} voice={voice} celebrate={celebrate} onDone={()=>setFlash(null)}/>
@@ -2867,7 +3098,6 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
     {recovery&&SB&&<RecoveryDialog onClose={()=>setRecovery(false)}/>}
     {adding&&<AddStory state={state} profile={profile} editing={adding.edit} toast={toast} onClose={()=>setAdding(false)} onPublished={(pub,wasEdit)=>{ setAdding(false); toast(wasEdit?'הסיפור עודכן':'הסיפור פורסם בספריית הקהילה'); if(!wasEdit){ setTab('read'); setStoryId(pub.id); window.scrollTo({top:0}); } }} onSave={(st, stats)=>{ actions.addStory(st); setAdding(false); try{ synth&&synth.cancel(); }catch(e){} openStory(st.id);
       toast(`הסיפור נשמר: ${stats.words} מילים, ${stats.known} מהן כבר מוכרות לך`); }}/>}
-    {tab!=='practice'&&tab!=='talk'&&!card&&!adding&&!profileOpen&&<button className="fab sm:hidden" style={{bottom:`calc(${reading.current?104:20}px + env(safe-area-inset-bottom,0px))`, background:listening?'var(--bad)':'var(--primary)', color:listening?'var(--surface)':'var(--primary-ink)'}} onClick={()=>voiceRef.current()} aria-label={listening?'עצירת ההקשבה':'חיפוש קולי במילון: אמרו מילה באנגלית'} aria-pressed={listening}><IconMic size={24}/></button>}
     {card&&<DictCard wordKey={card.key} display={card.display} state={state} stories={stories} voice={voice} actions={actions} onClose={()=>setCard(null)} onOpenWord={openCard}/>}
     {profileOpen&&<ProfileSheet profile={profile} count={count} onClose={()=>setProfileOpen(false)} onRename={onRename} onSwitch={onSwitch} onAdd={onAddProfile} onDelete={onDelete} onSetPin={onSetPin} toast={toast} state={state} actions={actions}/>}
     {burst&&<Confetti key={burst.id} big={burst.big}/>}

@@ -37,8 +37,6 @@ I write with a pen or a pencil.|אני כותב בעט או בעיפרון.
 I got a letter from my friend.|קיבלתי מכתב מחבר שלי.
 The computer screen is very bright.|מסך המחשב בהיר מאוד.
 This is a photo of my family.|זו תמונה של המשפחה שלי.
-We watched a movie last night.|צפינו בסרט אתמול בלילה.
-It is a film about a lion and a mouse.|זה סרט על אריה ועכבר.
 He has a new ball.|יש לו כדור חדש.
 I wash my clothes every week.|אני מכבס את הבגדים שלי כל שבוע.
 He wears a white shirt and black pants.|הוא לובש חולצה לבנה ומכנסיים שחורים.
@@ -145,7 +143,6 @@ The music is too loud.|המוזיקה רועשת מדי.
 Your answer is right.|התשובה שלך נכונה.
 Sorry, that is the wrong answer.|סליחה, זו התשובה הלא נכונה.
 Is it true or false?|זה נכון או לא נכון?
-The movie was boring.|הסרט היה משעמם.
 This street is safe at night.|הרחוב הזה בטוח בלילה.
 I am busy today.|אני עסוק היום.
 Are you ready?|אתה מוכן?
@@ -240,7 +237,6 @@ I lost my key.|איבדתי את המפתח שלי.
 Add some sugar to the tea.|תוסיף קצת סוכר לתה.
 I buy bread every morning.|אני קונה לחם כל בוקר.
 She bought a new dress.|היא קנתה שמלה חדשה.
-We spend the summer at the beach.|אנחנו מבלים את הקיץ בחוף.
 I spent all my money.|הוצאתי את כל הכסף שלי.
 Please open the window.|תפתח את החלון, בבקשה.
 The letter is written in English.|המכתב כתוב באנגלית.
@@ -313,9 +309,7 @@ Thanks for the coffee.|תודה על הקפה.
 Welcome to our home.|ברוכים הבאים לבית שלנו.
 Count from one to ten.|תספור מאחת עד עשר.
 Don't hit your brother.|אל תרביץ לאח שלך.
-Give me a kiss and a hug.|תן לי נשיקה וחיבוק.
 Come and join us.|בוא תצטרף אלינו.
-Will you marry me?|תתחתני איתי?
 I miss my family.|אני מתגעגע למשפחה שלי.
 We paint the wall white.|אנחנו צובעים את הקיר בלבן.
 Pick a number.|בחר מספר.
@@ -336,7 +330,6 @@ Sit on the chair in the kitchen.|שב על הכיסא במטבח.
 I had a strange dream last night.|היה לי חלום מוזר אתמול בלילה.
 We eat together every Friday.|אנחנו אוכלים יחד בכל יום שישי.
 The children are polite.|הילדים מנומסים.
-He watches a movie every evening.|הוא צופה בסרט כל ערב.
 Let's begin the lesson.|בוא נתחיל את השיעור.
 Be careful, the soup is hot!|תיזהר, המרק חם!
 Choose a book you like.|בחר ספר שאתה אוהב.
