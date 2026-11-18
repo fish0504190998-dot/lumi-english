@@ -11,17 +11,17 @@
 <meta property="og:site_name" content="Lumi English">
 <meta property="og:title" content="לומדים אנגלית בכיף, כל יום">
 <meta property="og:description" content="סיפורים מדורגים, צלילים ואותיות, שיחה בקול ותחרות עם חברים. בחינם, בעברית, בלי הרשמה.">
-<meta property="og:url" content="https://lumi-english.netlify.app/">
-<meta property="og:image" content="https://lumi-english.netlify.app/og-v3.jpg">
-<meta property="og:image:secure_url" content="https://lumi-english.netlify.app/og-v3.jpg">
+<meta property="og:url" content="https://lumienglish.co.il/">
+<meta property="og:image" content="https://lumienglish.co.il/og-v3.jpg">
+<meta property="og:image:secure_url" content="https://lumienglish.co.il/og-v3.jpg">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:alt" content="Lumi English: לומדים אנגלית בכיף, כל יום">
-<link rel="image_src" href="https://lumi-english.netlify.app/og-v3.jpg">
+<link rel="image_src" href="https://lumienglish.co.il/og-v3.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="he_IL">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://lumi-english.netlify.app/og-v3.jpg">
+<meta name="twitter:image" content="https://lumienglish.co.il/og-v3.jpg">
 
 <title>Lumi English · לומדים אנגלית בכיף</title>
 <meta charset="utf-8">
@@ -5433,7 +5433,7 @@ function AuthForm({
     className: "text-sm text-muted"
   }, "שמירה בענן זמינה באתר ", /*#__PURE__*/React.createElement("bdi", {
     dir: "ltr"
-  }, "lumi-english.netlify.app"), ".");
+  }, "lumienglish.co.il"), ".");
   const submit = async e => {
     e.preventDefault();
     setBusy(true);
@@ -6136,7 +6136,7 @@ function CloudCard({
     className: "text-sm text-muted"
   }, "שמירה בענן זמינה באתר ", /*#__PURE__*/React.createElement("bdi", {
     dir: "ltr"
-  }, "lumi-english.netlify.app"), ".") : !user ? /*#__PURE__*/React.createElement(AuthForm, {
+  }, "lumienglish.co.il"), ".") : !user ? /*#__PURE__*/React.createElement(AuthForm, {
     intro: "עם חשבון ההתקדמות שלכם נשמרת בענן, וזמינה בכל מכשיר. בלי חשבון, הכול נשמר רק בדפדפן הזה.",
     onDone: () => {}
   }) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
@@ -6209,7 +6209,7 @@ const AI_ERR = {
   user_limit: 'הגעתם למגבלה היומית. נמשיך מחר!',
   site_limit: 'השיחה עם ה־AI עמוסה היום. נסו שוב מחר.',
   busy: 'ה־AI עמוס כרגע. נסו שוב בעוד רגע.',
-  bad_key: 'המפתח של שירות ה־AI לא תקין. בעל האתר צריך ליצור מפתח חדש ולהדביק אותו ב־Netlify.',
+  bad_key: 'המפתח של שירות ה־AI לא תקין. בעל האתר צריך ליצור מפתח חדש ולהדביק אותו ב־Cloudflare.',
   no_model: 'ה־AI לא זמין כרגע. נסו שוב מאוחר יותר.',
   upstream: 'ה־AI לא הגיב. נסו שוב בעוד רגע.',
   empty: 'ה־AI לא הגיב. נסו שוב.',
@@ -6565,7 +6565,7 @@ function AiTalkCard({
     }
   }, "השיחה עם ה־AI זמינה באתר ", /*#__PURE__*/React.createElement("bdi", {
     dir: "ltr"
-  }, "lumi-english.netlify.app"), ".") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, "lumienglish.co.il"), ".") : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "flex flex-wrap gap-2",
     role: "group",
     "aria-label": "בחירת נושא לשיחה"
@@ -6969,7 +6969,7 @@ function Library({
     className: "card p-6 text-center text-muted"
   }, "סיפורי קהילה זמינים באתר ", /*#__PURE__*/React.createElement("bdi", {
     dir: "ltr"
-  }, "lumi-english.netlify.app"), ".") : COMMUNITY_ERR && !community.length ? /*#__PURE__*/React.createElement("div", {
+  }, "lumienglish.co.il"), ".") : COMMUNITY_ERR && !community.length ? /*#__PURE__*/React.createElement("div", {
     className: "card p-6 text-center flex flex-col gap-3 items-center",
     role: "alert"
   }, /*#__PURE__*/React.createElement("span", {
@@ -11999,6 +11999,15 @@ function LessonRich({
   }, "מתחילים לתרגל")));
 }
 
+/* videos live on R2 (not in the Pages build). Base address: window.__VIDEO_BASE_URL__ (injected by scripts/build.mjs from env VITE_VIDEO_BASE_URL), default https://lumienglish.co.il.
+   videoUrl('videos/a1-01.mp4') -> <base>/videos/a1-01.mp4 (a leading "videos/" or "/" is normalised; full http(s) addresses are kept) */
+const VIDEO_BASE_URL = String(typeof window !== 'undefined' && window.__VIDEO_BASE_URL__ || 'https://lumienglish.co.il').replace(/\/+$/, '');
+const videoUrl = p => {
+  p = String(p || '');
+  if (!p) return '';
+  if (/^(https?:)?\/\//i.test(p)) return p;
+  return VIDEO_BASE_URL + '/videos/' + p.replace(/^\/+/, '').replace(/^videos\//, '');
+};
 /* a video lesson: a calm "lecture" page (poster, what you will learn, speed control, what comes next); "I watched it" marks the lesson done */
 function LessonVideo({
   topic,
@@ -12059,8 +12068,8 @@ function LessonVideo({
     }
   }, "הסרטון לא נטען. בדקו את החיבור לאינטרנט ונסו שוב.") : /*#__PURE__*/React.createElement("video", {
     ref: ref,
-    src: lesson.src,
-    poster: lesson.poster,
+    src: videoUrl(lesson.src),
+    poster: videoUrl(lesson.poster) || undefined,
     controls: play,
     playsInline: true,
     preload: "metadata",
@@ -12542,9 +12551,10 @@ function Courses({
 
 /* ---------- study groups: weekly leaderboard shared through the site's small API ---------- */
 // the site answers on two addresses: links (join codes, e-mail confirmation, password reset) keep the address the visitor is on
-const NEW_HOST = /(^|\.)lumienglish\.co\.il$/;
-const SITE_URL = typeof location !== 'undefined' && NEW_HOST.test(location.hostname) ? location.origin : 'https://lumi-english.netlify.app';
-const ON_SITE = typeof location !== 'undefined' && (/(^|\.)netlify\.app$|^localhost$/.test(location.hostname) || NEW_HOST.test(location.hostname));
+const PROD_HOST = /(^|\.)lumienglish\.co\.il$/; // the real site (also used for visit counting)
+const NEW_HOST = /(^|\.)lumienglish\.co\.il$|(^|\.)pages\.dev$/; // real site + Cloudflare Pages preview/default addresses
+const SITE_URL = typeof location !== 'undefined' && NEW_HOST.test(location.hostname) ? location.origin : 'https://lumienglish.co.il';
+const ON_SITE = typeof location !== 'undefined' && (/^localhost$/.test(location.hostname) || NEW_HOST.test(location.hostname));
 const GROUP_API = ON_SITE ? '/api/groups' : SITE_URL + '/api/groups';
 let JOIN_CODE = '';
 try {
@@ -12558,7 +12568,7 @@ const GERR = {
   not_member: 'החיבור שלך לקבוצה כבר לא בתוקף. הצטרפו שוב עם הקוד.',
   bad_name: 'צריך שם.',
   bad_group_name: 'צריך לתת שם לקבוצה.',
-  net: ON_SITE ? 'אין חיבור לשרת כרגע. בדקו את האינטרנט ונסו שוב.' : 'קבוצות עובדות רק באתר lumi-english.netlify.app. פתחו את האפליקציה שם.'
+  net: ON_SITE ? 'אין חיבור לשרת כרגע. בדקו את האינטרנט ונסו שוב.' : 'קבוצות עובדות רק באתר lumienglish.co.il. פתחו את האפליקציה שם.'
 };
 async function groupCall(body) {
   let r;
@@ -13133,7 +13143,7 @@ function BackupCard({
       setTimeout(() => URL.revokeObjectURL(url), 4000);
       toast('קובץ הגיבוי ירד למחשב');
     } catch (e) {
-      copyText(text).then(ok => toast(ok ? 'ההורדה חסומה כאן, אז הגיבוי הועתק ללוח' : 'ההורדה חסומה כאן. פתחו את האתר lumi-english.netlify.app'));
+      copyText(text).then(ok => toast(ok ? 'ההורדה חסומה כאן, אז הגיבוי הועתק ללוח' : 'ההורדה חסומה כאן. פתחו את האתר lumienglish.co.il'));
     }
   };
   const onFile = e => {
@@ -14103,7 +14113,7 @@ function App({
   const [profileOpen, setProfileOpen] = useState(false);
   const [tab, setTab] = useState('read');
   useEffect(() => {
-    if (!ANALYTICS_CODE || !/(^|\.)netlify\.app$/.test(location.hostname) || document.getElementById('gc-count')) return;
+    if (!ANALYTICS_CODE || !PROD_HOST.test(location.hostname) || document.getElementById('gc-count')) return;
     const s = document.createElement('script');
     s.id = 'gc-count';
     s.async = true;

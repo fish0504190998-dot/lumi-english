@@ -1,6 +1,5 @@
-// Study groups for Lumi English: a tiny leaderboard API stored in Netlify Blobs.
+// Cloudflare Pages Function: /api/groups. Study groups for Lumi English: a tiny leaderboard API stored in Workers KV (binding LUMI_KV).
 // POST {action:'create'|'join'|'report'|'leave', ...}   GET ?code=ABC123
-import { getStore } from "@netlify/blobs";
 
 const MAX_MEMBERS = 40;
 const CODE_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -31,9 +30,16 @@ const publicView = (g) => ({
   })),
 });
 
-export async function handle(req, store) {
+// thin wrapper giving KV the same get/setJSON shape the Netlify Blobs code used (values stored as JSON text)
+const kv = (ns) => ({
+  get: async (k, opts) => (opts && opts.type === "json" ? ns.get(k, "json") : ns.get(k)),
+  setJSON: (k, v) => ns.put(k, JSON.stringify(v)),
+});
+
+async function handle(req, kvNs) {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: HEADERS });
   const key = (code) => "g-" + code;
+  const store = kv(kvNs);
 
   if (req.method === "GET") {
     const code = clean(new URL(req.url).searchParams.get("code"), 6).toUpperCase();
@@ -97,5 +103,7 @@ export async function handle(req, store) {
   return fail("bad_action");
 }
 
-export default async (req) => handle(req, getStore({ name: "lumi-groups", consistency: "strong" }));
-export const config = { path: "/api/groups" };
+export async function onRequest(context) {
+  if (!context.env.LUMI_KV) return fail("no_kv", 503);
+  return handle(context.request, context.env.LUMI_KV);
+}

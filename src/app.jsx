@@ -581,7 +581,7 @@ function cleanText(s, max){ return String(s||'').replace(/<[^>]*>/g,' ').replace
 
 function AuthForm({onDone, intro}){
   const [mode,setMode]=useState('in'); const [name,setName]=useState(''); const [email,setEmail]=useState(''); const [pw,setPw]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState(null);
-  if(!SB) return <p className="text-sm text-muted">שמירה בענן זמינה באתר <bdi dir="ltr">lumi-english.netlify.app</bdi>.</p>;
+  if(!SB) return <p className="text-sm text-muted">שמירה בענן זמינה באתר <bdi dir="ltr">lumienglish.co.il</bdi>.</p>;
   const submit=async e=>{ e.preventDefault(); setBusy(true); setMsg(null);
     try{
       if(mode==='forgot'){ const {error}=await SB.auth.resetPasswordForEmail(email.trim(),{redirectTo:SITE_URL+'/'}); if(error) throw error; setMsg({ok:true, t:'שלחנו לך מייל עם קישור לבחירת סיסמה חדשה.'}); }
@@ -734,7 +734,7 @@ function CloudCard({state, actions, toast, onClose}){
   const del=async()=>{ setBusy(true); try{ const {error}=await SB.rpc('delete_my_account'); if(error) throw error; await SB.auth.signOut().catch(()=>{}); actions.setCloud(null); COMMUNITY_AT=0; toast('החשבון והנתונים בענן נמחקו'); onClose&&onClose(); }catch(e){ toast(cloudMsg(e)); setBusy(false); } };
   return (<div className="border-t border-line pt-4 flex flex-col gap-3">
     <div className="font-semibold flex items-center gap-2">☁️ שמירה בענן{user&&<span className="tag" style={{background:'var(--known-bg)', color:'var(--known)'}}>מחובר</span>}</div>
-    {!SB ? <p className="text-sm text-muted">שמירה בענן זמינה באתר <bdi dir="ltr">lumi-english.netlify.app</bdi>.</p>
+    {!SB ? <p className="text-sm text-muted">שמירה בענן זמינה באתר <bdi dir="ltr">lumienglish.co.il</bdi>.</p>
     : !user ? <AuthForm intro="עם חשבון ההתקדמות שלכם נשמרת בענן, וזמינה בכל מכשיר. בלי חשבון, הכול נשמר רק בדפדפן הזה." onDone={()=>{}}/>
     : <>
       <p className="text-sm text-muted leading-relaxed">מחוברים כ־<bdi dir="ltr" className="font-bold text-ink">{user.email}</bdi>. {linked?<>ההתקדמות מסונכרנת אוטומטית{state.cloud.at?<> · עודכן לאחרונה ב־<span className="num">{new Date(state.cloud.at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</span></>:null}.</>:'ההתקדמות של המשתמש הזה עדיין לא מחוברת לחשבון.'}</p>
@@ -754,7 +754,7 @@ const AI_OK=!/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname)
 const aiApi=()=>ON_SITE?'/api/talk':SITE_URL+'/api/talk';   // evaluated lazily: ON_SITE and SITE_URL are defined further down
 const AI_SCEN=[['free','💬','שיחה חופשית'],['smalltalk','👋','מה נשמע?'],['cafe','☕','בבית קפה'],['travel','🗺️','טיולים'],['shop','👕','בחנות'],['job','💼','ראיון עבודה'],['doctor','🩺','אצל הרופא']];
 const AI_ERR={ not_configured:'ה־AI עוד לא הופעל באתר. בעל האתר צריך להוסיף מפתח לשירות ה־AI.', anon_limit:'הגעתם למגבלה היומית של אורחים. התחברו לחשבון כדי להמשיך (למשתמשים רשומים יש יותר הודעות).', user_limit:'הגעתם למגבלה היומית. נמשיך מחר!',
-  site_limit:'השיחה עם ה־AI עמוסה היום. נסו שוב מחר.', busy:'ה־AI עמוס כרגע. נסו שוב בעוד רגע.', bad_key:'המפתח של שירות ה־AI לא תקין. בעל האתר צריך ליצור מפתח חדש ולהדביק אותו ב־Netlify.', no_model:'ה־AI לא זמין כרגע. נסו שוב מאוחר יותר.', upstream:'ה־AI לא הגיב. נסו שוב בעוד רגע.', empty:'ה־AI לא הגיב. נסו שוב.', bad_messages:'משהו השתבש בשיחה. התחילו שיחה חדשה.', net:'אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.', no_credits:'שיחת ה־AI לא זמינה כרגע: הקרדיט בחשבון שירות ה־AI של האתר נגמר. שאר האפליקציה ושיחות ההכנה ממשיכות לעבוד.' };
+  site_limit:'השיחה עם ה־AI עמוסה היום. נסו שוב מחר.', busy:'ה־AI עמוס כרגע. נסו שוב בעוד רגע.', bad_key:'המפתח של שירות ה־AI לא תקין. בעל האתר צריך ליצור מפתח חדש ולהדביק אותו ב־Cloudflare.', no_model:'ה־AI לא זמין כרגע. נסו שוב מאוחר יותר.', upstream:'ה־AI לא הגיב. נסו שוב בעוד רגע.', empty:'ה־AI לא הגיב. נסו שוב.', bad_messages:'משהו השתבש בשיחה. התחילו שיחה חדשה.', net:'אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.', no_credits:'שיחת ה־AI לא זמינה כרגע: הקרדיט בחשבון שירות ה־AI של האתר נגמר. שאר האפליקציה ושיחות ההכנה ממשיכות לעבוד.' };
 async function aiCall(body){
   const headers={'content-type':'application/json'}; const tok=SESSION&&SESSION.access_token; if(tok) headers.authorization='Bearer '+tok;
   let r; try{ r=await fetch(aiApi(),{method:'POST', headers, body:JSON.stringify(body)}); }catch(e){ throw new Error('net'); }
@@ -815,7 +815,7 @@ function AiTalkCard({known, onStart}){
     <div className="flex items-center gap-3"><span className="w-12 h-12 rounded-2xl grid place-items-center text-2xl shrink-0" style={{background:'var(--primary-soft)'}} aria-hidden="true">🤖</span>
       <div><div className="eyebrow">חדש</div><h2 className="text-xl sm:text-2xl font-extrabold">שיחה חופשית עם לומי (AI)</h2></div></div>
     <p className="text-sm text-muted leading-relaxed">אפשר לדבר או להקליד כל דבר, ולומי עונה, שואלת ומתקנת בעדינות. היא מתאימה את האנגלית לרמה שלכם.</p>
-    {!AI_OK ? <p className="text-sm rounded-xl p-3" style={{background:'var(--sun-soft)'}}>השיחה עם ה־AI זמינה באתר <bdi dir="ltr">lumi-english.netlify.app</bdi>.</p> : <>
+    {!AI_OK ? <p className="text-sm rounded-xl p-3" style={{background:'var(--sun-soft)'}}>השיחה עם ה־AI זמינה באתר <bdi dir="ltr">lumienglish.co.il</bdi>.</p> : <>
       <div className="flex flex-wrap gap-2" role="group" aria-label="בחירת נושא לשיחה">{AI_SCEN.map(([k,e,l])=><button key={k} className="filter-pill flex items-center gap-1.5" onClick={()=>onStart(k,lv)}><span aria-hidden="true">{e}</span>{l}</button>)}</div>
       <div className="flex items-center gap-2 flex-wrap text-sm"><span className="text-muted">רמת האנגלית:</span>
         <div className="seg" role="group" aria-label="רמת האנגלית">{LEVELS.map(L=><button key={L.n} aria-pressed={lv===L.n} onClick={()=>setLv(L.n)}>שלב {L.n}</button>)}</div></div>
@@ -943,7 +943,7 @@ function Library({state, known, actions, openStory, onAdd, toast, stories, commu
       <p className="text-sm text-muted leading-relaxed">סיפורים שמשתמשים כתבו ושיתפו עם כולם. לחצו על סיפור כדי לקרוא. מצאתם תוכן לא הולם או מוגן בזכויות יוצרים? השתמשו ב"דווח על תוכן".</p>
       <label className="flex items-center gap-2 rounded-xl border-[1.5px] border-line bg-surface px-3 h-12 focus-within:border-primary" htmlFor="comm-search"><IconSearch size={18}/>
         <input id="comm-search" className="flex-1 min-w-0 bg-transparent outline-none text-base h-full" placeholder="חיפוש לפי כותרת, נושא או שם הכותב" value={q} onChange={e=>setQ(e.target.value)}/></label>
-      {!SB ? <div className="card p-6 text-center text-muted">סיפורי קהילה זמינים באתר <bdi dir="ltr">lumi-english.netlify.app</bdi>.</div>
+      {!SB ? <div className="card p-6 text-center text-muted">סיפורי קהילה זמינים באתר <bdi dir="ltr">lumienglish.co.il</bdi>.</div>
       : COMMUNITY_ERR&&!community.length ? <div className="card p-6 text-center flex flex-col gap-3 items-center" role="alert"><span style={{color:'var(--bad)'}}>{COMMUNITY_ERR}</span><button className="btn btn-line px-4" onClick={()=>loadCommunity(true)}>ניסיון חוזר</button></div>
       : (()=>{ const t=q.trim().toLowerCase(); const list=community.filter(s=>!t||[s.title,s.author,...(s.tags||[])].join(' ').toLowerCase().includes(t));
           return list.length ? <div className="grid gap-4 md:grid-cols-2">{list.map(s=><CommunityCard key={s.id} story={s} state={state} session={session} onOpen={()=>openStory(s.id)} onReport={()=>onReport(s)} onEdit={()=>onEdit(s)} onDelete={()=>onDeleteCommunity(s)}/>)}</div>
@@ -2269,6 +2269,10 @@ function LessonRich({topic, lesson, state, actions, voice, celebrate, onBack}){
   </div>);
 }
 
+/* videos live on R2 (not in the Pages build). Base address: window.__VIDEO_BASE_URL__ (injected by scripts/build.mjs from env VITE_VIDEO_BASE_URL), default https://lumienglish.co.il.
+   videoUrl('videos/a1-01.mp4') -> <base>/videos/a1-01.mp4 (a leading "videos/" or "/" is normalised; full http(s) addresses are kept) */
+const VIDEO_BASE_URL=String((typeof window!=='undefined' && window.__VIDEO_BASE_URL__) || 'https://lumienglish.co.il').replace(/\/+$/,'');
+const videoUrl=(p)=>{ p=String(p||''); if(!p) return ''; if(/^(https?:)?\/\//i.test(p)) return p; return VIDEO_BASE_URL+'/videos/'+p.replace(/^\/+/,'').replace(/^videos\//,''); };
 /* a video lesson: a calm "lecture" page (poster, what you will learn, speed control, what comes next); "I watched it" marks the lesson done */
 function LessonVideo({topic, lesson, state, actions, celebrate, onBack}){
   const done=lessonDone(lesson,state); const [err,setErr]=useState(false); const [rate,setRate]=useState(1); const [play,setPlay]=useState(false); const ref=useRef(null);
@@ -2280,7 +2284,7 @@ function LessonVideo({topic, lesson, state, actions, celebrate, onBack}){
     <section className="card" style={{padding:0, overflow:'hidden'}}>
       <div style={{position:'relative', background:'#0F2742', aspectRatio:'16 / 9'}}>
         {err?<p className="p-8 text-center" style={{color:'#CFE0FF'}}>הסרטון לא נטען. בדקו את החיבור לאינטרנט ונסו שוב.</p>
-          :<video ref={ref} src={lesson.src} poster={lesson.poster} controls={play} playsInline preload="metadata" onError={()=>setErr(true)} onEnded={()=>{}} style={{width:'100%', height:'100%', display:'block', background:'#0F2742'}} aria-label={lesson.title}></video>}
+          :<video ref={ref} src={videoUrl(lesson.src)} poster={videoUrl(lesson.poster)||undefined}controls={play} playsInline preload="metadata" onError={()=>setErr(true)} onEnded={()=>{}} style={{width:'100%', height:'100%', display:'block', background:'#0F2742'}} aria-label={lesson.title}></video>}
         {!play&&!err&&<button onClick={start} aria-label={'הפעלת הסרטון: '+lesson.title} style={{position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', gap:14, padding:'0 20px 7%', background:'linear-gradient(to top, rgba(15,39,66,.92) 0%, rgba(15,39,66,.45) 45%, rgba(15,39,66,0) 75%)', border:0, cursor:'pointer', color:'#fff'}}>
           <span style={{width:68, height:68, borderRadius:'50%', background:'#fff', display:'grid', placeItems:'center', boxShadow:'0 10px 30px rgba(0,0,0,.35)'}}><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="#0F2742"/></svg></span>
           <span style={{fontWeight:800, fontSize:'clamp(18px,3.4vw,28px)'}}>{lesson.title}</span>
@@ -2363,12 +2367,13 @@ function Courses({state, actions, voice, celebrate, profile, toast, openStory, o
 
 /* ---------- study groups: weekly leaderboard shared through the site's small API ---------- */
 // the site answers on two addresses: links (join codes, e-mail confirmation, password reset) keep the address the visitor is on
-const NEW_HOST=/(^|\.)lumienglish\.co\.il$/;
-const SITE_URL=(typeof location!=='undefined' && NEW_HOST.test(location.hostname))?location.origin:'https://lumi-english.netlify.app';
-const ON_SITE=typeof location!=='undefined' && (/(^|\.)netlify\.app$|^localhost$/.test(location.hostname) || NEW_HOST.test(location.hostname));
+const PROD_HOST=/(^|\.)lumienglish\.co\.il$/;                 // the real site (also used for visit counting)
+const NEW_HOST=/(^|\.)lumienglish\.co\.il$|(^|\.)pages\.dev$/; // real site + Cloudflare Pages preview/default addresses
+const SITE_URL=(typeof location!=='undefined' && NEW_HOST.test(location.hostname))?location.origin:'https://lumienglish.co.il';
+const ON_SITE=typeof location!=='undefined' && (/^localhost$/.test(location.hostname) || NEW_HOST.test(location.hostname));
 const GROUP_API=ON_SITE?'/api/groups':SITE_URL+'/api/groups';
 let JOIN_CODE=''; try{ const m=(location.search+location.hash).match(/join[=-]([A-Za-z2-9]{6})/); if(m) JOIN_CODE=m[1].toUpperCase(); }catch(e){}
-const GERR={not_found:'לא מצאתי קבוצה עם הקוד הזה. בדקו שהקוד נכון.', bad_code:'קוד קבוצה הוא 6 אותיות ומספרים באנגלית.', full:'הקבוצה מלאה (עד 40 חברים).', not_member:'החיבור שלך לקבוצה כבר לא בתוקף. הצטרפו שוב עם הקוד.', bad_name:'צריך שם.', bad_group_name:'צריך לתת שם לקבוצה.', net:ON_SITE?'אין חיבור לשרת כרגע. בדקו את האינטרנט ונסו שוב.':'קבוצות עובדות רק באתר lumi-english.netlify.app. פתחו את האפליקציה שם.'};
+const GERR={not_found:'לא מצאתי קבוצה עם הקוד הזה. בדקו שהקוד נכון.', bad_code:'קוד קבוצה הוא 6 אותיות ומספרים באנגלית.', full:'הקבוצה מלאה (עד 40 חברים).', not_member:'החיבור שלך לקבוצה כבר לא בתוקף. הצטרפו שוב עם הקוד.', bad_name:'צריך שם.', bad_group_name:'צריך לתת שם לקבוצה.', net:ON_SITE?'אין חיבור לשרת כרגע. בדקו את האינטרנט ונסו שוב.':'קבוצות עובדות רק באתר lumienglish.co.il. פתחו את האפליקציה שם.'};
 async function groupCall(body){
   let r; try{ r=await fetch(GROUP_API, body?{method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)}:undefined); }catch(e){ throw new Error('net'); }
   let j=null; try{ j=await r.json(); }catch(e){} if(!r.ok) throw new Error((j&&j.error)||'net'); return j;
@@ -2490,7 +2495,7 @@ function BackupCard({state, actions, profile, toast}){
     const text=JSON.stringify(data); const name=`lumi-english-${profile.name.replace(/[^\wא-ת-]+/g,'')||'backup'}-${todayKey()}.json`;
     if(DOWNLOADS){ try{ await DOWNLOADS.save({filename:name, data:text}); toast('קובץ הגיבוי נשמר'); }catch(e){ toast('השמירה בוטלה'); } return; }
     try{ const url=URL.createObjectURL(new Blob([text],{type:'application/json'})); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000); toast('קובץ הגיבוי ירד למחשב'); }
-    catch(e){ copyText(text).then(ok=>toast(ok?'ההורדה חסומה כאן, אז הגיבוי הועתק ללוח':'ההורדה חסומה כאן. פתחו את האתר lumi-english.netlify.app')); } };
+    catch(e){ copyText(text).then(ok=>toast(ok?'ההורדה חסומה כאן, אז הגיבוי הועתק ללוח':'ההורדה חסומה כאן. פתחו את האתר lumienglish.co.il')); } };
   const onFile=e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return; setErr('');
     const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(String(r.result)); if(!d||d.app!=='lumi-english'||!d.state||typeof d.state.words!=='object') throw 0; setPending(d); }catch(x){ setErr('הקובץ הזה לא נראה כמו גיבוי של Lumi English.'); } }; r.readAsText(f); };
   return (<section className="card p-5 sm:p-6 flex flex-col gap-3">
@@ -2739,7 +2744,7 @@ function App({profile, count, onSwitch, onAddProfile, onRename, onDelete, onSetP
   const [state,setState]=useState(loadState);
   const [profileOpen,setProfileOpen]=useState(false);
   const [tab,setTab]=useState('read');
-  useEffect(()=>{ if(!ANALYTICS_CODE||!/(^|\.)netlify\.app$/.test(location.hostname)||document.getElementById('gc-count')) return; const s=document.createElement('script'); s.id='gc-count'; s.async=true; s.src='https://gc.zgo.at/count.js'; s.setAttribute('data-goatcounter','https://'+ANALYTICS_CODE+'.goatcounter.com/count'); document.head.appendChild(s); },[]);
+  useEffect(()=>{ if(!ANALYTICS_CODE||!PROD_HOST.test(location.hostname)||document.getElementById('gc-count')) return; const s=document.createElement('script'); s.id='gc-count'; s.async=true; s.src='https://gc.zgo.at/count.js'; s.setAttribute('data-goatcounter','https://'+ANALYTICS_CODE+'.goatcounter.com/count'); document.head.appendChild(s); },[]);
   const [storyId,setStoryId]=useState(null);
   const [adding,setAdding]=useState(false);
   const [burst,setBurst]=useState(null);

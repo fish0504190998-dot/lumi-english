@@ -1,7 +1,7 @@
-// Free conversation partner for Lumi English. Provider: Groq (GROQ_API_KEY) or Google Gemini (GEMINI_API_KEY).
-// If both keys exist Groq is used, unless AI_PROVIDER=gemini. Keys live in Netlify environment variables and never reach the browser.
+// Cloudflare Pages Function: POST/GET /api/talk. Free conversation partner for Lumi English. Provider: Groq (GROQ_API_KEY) or Google Gemini (GEMINI_API_KEY).
+// If both keys exist Groq is used, unless AI_PROVIDER=gemini. Keys live in Cloudflare Pages environment variables (secrets) and never reach the browser.
+// Daily usage counters live in the Workers KV binding LUMI_KV (keys expire after 2 days).
 //   POST { messages:[{role:'user'|'model', text}], scenario?, level?, name? }  ->  { reply, reply_he, correction, tip_he }
-import { getStore } from "@netlify/blobs";
 
 const SUPABASE_URL = "https://jiwsiutwvqdcafmiqxox.supabase.co";
 const SUPABASE_KEY = "sb_publishable_EfvswdyANwtEjarf0FhQrA_K6-KgDZj"; // public key, used only to check a login token
@@ -55,7 +55,7 @@ async function sha(text) { const b = await crypto.subtle.digest("SHA-256", new T
 async function bump(store, key, limit) {          // best-effort daily counter
   const cur = Number((await store.get(key)) || 0);
   if (cur >= limit) return false;
-  await store.set(key, String(cur + 1)); return true;
+  await store.put(key, String(cur + 1), { expirationTtl: 172800 }); return true;
 }
 
 const cleanKey = (k) => String(k || "").trim().replace(/^["'`]+|["'`]+$/g, "").replace(/\s+/g, "");
@@ -119,18 +119,19 @@ async function askGemini(f, key, payload, env) {
   return { error: lastStatus === 404 ? "no_model" : "upstream", detail: `${lastStatus} models tried: ${[...tried].join(", ")}` };
 }
 
-export async function handle(req, ctx) {
+async function handle(req, ctx) {
   const { store, env, fetch: f } = ctx;
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: HEADERS });
   const prov = pickProvider(env);
   if (req.method === "GET") {                       // /api/talk?check=1 : what is wrong with the setup? (never shows a key)
-    const info = { provider: prov ? prov.name : null, hasGroqKey: !!cleanKey(env.GROQ_API_KEY), hasGeminiKey: !!cleanKey(env.GEMINI_API_KEY), keyLength: prov ? prov.key.length : 0, preferredModel: (prov && (prov.name === "groq" ? env.GROQ_MODEL : env.GEMINI_MODEL)) || null };
-    if (!prov) return json({ ...info, problem: "No GROQ_API_KEY or GEMINI_API_KEY is set in Netlify, or the site was not redeployed after adding it." });
+    const info = { provider: prov ? prov.name : null, hasGroqKey: !!cleanKey(env.GROQ_API_KEY), hasGeminiKey: !!cleanKey(env.GEMINI_API_KEY), hasKv: !!(store && store.get), keyLength: prov ? prov.key.length : 0, preferredModel: (prov && (prov.name === "groq" ? env.GROQ_MODEL : env.GEMINI_MODEL)) || null };
+    if (!prov) return json({ ...info, problem: "No GROQ_API_KEY or GEMINI_API_KEY is set in Cloudflare Pages (Settings > Variables and Secrets), or the site was not redeployed after adding it." });
     try { const l = prov.name === "groq" ? await groqModels(f, prov.key) : await listModels(f, prov.key); return json({ ...info, providerStatus: l.status, providerMessage: l.status === 200 ? "ok" : redact(l.text, prov.key), usableModels: l.models.slice(0, 8) }); }
     catch (e) { return json({ ...info, problem: "could not reach the provider: " + redact(e && e.message, prov.key) }); }
   }
   if (req.method !== "POST") return json({ error: "method" }, 405);
   if (!prov) return json({ error: "not_configured" }, 503);
+  if (!store) return json({ error: "no_kv", detail: "KV binding LUMI_KV is missing" }, 503);
   let body; try { body = await req.json(); } catch { return json({ error: "bad_json" }, 400); }
   const raw = Array.isArray(body && body.messages) ? body.messages.slice(-14) : [];
   const messages = raw.filter((m) => m && (m.role === "user" || m.role === "model")).map((m) => ({ role: m.role, text: clean(m.text, 500) })).filter((m) => m.text);
@@ -141,7 +142,7 @@ export async function handle(req, ctx) {
   // usage limits
   const auth = req.headers.get("authorization") || ""; const uid = await userFromToken(auth.replace(/^Bearer\s+/i, ""), f);
   const day = new Date().toISOString().slice(0, 10);
-  const who = uid ? `u-${uid}` : `ip-${await sha(req.headers.get("x-nf-client-connection-ip") || req.headers.get("x-forwarded-for") || "unknown")}`;
+  const who = uid ? `u-${uid}` : `ip-${await sha(req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "unknown")}`;
   if (!(await bump(store, `all-${day}`, Number(env.AI_DAILY_CAP) || LIMITS.global))) return json({ error: "site_limit" }, 429);
   if (!(await bump(store, `${who}-${day}`, uid ? LIMITS.user : LIMITS.anon))) return json({ error: uid ? "user_limit" : "anon_limit" }, 429);
 
@@ -152,5 +153,6 @@ export async function handle(req, ctx) {
   return json({ reply: clean(o.reply, 600), reply_he: clean(o.reply_he, 700), correction: clean(o.correction, 400), tip_he: clean(o.tip_he, 300), model: res.model, provider: prov.name });
 }
 
-export default async (req) => handle(req, { store: getStore({ name: "lumi-ai-usage", consistency: "strong" }), env: process.env, fetch });
-export const config = { path: "/api/talk" };
+export async function onRequest(context) {
+  return handle(context.request, { store: context.env.LUMI_KV, env: context.env, fetch });
+}

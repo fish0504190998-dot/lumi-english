@@ -2,7 +2,7 @@ const {chromium}=require('playwright');const S=process.argv[2];const fs=require(
 (async()=>{const b=await chromium.launch();const errs=[];
 const ctx=await b.newContext({viewport:{width:390,height:840},isMobile:true,hasTouch:true,acceptDownloads:true});
 const p=await ctx.newPage();p.on('pageerror',e=>errs.push(e.message));p.on('console',m=>{ if(m.type()==='error'&&!/ERR_FAILED|net::/.test(m.text())) errs.push('console: '+m.text()); });
-await p.route(/fonts\.|netlify\.app|mymemory|dictionaryapi/,r=>r.abort());
+await p.route(/fonts\.|lumienglish\.co\.il|mymemory|dictionaryapi/,r=>r.abort());
 await p.addInitScript(()=>{ if(!localStorage.getItem('lumi-profiles')) localStorage.setItem('lumi-profiles', JSON.stringify({list:[{id:'p1',name:'Dana',avatar:'🦊',key:'lumi-english-v1'}]}));
   window.__say=[]; class U{constructor(t){this.text=t}}; window.SpeechSynthesisUtterance=U;
   Object.defineProperty(window,'speechSynthesis',{value:{speaking:false,pending:false,speak(u){window.__say.push({t:u.text,r:u.rate});setTimeout(()=>u.onend&&u.onend({}),20)},cancel(){},getVoices(){return[]},addEventListener(){},removeEventListener(){}},configurable:true}); });

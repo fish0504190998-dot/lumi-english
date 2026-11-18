@@ -48,7 +48,7 @@ function BackupCard({state, actions, profile, toast}){
   const exportJson=()=>{ const data={app:'lumi-english', version:3, exported:new Date().toISOString(), profile:{name:profile.name, avatar:profile.avatar}, state};
     const text=JSON.stringify(data); const name=`lumi-english-${profile.name.replace(/[^\wא-ת-]+/g,'')||'backup'}-${todayKey()}.json`;
     try{ const url=URL.createObjectURL(new Blob([text],{type:'application/json'})); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000); toast('קובץ הגיבוי ירד למחשב'); }
-    catch(e){ copyText(text).then(ok=>toast(ok?'ההורדה חסומה כאן, אז הגיבוי הועתק ללוח':'ההורדה חסומה כאן. פתחו את האתר lumi-english.netlify.app')); } };
+    catch(e){ copyText(text).then(ok=>toast(ok?'ההורדה חסומה כאן, אז הגיבוי הועתק ללוח':'ההורדה חסומה כאן. פתחו את האתר lumienglish.co.il')); } };
   const onFile=e=>{ const f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f) return; setErr('');
     const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(String(r.result)); if(!d||d.app!=='lumi-english'||!d.state||typeof d.state.words!=='object') throw 0; setPending(d); }catch(x){ setErr('הקובץ הזה לא נראה כמו גיבוי של Lumi English.'); } }; r.readAsText(f); };
   return (<section className="card p-5 sm:p-6 flex flex-col gap-3">

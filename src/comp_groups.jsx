@@ -1,9 +1,9 @@
 /* ---------- study groups: weekly leaderboard shared through the site's small API ---------- */
-const SITE_URL='https://lumi-english.netlify.app';
-const ON_SITE=typeof location!=='undefined' && /(^|\.)netlify\.app$|^localhost$/.test(location.hostname);
+const SITE_URL='https://lumienglish.co.il';
+const ON_SITE=typeof location!=='undefined' && /(^|\.)lumienglish\.co\.il$|(^|\.)pages\.dev$|^localhost$/.test(location.hostname);
 const GROUP_API=ON_SITE?'/api/groups':SITE_URL+'/api/groups';
 let JOIN_CODE=''; try{ const m=(location.search+location.hash).match(/join[=-]([A-Za-z2-9]{6})/); if(m) JOIN_CODE=m[1].toUpperCase(); }catch(e){}
-const GERR={not_found:'לא מצאתי קבוצה עם הקוד הזה. בדקו שהקוד נכון.', bad_code:'קוד קבוצה הוא 6 אותיות ומספרים באנגלית.', full:'הקבוצה מלאה (עד 40 חברים).', not_member:'החיבור שלך לקבוצה כבר לא בתוקף. הצטרפו שוב עם הקוד.', bad_name:'צריך שם.', bad_group_name:'צריך לתת שם לקבוצה.', net:ON_SITE?'אין חיבור לשרת כרגע. בדקו את האינטרנט ונסו שוב.':'קבוצות עובדות רק באתר lumi-english.netlify.app. פתחו את האפליקציה שם.'};
+const GERR={not_found:'לא מצאתי קבוצה עם הקוד הזה. בדקו שהקוד נכון.', bad_code:'קוד קבוצה הוא 6 אותיות ומספרים באנגלית.', full:'הקבוצה מלאה (עד 40 חברים).', not_member:'החיבור שלך לקבוצה כבר לא בתוקף. הצטרפו שוב עם הקוד.', bad_name:'צריך שם.', bad_group_name:'צריך לתת שם לקבוצה.', net:ON_SITE?'אין חיבור לשרת כרגע. בדקו את האינטרנט ונסו שוב.':'קבוצות עובדות רק באתר lumienglish.co.il. פתחו את האפליקציה שם.'};
 async function groupCall(body){
   let r; try{ r=await fetch(GROUP_API, body?{method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)}:undefined); }catch(e){ throw new Error('net'); }
   let j=null; try{ j=await r.json(); }catch(e){} if(!r.ok) throw new Error((j&&j.error)||'net'); return j;

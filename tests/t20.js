@@ -3,7 +3,7 @@ const {chromium}=require('playwright');const S=process.argv[2];
 const p=await b.newPage({viewport:{width:390,height:840},isMobile:true,hasTouch:true});p.on('pageerror',e=>errs.push(e.message));
 await p.route(/fonts\.|jiwsiutwvqdcafmiqxox/,r=>r.abort());
 let calls=[]; let mode='ok';
-await p.route(/lumi-english\.netlify\.app\/api\/talk/,async r=>{ const q=r.request(); const h={'access-control-allow-origin':'*','access-control-allow-headers':'*','content-type':'application/json'};
+await p.route(/lumienglish\.co\.il\/api\/talk/,async r=>{ const q=r.request(); const h={'access-control-allow-origin':'*','access-control-allow-headers':'*','content-type':'application/json'};
   if(q.method()==='OPTIONS') return r.fulfill({status:204,headers:h}); const b=JSON.parse(q.postData()); calls.push(b);
   if(mode==='limit') return r.fulfill({status:429,headers:h,body:JSON.stringify({error:'anon_limit'})});
   if(mode==='nokey') return r.fulfill({status:503,headers:h,body:JSON.stringify({error:'not_configured'})});

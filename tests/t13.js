@@ -6,7 +6,7 @@ const mem=new Map(); const store={ async get(k,o){ const v=mem.get(k); return v=
 const route=async r=>{ const q=r.request(); const res=await handle(new Request(q.url(),{method:q.method(),headers:{'content-type':'application/json'},body:q.method()==='POST'?q.postData():undefined}),store); r.fulfill({status:res.status,headers:Object.fromEntries(res.headers),body:await res.text()}); };
 const b=await chromium.launch();const errs=[];
 const open=async(name,avatar,xpWords,join)=>{ const ctx=await b.newContext({viewport:{width:390,height:820},isMobile:true,hasTouch:true}); const p=await ctx.newPage(); p.on('pageerror',e=>errs.push(name+': '+e.message));
-  await p.route(/fonts\./,r=>r.abort()); await p.route(/lumi-english\.netlify\.app\/api\/groups/,route);
+  await p.route(/fonts\./,r=>r.abort()); await p.route(/lumienglish\.co\.il\/api\/groups/,route);
   await p.addInitScript(([name,avatar,xp])=>{ localStorage.setItem('lumi-profiles', JSON.stringify({list:[{id:'p1',name,avatar,key:'lumi-english-v1'}]}));
     const d=new Date(); const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     if(!localStorage.getItem('lumi-english-v1')) localStorage.setItem('lumi-english-v1', JSON.stringify({words:{cat:'known',dog:'known',sun:'known'},history:{[k]:{xp,met:xp>=30,words:300}},goal:30,settings:{},storiesDone:{},quiz:{},totals:{}})); },[name,avatar,xpWords]);

@@ -2,7 +2,7 @@
   "name": "lumi-english",
   "private": true,
   "type": "module",
-  "dependencies": {
-    "@netlify/blobs": "11.1.6"
+  "scripts": {
+    "build": "node scripts/build.mjs"
   }
 }

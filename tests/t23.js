@@ -2,7 +2,7 @@ const {chromium}=require('playwright');const S=process.argv[2];
 (async()=>{const b=await chromium.launch();const errs=[];const out={};
 const p=await (await b.newContext({viewport:{width:360,height:780},isMobile:true,hasTouch:true})).newPage();
 p.on('pageerror',e=>errs.push(e.message));
-await p.route(/fonts\.|netlify\.app\/og|mymemory|dictionaryapi|supabase/,r=>r.abort());
+await p.route(/fonts\.|lumienglish\.co\.il\/og|mymemory|dictionaryapi|supabase/,r=>r.abort());
 await p.addInitScript(()=>{localStorage.setItem('lumi-profiles',JSON.stringify({list:[{id:'p1',name:'דנה',avatar:'🦊',key:'lumi-english-v1'}]}));
  const now=Date.now();const words={};const srs={};['hello','friend','happy','teacher'].forEach(w=>{words[w]='learning';srs[w]={due:now+86400000*3,iv:3,ease:2.3,reps:2,last:now};});
  localStorage.setItem('lumi-english-v1',JSON.stringify({words,srs,history:{},goal:30,settings:{},storiesDone:{},quiz:{},totals:{answered:0,correct:0,reviews:2},userStories:[],unlocked:{}}));

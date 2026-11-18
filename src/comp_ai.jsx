@@ -65,7 +65,7 @@ function AiTalkCard({state, actions, known, voice, profileName}){
     <div className="flex items-center gap-3"><span className="w-12 h-12 rounded-2xl grid place-items-center text-2xl shrink-0" style={{background:'var(--primary-soft)'}} aria-hidden="true">🤖</span>
       <div><div className="eyebrow">חדש</div><h2 className="text-xl sm:text-2xl font-extrabold">שיחה חופשית עם לומי (AI)</h2></div></div>
     <p className="text-sm text-muted leading-relaxed">אפשר לדבר או להקליד כל דבר, ולומי עונה, שואלת ומתקנת בעדינות. היא מתאימה את האנגלית לרמה שלכם.</p>
-    {!AI_OK ? <p className="text-sm rounded-xl p-3" style={{background:'var(--sun-soft)'}}>השיחה עם ה־AI זמינה באתר <bdi dir="ltr">lumi-english.netlify.app</bdi>.</p> : <>
+    {!AI_OK ? <p className="text-sm rounded-xl p-3" style={{background:'var(--sun-soft)'}}>השיחה עם ה־AI זמינה באתר <bdi dir="ltr">lumienglish.co.il</bdi>.</p> : <>
       <div className="flex flex-wrap gap-2" role="group" aria-label="בחירת נושא לשיחה">{AI_SCEN.map(([k,e,l])=><button key={k} className="filter-pill flex items-center gap-1.5" onClick={()=>setScen(k)}><span aria-hidden="true">{e}</span>{l}</button>)}</div>
       <div className="flex items-center gap-2 flex-wrap text-sm"><span className="text-muted">רמת האנגלית:</span>
         <div className="seg" role="group" aria-label="רמת האנגלית">{LEVELS.map(L=><button key={L.n} aria-pressed={lv===L.n} onClick={()=>setLv(L.n)}>שלב {L.n}</button>)}</div></div>

@@ -2,7 +2,7 @@ const {chromium}=require('playwright');const S=process.argv[2];
 (async()=>{const b=await chromium.launch();const errs=[];const out={};
 const p=await (await b.newContext({viewport:{width:360,height:780},isMobile:true,hasTouch:true})).newPage();
 p.on('pageerror',e=>errs.push(e.message));
-await p.route(/fonts\.|netlify\.app\/og|mymemory|dictionaryapi|supabase/,r=>r.abort());
+await p.route(/fonts\.|lumienglish\.co\.il\/og|mymemory|dictionaryapi|supabase/,r=>r.abort());
 await p.addInitScript(()=>{localStorage.setItem('lumi-profiles',JSON.stringify({list:[{id:'p1',name:'דנה',avatar:'🦊',key:'lumi-english-v1'}]}));
  class U{constructor(t){this.text=t}};window.SpeechSynthesisUtterance=U;Object.defineProperty(window,'speechSynthesis',{value:{speaking:false,pending:false,speak(u){setTimeout(()=>u.onend&&u.onend({}),20)},cancel(){},getVoices(){return[]},addEventListener(){},removeEventListener(){}},configurable:true});});
 await p.goto('file:///home/user/lumi-english/lumi-english-offline.html');await p.waitForTimeout(800);

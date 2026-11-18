@@ -21,7 +21,7 @@ function cleanText(s, max){ return String(s||'').replace(/<[^>]*>/g,' ').replace
 
 function AuthForm({onDone, intro}){
   const [mode,setMode]=useState('in'); const [email,setEmail]=useState(''); const [pw,setPw]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState(null);
-  if(!SB) return <p className="text-sm text-muted">שמירה בענן זמינה באתר <bdi dir="ltr">lumi-english.netlify.app</bdi>.</p>;
+  if(!SB) return <p className="text-sm text-muted">שמירה בענן זמינה באתר <bdi dir="ltr">lumienglish.co.il</bdi>.</p>;
   const submit=async e=>{ e.preventDefault(); setBusy(true); setMsg(null);
     try{
       if(mode==='forgot'){ const {error}=await SB.auth.resetPasswordForEmail(email.trim(),{redirectTo:SITE_URL+'/'}); if(error) throw error; setMsg({ok:true, t:'שלחנו לך מייל עם קישור לבחירת סיסמה חדשה.'}); }

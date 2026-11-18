@@ -1,5 +1,5 @@
 #!/bin/bash
-# builds the public website (Netlify) from the offline single-file build
+# builds the public website (Cloudflare Pages) from the offline single-file build
 set -e
 B=/tmp/claude-0/-home-user-lumi-english/d0cf8880-94af-5395-b228-967c754cd632/scratchpad/brand
 SITE=/home/user/lumi-site
@@ -36,17 +36,17 @@ tags='''<meta name="description" content="לומדים אנגלית בכיף, כ
 <meta property="og:site_name" content="Lumi English">
 <meta property="og:title" content="לומדים אנגלית בכיף, כל יום">
 <meta property="og:description" content="סיפורים מדורגים, צלילים ואותיות, שיחה בקול ותחרות עם חברים. בחינם, בעברית, בלי הרשמה.">
-<meta property="og:url" content="https://lumi-english.netlify.app/">
-<meta property="og:image" content="https://lumi-english.netlify.app/og-v3.jpg">
-<meta property="og:image:secure_url" content="https://lumi-english.netlify.app/og-v3.jpg">
+<meta property="og:url" content="https://lumienglish.co.il/">
+<meta property="og:image" content="https://lumienglish.co.il/og-v3.jpg">
+<meta property="og:image:secure_url" content="https://lumienglish.co.il/og-v3.jpg">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:alt" content="Lumi English: לומדים אנגלית בכיף, כל יום">
-<link rel="image_src" href="https://lumi-english.netlify.app/og-v3.jpg">
+<link rel="image_src" href="https://lumienglish.co.il/og-v3.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="he_IL">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://lumi-english.netlify.app/og-v3.jpg">
+<meta name="twitter:image" content="https://lumienglish.co.il/og-v3.jpg">
 '''
 anchor='<meta name="viewport" content="width=device-width, initial-scale=1">'
 assert src.count(anchor)==1
