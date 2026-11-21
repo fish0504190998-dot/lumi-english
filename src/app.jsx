@@ -638,16 +638,17 @@ function TabHead({tab, place, name, known, showSub, setTab, onSettings}){
 const CLOUD_CFG={ url:'https://jiwsiutwvqdcafmiqxox.supabase.co', key:'sb_publishable_EfvswdyANwtEjarf0FhQrA_K6-KgDZj' };
 const ANALYTICS_CODE='';   // GoatCounter site code (the part before .goatcounter.com). Empty = no visit counting and no policy section.
 const SUPPORT_EMAIL='info@lumienglish.co.il';
-const LOCAL_ONLY=false;  // production: Supabase cloud card, community, study groups and the AI talk are live
-const ACCOUNTS=false;    // the new e-mail + password account flow (sign-up, sign-in, forgot password, backup code) is still a localStorage mock: hidden here until Supabase Auth + an e-mail sender are connected (docs/16 in lumi-future-lab)
+const LOCAL_ONLY=false;  // production: Supabase cloud, community, study groups and the AI talk are live
+const ACCOUNTS=true;     // ONE switch for the e-mail + password account UI (sign-up, sign-in, forgot password, account panel, offer after the first lesson). false = hidden, learning needs no account
 let SB=null;
 try{ if(!LOCAL_ONLY && !/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname) && window.supabase&&window.supabase.createClient) SB=window.supabase.createClient(CLOUD_CFG.url, CLOUD_CFG.key, {auth:{persistSession:true, autoRefreshToken:true, detectSessionInUrl:true, storageKey:'lumi-auth'}}); }catch(e){ SB=null; }
 const CLOUD_ERR={ 'Invalid login credentials':'המייל או הסיסמה לא נכונים.', 'Email not confirmed':'עוד לא אישרת את המייל. בדקו את תיבת הדואר (גם בספאם) ולחצו על הקישור.',
   'User already registered':'כבר יש חשבון עם המייל הזה. נסו להתחבר.', 'Password should be at least 6 characters':'הסיסמה צריכה לפחות 6 תווים.' };
 const cloudMsg=e=>{ const m=(e&&e.message)||''; for(const k in CLOUD_ERR) if(m.includes(k)) return CLOUD_ERR[k]; if(/fetch|network|Failed to/i.test(m)) return 'אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.'; if(/rate|too many/i.test(m)) return 'יותר מדי ניסיונות. חכו כמה דקות ונסו שוב.'; return 'משהו השתבש: '+m; };
-let SESSION=null; const SESSION_SUBS=new Set(); let RECOVERY=false;
-if(SB){ SB.auth.getSession().then(({data})=>{ SESSION=data.session; SESSION_SUBS.forEach(f=>f()); }).catch(()=>{});
-  SB.auth.onAuthStateChange((ev,s)=>{ SESSION=s; if(ev==='PASSWORD_RECOVERY') RECOVERY=true; SESSION_SUBS.forEach(f=>f()); }); }
+let SESSION=null; const SESSION_SUBS=new Set(); let RECOVERY=false; let LAST_UID=null; let FRESH_LOGIN=(()=>{ try{ const h=location.hash||''; if(!/[#&]access_token=/.test(h)) return false; const tag=h.slice(0,80); if(sessionStorage.getItem('lumi-link-seen')===tag) return false; sessionStorage.setItem('lumi-link-seen',tag); return true; }catch(e){ return false; } })();   // (an e-mailed link opens the site with the token in the address: supabase-js reports that as the first session event, so the address is checked here, before it is cleaned) FRESH_LOGIN: this page load saw the person sign in (password, e-mail link), as opposed to an older saved session
+if(SB){ SB.auth.getSession().then(({data})=>{ SESSION=data.session; if(SESSION&&SESSION.user&&LAST_UID===null) LAST_UID=SESSION.user.id; SESSION_SUBS.forEach(f=>f()); }).catch(()=>{});
+  SB.auth.onAuthStateChange((ev,s)=>{ SESSION=s; const id=s&&s.user&&s.user.id; if(id&&id!==LAST_UID) LAST_UID=id; if(!id){ LAST_UID=null; FRESH_LOGIN=false; }
+    if(ev==='PASSWORD_RECOVERY') RECOVERY=true; SESSION_SUBS.forEach(f=>f()); }); }
 function useSession(){ const [,set]=useState(0); useEffect(()=>{ const f=()=>set(x=>x+1); SESSION_SUBS.add(f); return ()=>SESSION_SUBS.delete(f); },[]); return SESSION; }
 async function cloudPull(){ const u=SESSION&&SESSION.user; if(!u) return null;
   const {data,error}=await SB.from('progress').select('data,updated_at').eq('user_id',u.id).maybeSingle(); if(error) throw error; return data; }
@@ -656,44 +657,13 @@ async function cloudPush(payload){ const u=SESSION&&SESSION.user; if(!u) return 
 /* remove anything that could be markup or invisible control characters from user text */
 function cleanText(s, max){ return String(s||'').replace(/<[^>]*>/g,' ').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F​-‏‪-‮⁦-⁩]/g,'').replace(/[ \t]+/g,' ').trim().slice(0,max||60000); }
 
-function AuthForm({onDone, intro}){
-  const [mode,setMode]=useState('in'); const [name,setName]=useState(''); const [email,setEmail]=useState(''); const [pw,setPw]=useState(''); const [busy,setBusy]=useState(false); const [msg,setMsg]=useState(null);
-  if(!SB) return <p className="text-sm text-muted">{LOCAL_ONLY?'בגרסת הדמו ההתחברות כבויה. באתר האמיתי היא עובדת כרגיל.':<>שמירה בענן זמינה באתר <bdi dir="ltr" lang="en">lumienglish.co.il</bdi>.</>}</p>;
-  const submit=async e=>{ e.preventDefault(); setBusy(true); setMsg(null);
-    try{
-      if(mode==='forgot'){ const {error}=await SB.auth.resetPasswordForEmail(email.trim(),{redirectTo:SITE_URL+'/'}); if(error) throw error; setMsg({ok:true, t:'שלחנו לך מייל עם קישור לבחירת סיסמה חדשה.'}); }
-      else if(mode==='up'){ const nm=cleanText(name,40); if(nm.length<2){ setMsg({ok:false, t:'כתבו את השם שלכם (לפחות 2 תווים).'}); setBusy(false); return; }
-        const {data,error}=await SB.auth.signUp({email:email.trim(), password:pw, options:{emailRedirectTo:SITE_URL+'/', data:{name:nm}}}); if(error) throw error;
-        if(data.session) onDone(data.session); else setMsg({ok:true, t:'נרשמת! שלחנו מייל אישור. לחצו על הקישור במייל, ואז התחברו כאן.'}); }
-      else { const {data,error}=await SB.auth.signInWithPassword({email:email.trim(), password:pw}); if(error) throw error; onDone(data.session); }
-    }catch(x){ setMsg({ok:false, t:cloudMsg(x)}); } setBusy(false); };
-  return (<form className="flex flex-col gap-3" onSubmit={submit}>
-    {intro&&<p className="text-sm text-muted">{intro}</p>}
-    {mode!=='forgot'&&<div className="seg self-start" role="group" aria-label="כניסה או הרשמה"><button type="button" aria-pressed={mode==='in'} onClick={()=>setMode('in')}>התחברות</button><button type="button" aria-pressed={mode==='up'} onClick={()=>setMode('up')}>הרשמה</button></div>}
-    {mode==='up'&&<label className="flex flex-col gap-1"><span className="text-sm font-semibold">שם</span><input id="auth-name" type="text" className="field" autoComplete="name" required minLength={2} maxLength={40} value={name} onChange={e=>setName(e.target.value)}/></label>}
-    <label className="flex flex-col gap-1"><span className="text-sm font-semibold">מייל</span><input id="auth-email" type="email" dir="ltr" className="field text-left" autoComplete="email" required value={email} onChange={e=>setEmail(e.target.value)}/></label>
-    {mode!=='forgot'&&<label className="flex flex-col gap-1"><span className="text-sm font-semibold">סיסמה{mode==='up'?' (לפחות 6 תווים)':''}</span><input id="auth-pw" type="password" dir="ltr" className="field text-left" autoComplete={mode==='up'?'new-password':'current-password'} minLength={6} required value={pw} onChange={e=>setPw(e.target.value)}/></label>}
-    {msg&&<div className="rounded-xl p-3 text-sm" role={msg.ok?'status':'alert'} style={{background:msg.ok?'var(--known-bg)':'var(--bad-soft)', color:msg.ok?'var(--known)':'var(--bad)'}}><Bi>{msg.t}</Bi></div>}
-    <div className="flex gap-2 flex-wrap items-center">
-      <button className="btn btn-primary px-5" disabled={busy}>{busy?'רגע…':mode==='in'?'התחברות':mode==='up'?'יצירת חשבון':'שליחת קישור'}</button>
-      {mode==='in'&&<button type="button" className="hit text-sm text-primary font-semibold" onClick={()=>{ setMode('forgot'); setMsg(null); }}>שכחתי סיסמה</button>}
-      {mode==='forgot'&&<button type="button" className="hit text-sm text-muted underline" onClick={()=>setMode('in')}>חזרה להתחברות</button>}
-    </div>
-  </form>);
+/* the old inline sign-in form is gone: every sign-in / sign-up goes through the one AuthDialog (opened with this event) */
+const openAuthDialog=(view)=>{ try{ window.dispatchEvent(new CustomEvent('lumi-open-auth',{detail:view||'signin'})); }catch(e){} };
+function AuthForm({intro}){
+  if(!SB||!ACCOUNTS) return <p className="text-sm text-muted"><>שמירה בענן זמינה באתר <bdi dir="ltr" lang="en">lumienglish.co.il</bdi>.</></p>;
+  return (<div className="flex flex-col gap-3">{intro&&<p className="text-sm text-muted">{intro}</p>}
+    <div className="flex gap-2 flex-wrap items-center"><button type="button" className="btn btn-primary px-5" onClick={()=>openAuthDialog('signin')}>כניסה</button><button type="button" className="btn btn-line px-5" onClick={()=>openAuthDialog('signup')}>יצירת חשבון</button></div></div>);
 }
-function RecoveryDialog({onClose}){
-  const [pw,setPw]=useState(''); const [msg,setMsg]=useState(null); const [busy,setBusy]=useState(false);
-  const save=async e=>{ e.preventDefault(); setBusy(true); const {error}=await SB.auth.updateUser({password:pw}); setBusy(false);
-    if(error) setMsg({ok:false,t:cloudMsg(error)}); else { setMsg({ok:true,t:'הסיסמה עודכנה. אפשר להמשיך ללמוד.'}); RECOVERY=false; setTimeout(onClose,1500); } };
-  return (<div className="overlay fixed inset-0 z-[60] grid place-items-center gutter" style={{background:'color-mix(in srgb,var(--ink) 45%,transparent)'}}>
-    <form role="dialog" aria-modal="true" aria-label="בחירת סיסמה חדשה" className="sheet card w-full p-6 flex flex-col gap-3" style={{maxWidth:'26rem'}} onSubmit={save}>
-      <h2 className="text-xl font-extrabold">בחירת סיסמה חדשה</h2>
-      <input id="recovery-pw" type="password" dir="ltr" className="field text-left" autoComplete="new-password" minLength={6} required autoFocus placeholder="לפחות 6 תווים" value={pw} onChange={e=>setPw(e.target.value)}/>
-      {msg&&<div className="rounded-xl p-3 text-sm" role="status" style={{background:msg.ok?'var(--known-bg)':'var(--bad-soft)'}}>{msg.t}</div>}
-      <div className="flex gap-2"><button className="btn btn-primary px-5" disabled={busy}>שמירה</button><button type="button" className="btn btn-ghost px-4" onClick={()=>{ RECOVERY=false; onClose(); }}>ביטול</button></div>
-    </form></div>);
-}
-
 /* community stories */
 let COMMUNITY=[]; let COMMUNITY_AT=0; const COMMUNITY_SUBS=new Set(); let COMMUNITY_ERR='';
 const toStory=r=>({ id:'c_'+r.id, cid:r.id, community:true, ownerId:r.user_id, author:r.author_name, hidden:r.is_approved===false, level:r.level||1, title:cleanText(r.title,120), he:'', blurb:'',
@@ -741,14 +711,14 @@ const LEGAL={
     ['סיפורי קהילה','בפרסום סיפור בספריית הקהילה, המשתמש מאשר שהסיפור נכתב על ידו או שאינו מוגן בזכויות יוצרים, ומסכים שהוא יוצג לכלל משתמשי האתר. הנהלת האתר רשאית להסיר כל סיפור מספריית הקהילה, לפי שיקול דעתה ובלי הודעה מוקדמת, ובכלל זה בעקבות דיווחים של משתמשים.'],
     ['אחריות','השירות ניתן כפי שהוא (As-Is). איננו מתחייבים שהשירות יפעל ללא הפסקות או תקלות, ולא נישא באחריות לנזק שייגרם בשל הפסקות זמניות, תקלות טכניות או אובדן נתונים. מומלץ להוריד מדי פעם גיבוי של ההתקדמות.'],
     ['שינויים','אנו רשאים לעדכן את תנאי השימוש מעת לעת. המשך השימוש באתר לאחר עדכון מהווה הסכמה לתנאים המעודכנים.']]},
-  privacy:{title:'מדיניות פרטיות', draft:'טיוטה: הסעיף "חשבון ושמירת התקדמות" נכתב לגרסת הדמו ועדיין לא אושר על ידי איש מקצוע. בדמו לא נוצר חשבון אמיתי ושום מידע לא נשלח.', body:[
-    ['חשבון ושמירת התקדמות',['אפשר ללמוד ב־Lumi English בלי הרשמה. אם תבחר להירשם, נשמור את כתובת המייל שלך, סיסמה מוצפנת (אנחנו לא רואים את הסיסמה עצמה) ואת ההתקדמות שלך בלימוד: שיעורים שהשלמת, מילים שנשמרו והגדרות.','אנחנו משתמשים במידע הזה רק כדי להפעיל את החשבון: לשמור את ההתקדמות, לאפשר לך להיכנס ממכשירים שונים, ולשלוח מיילים שקשורים לחשבון בלבד (אישור כתובת ושחזור סיסמה).','איננו מוכרים את המידע, איננו מעבירים אותו למפרסמים, ואיננו שולחים הודעות פרסומיות בלי הסכמה נפרדת מפורשת.','המידע נשמר אצל ספק שירותי הענן שלנו (Supabase). [להשלים: באיזה אזור גאוגרפי נשמרים הנתונים.]','נשמור את המידע כל עוד החשבון קיים. אפשר למחוק את החשבון בכל עת בלשונית "אני", ואז נמחק את המייל ואת ההתקדמות השמורה.','אפשר לבקש לעיין במידע שנשמר עליך, לתקן אותו או למחוק אותו, בפנייה אל info@lumienglish.co.il.','מי שלא נרשם: ההתקדמות שלו נשמרת רק במכשיר שלו ואינה נשלחת אלינו.']],
-    ['איזה מידע נאסף','כשנרשמים לשמירה בענן, נשמרים השם וכתובת המייל שמסרתם (לצורך התחברות וקשר), התקדמות הלמידה (מילים מוכרות ומילים בלמידה, היסטוריית תרגול, רצף והישגים), הסיפורים והתמונות שהעליתם, ושם התצוגה שבחרתם. בלי הרשמה, כל המידע נשמר רק בדפדפן שלכם ולא נשלח אלינו.'],
+  privacy:{title:'מדיניות פרטיות', draft:'טיוטה: המדיניות מתארת את החשבון האמיתי (מייל וסיסמה). היא עדיין לא נבדקה על ידי איש מקצוע, ויש לבדוק אותה לפני שמסירים את ההערה הזו.', body:[
+    ['חשבון ושמירת התקדמות',['אפשר ללמוד ב־Lumi English בלי הרשמה. אם תבחר ליצור חשבון, נשמור את כתובת המייל שלך, סיסמה בצורה מוצפנת (אנחנו לא רואים את הסיסמה עצמה) ואת ההתקדמות שלך בלימוד: שיעורים שהשלמת, מילים שנשמרו והגדרות.','אנחנו משתמשים במידע הזה רק כדי להפעיל את החשבון: לשמור את ההתקדמות, לאפשר לך להיכנס מכל מכשיר, ולשלוח מיילים שקשורים לחשבון בלבד: אישור כתובת המייל ושחזור סיסמה. לא נשלח הודעות פרסומיות.','איננו מוכרים את המידע ואיננו מעבירים אותו למפרסמים.','המידע נשמר אצל ספק שירותי הענן שלנו, Supabase. את המיילים שולח עבורנו שירות שליחת מיילים (Resend), שמקבל את כתובת המייל ואת תוכן ההודעה רק כדי לשלוח אותה. [להשלים: באיזה אזור גאוגרפי נשמרים הנתונים.]','כדי לזכור שנכנסת, נשמר בדפדפן שלך אסימון כניסה. זה אחסון מקומי לצורך הכניסה בלבד, ואין באתר עוגיות פרסום או מעקב.','נשמור את המידע כל עוד החשבון קיים. אפשר למחוק את החשבון בכל עת בלשונית "אני", ואז נמחק את המייל ואת ההתקדמות השמורה בחשבון.','אפשר לבקש לעיין במידע שנשמר עליך, לתקן אותו או למחוק אותו, בפנייה אל info@lumienglish.co.il.','מי שלא נרשם: ההתקדמות שלו נשמרת רק במכשיר שלו ואינה נשלחת אלינו.']],
+    ['איזה מידע נאסף','כשנרשמים לשמירה בענן, נשמרים כתובת המייל והסיסמה המוצפנת שמסרתם (לצורך כניסה וקשר), התקדמות הלמידה (מילים מוכרות ומילים בלמידה, היסטוריית תרגול, רצף והישגים), הסיפורים והתמונות שהעליתם, ושם התצוגה שבחרתם. בלי הרשמה, כל המידע נשמר רק בדפדפן שלכם ולא נשלח אלינו.'],
     ['איפה המידע נשמר','המידע נשמר בתשתית ענן מאובטחת של Supabase. כל משתמש מבודד ברמת השורה, באמצעות מנגנון ההרשאות של Supabase: רק אתם יכולים לקרוא ולשנות את ההתקדמות שלכם. סיפורים שבחרתם לפרסם כציבוריים גלויים לכל המשתמשים יחד עם שם התצוגה שבחרתם, ללא כתובת המייל.'],
     ['שיתוף עם צדדים שלישיים','איננו מוכרים את המידע שלכם, ואיננו משתפים אותו עם מפרסמים או עם צדדים שלישיים לצורכי שיווק. המידע משמש רק להפעלת השירות.'],
     ['שירותים חיצוניים','חיפוש מילה שאינה במילון המובנה נשלח לשירותי מילון ותרגום חיצוניים (dictionaryapi.dev ו־MyMemory). שיחה חופשית עם ה־AI שולחת את ההודעות שלכם לספק הבינה המלאכותית של האתר (Groq או Google Gemini) כדי לקבל תשובה, ואיננו שומרים אותן. זיהוי דיבור מתבצע על ידי הדפדפן שלכם. קבוצות לימוד שומרות שם, דמות ונקודות בלבד.'],
     ...(ANALYTICS_CODE?[['ספירת כניסות','האתר משתמש ב־GoatCounter, שירות סטטיסטיקה ידידותי לפרטיות, כדי לספור כניסות: דפים שנצפו, מדינה וסוג דפדפן. השירות לא משתמש בעוגיות, לא עוקב אחרי אנשים בנפרד, ולא נמכר או משותף לצורכי פרסום. הוא פועל רק באתר עצמו, לא בהתקדמות הלימוד שלכם.']]:[]),
-    ['מחיקת חשבון ונתונים','אפשר למחוק את החשבון וכל הנתונים בכל רגע: לוחצים על השם שלכם בראש המסך ובוחרים "מחק את החשבון והנתונים שלי". המחיקה סופית. אפשר גם לבקש מחיקה במייל לכתובת שבעמוד "צור קשר".']]},
+    ['מחיקת חשבון ונתונים','אפשר למחוק את החשבון וכל הנתונים בכל רגע: נכנסים ללשונית "אני" ובוחרים "מחיקת החשבון שלי". המחיקה סופית. אפשר גם לבקש מחיקה במייל לכתובת שבעמוד "צור קשר".']]},
   access:{title:'הצהרת נגישות', draft:'טיוטה: הצהרה זו נכתבה כטיוטה לגרסת הדמו ועדיין לא אושרה על ידי בעל האתר. אין לראות בה הצהרה משפטית סופית.', body:[
     ['המחויבות שלנו','אנו פועלים להנגיש את האתר לאנשים עם מוגבלויות, בהתאם לתקנות שוויון זכויות לאנשים עם מוגבלות (התאמות נגישות לשירות), התשע"ג־2013, ולתקן הישראלי ת"י 5568 המבוסס על הנחיות WCAG 2.1. היעד שלנו הוא רמת AA. האתר עדיין בתהליך שיפור, ואיננו מצהירים על עמידה מלאה בתקן.'],
     ['תאריך הבדיקה האחרונה','19 בנובמבר 2026. זו בדיקה פנימית של צוות האתר ולא סקירה של מומחה נגישות מוסמך.'],
@@ -785,51 +755,6 @@ function Footer({onOpen}){
 
 /* ---------- cloud account card + progress sync ---------- */
 const cloudPayload=s=>{ const {cloud, ...rest}=s; return {...rest, settings:{...rest.settings, voice:''}}; };
-function CloudSync({state, actions, toast}){
-  const session=useSession(); const uid=session&&session.user&&session.user.id;
-  const [ask,setAsk]=useState(null); const timer=useRef(null); const lastPushed=useRef(''); const stateRef=useRef(state); stateRef.current=state;
-  useEffect(()=>{ if(!SB||!uid) return; let dead=false;
-    (async()=>{ try{ const r=await cloudPull(); if(dead) return; const s=stateRef.current; const linked=s.cloud&&s.cloud.uid===uid;
-      if(!r){ const at=await cloudPush(cloudPayload(s)); actions.setCloud({uid, at}); lastPushed.current=JSON.stringify(cloudPayload(s)); toast('ההתקדמות הועלתה לענן'); }
-      else if(linked){ if(Date.parse(r.updated_at)>Date.parse(s.cloud.at)+1500){ lastPushed.current=JSON.stringify(r.data); actions.restore({...r.data, cloud:{uid, at:r.updated_at}}); toast('ההתקדמות עודכנה מהענן'); } else lastPushed.current=''; }
-      else setAsk(r);
-    }catch(e){ toast(cloudMsg(e)); } })(); return ()=>{ dead=true; }; },[uid]);
-  useEffect(()=>{ if(!SB||!uid||!(state.cloud&&state.cloud.uid===uid)) return; const body=JSON.stringify(cloudPayload(state)); if(body===lastPushed.current) return;
-    clearTimeout(timer.current); timer.current=setTimeout(async()=>{ try{ const at=await cloudPush(JSON.parse(body)); lastPushed.current=body; actions.setCloud({uid, at}); }catch(e){} },4000);
-    return ()=>clearTimeout(timer.current); },[state, uid]);
-  if(!ask) return null;
-  const nk=o=>Object.keys((o&&o.words)||{}).filter(k=>o.words[k]==='known').length;
-  const useRemote=()=>{ lastPushed.current=JSON.stringify(ask.data); actions.restore({...ask.data, cloud:{uid, at:ask.updated_at}}); setAsk(null); toast('ההתקדמות נטענה מהענן'); };
-  const useLocal=async()=>{ try{ const at=await cloudPush(cloudPayload(state)); actions.setCloud({uid, at}); lastPushed.current=JSON.stringify(cloudPayload(state)); setAsk(null); toast('ההתקדמות מהמכשיר הועלתה לענן'); }catch(e){ toast(cloudMsg(e)); } };
-  return (<div className="overlay fixed inset-0 z-[60] grid place-items-center gutter" style={{background:'color-mix(in srgb,var(--ink) 45%,transparent)'}}>
-    <div role="alertdialog" aria-modal="true" aria-labelledby="sync-title" className="sheet card w-full p-6 flex flex-col gap-4" style={{maxWidth:'30rem'}}>
-      <h2 id="sync-title" className="text-xl font-extrabold">נמצאה התקדמות בענן</h2>
-      <p className="text-sm text-muted leading-relaxed">בחשבון הזה כבר שמורה התקדמות ({nk(ask.data)} מילים מוכרות). במכשיר הזה יש התקדמות אחרת ({nk(state)} מילים מוכרות). איזו להשאיר?</p>
-      <button className="btn btn-go py-3 px-5" onClick={useRemote}>להשתמש בהתקדמות מהענן ({nk(ask.data)} מילים)</button>
-      <button className="btn btn-line py-3 px-5" onClick={useLocal}>להחליף את הענן במה שבמכשיר ({nk(state)} מילים)</button>
-      <button className="hit text-sm text-muted underline self-start" onClick={()=>{ setAsk(null); SB.auth.signOut(); }}>ביטול והתנתקות</button>
-    </div></div>);
-}
-function CloudCard({state, actions, toast, onClose}){
-  const session=useSession(); const user=session&&session.user; const [busy,setBusy]=useState(false); const [confirm,setConfirm]=useState(false); const [typed,setTyped]=useState('');
-  const linked=user&&state.cloud&&state.cloud.uid===user.id;
-  const del=async()=>{ setBusy(true); try{ const {error}=await SB.rpc('delete_my_account'); if(error) throw error; await SB.auth.signOut().catch(()=>{}); actions.setCloud(null); COMMUNITY_AT=0; toast('החשבון והנתונים בענן נמחקו'); onClose&&onClose(); }catch(e){ toast(cloudMsg(e)); setBusy(false); } };
-  return (<div className="border-t border-line pt-4 flex flex-col gap-3">
-    <div className="font-semibold flex items-center gap-2">☁️ שמירה בענן{user&&<span className="tag" style={{background:'var(--known-bg)', color:'var(--known)'}}>מחובר</span>}</div>
-    {!SB ? <p className="text-sm text-muted">{LOCAL_ONLY?'בגרסת הדמו השמירה בענן כבויה. ההתקדמות נשמרת רק בדפדפן הזה.':<>שמירה בענן זמינה באתר <bdi dir="ltr" lang="en">lumienglish.co.il</bdi>.</>}</p>
-    : !user ? <AuthForm intro="עם חשבון ההתקדמות שלכם נשמרת בענן, וזמינה בכל מכשיר. בלי חשבון, הכול נשמר רק בדפדפן הזה." onDone={()=>{}}/>
-    : <>
-      <p className="text-sm text-muted leading-relaxed">מחוברים כ־<bdi dir="ltr" className="font-bold text-ink">{user.email}</bdi>. {linked?<>ההתקדמות מסונכרנת אוטומטית{state.cloud.at?<> · עודכן לאחרונה ב־<span className="num">{new Date(state.cloud.at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'})}</span></>:null}.</>:'ההתקדמות של המשתמש הזה עדיין לא מחוברת לחשבון.'}</p>
-      <div className="flex gap-2 flex-wrap"><button className="btn btn-ghost px-4 text-sm" onClick={async()=>{ await SB.auth.signOut(); actions.setCloud(null); toast('התנתקת'); }}>התנתקות</button></div>
-      {!confirm ? <button className="hit text-sm underline self-start" style={{color:'var(--bad)'}} onClick={()=>setConfirm(true)}>מחק את החשבון והנתונים שלי</button>
-      : <div className="rounded-xl border p-3 flex flex-col gap-2" style={{borderColor:'var(--bad)'}} role="alertdialog" aria-label="אישור מחיקת חשבון">
-          <div className="text-sm leading-relaxed"><b>מחיקה סופית.</b> החשבון, ההתקדמות בענן והסיפורים שפרסמתם יימחקו ולא ניתן לשחזר אותם. ההתקדמות השמורה בדפדפן הזה תישאר, אלא אם תמחקו אותה בנפרד. כדי לאשר, כתבו <b>מחק</b>:</div>
-          <input id="del-confirm" className="field" value={typed} onChange={e=>setTyped(e.target.value)} aria-label="כתבו מחק לאישור" autoComplete="off"/>
-          <div className="flex gap-2"><button className="btn py-2 px-4" style={{background:'var(--bad)', color:'var(--surface)'}} disabled={typed.trim()!=='מחק'||busy} onClick={del}>{busy?'מוחק…':'מחק את הכול'}</button><button className="btn btn-ghost py-2 px-4" onClick={()=>{ setConfirm(false); setTyped(''); }}>ביטול</button></div>
-        </div>}
-    </>}
-  </div>);
-}
 
 /* ---------- free conversation with AI (Gemini through the site's /api/talk function) ---------- */
 const AI_OK=!LOCAL_ONLY && !/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname);
@@ -3020,7 +2945,7 @@ const normEmail=e=>String(e||'').trim().toLowerCase();
 const RESET_TTL=60*60*1000;      // the reset link is valid for one hour
 let AUTH_FAILS=0, AUTH_LOCK=0;
 const authOffline=()=>typeof navigator!=='undefined'&&navigator.onLine===false;
-const Auth={
+const MockAuth={
   mode:'mock',
   session(){ const d=authLoad(); return d.session&&d.users[d.session]?{email:d.session}:null; },
   pending(){ const d=authLoad(); return d.pending&&d.users[d.pending]?d.pending:null; },
@@ -3053,7 +2978,72 @@ const Auth={
   saveProgress(state){ const d=authLoad(); if(!d.session||!d.users[d.session]) return false; d.users[d.session].progress=state; d.users[d.session].progressAt=Date.now(); try{ localStorage.setItem(AUTH_KEY, JSON.stringify(d)); return true; }catch(e){ return false; } },
   async deleteAccount(){ const d=authLoad(); if(d.session) delete d.users[d.session]; d.session=null; d.pending=null; authSave(d); return {ok:true}; }
 };
-function useAuth(){ const [,setV]=useState(0); useEffect(()=>{ const f=()=>setV(x=>x+1); AUTH_SUBS.add(f); return ()=>AUTH_SUBS.delete(f); },[]); return {session:Auth.session(), pending:Auth.pending()}; }
+/* ---------- the REAL account layer: Supabase Auth (e-mail + password). Same shape as MockAuth, so the screens do not change ----------
+   - sign-up sends a confirmation e-mail; the link brings the person back to the site already signed in (supabase-js reads the link, session is kept in localStorage 'lumi-auth')
+   - "forgot password" sends a link; it opens the site with a recovery session and the "choose a new password" screen
+   - progress lives in public.progress (one row per person, row level security: only your own row). Setup: supabase-accounts.sql
+   - nothing here ever blocks learning: if the server is unreachable the progress simply stays on the device */
+const PEND_KEY='lumi-acct-pending';
+const RealAuth=(()=>{
+  const getPending=()=>{ try{ return localStorage.getItem(PEND_KEY)||null; }catch(e){ return null; } };
+  const setPending=e=>{ try{ if(e) localStorage.setItem(PEND_KEY,e); else localStorage.removeItem(PEND_KEY); }catch(x){} AUTH_SUBS.forEach(f=>f()); };
+  const kind=(error)=>{ const m=String((error&&error.message)||error||''); const st=error&&error.status;
+    if(/invalid login credentials/i.test(m)) return 'bad_credentials';
+    if(/email not confirmed/i.test(m)) return 'not_confirmed';
+    if(/already registered|already been registered/i.test(m)) return 'exists';
+    if(st===429||/rate limit|too many|security purposes|over_email_send_rate/i.test(m)) return 'rate';
+    if(/different from the old/i.test(m)) return 'same_password';
+    if(/password should|weak password|at least \d+ char/i.test(m)) return 'weak_password';
+    if(/session missing|expired|invalid.*token|otp/i.test(m)) return 'expired';
+    if(/invalid.*email|unable to validate email/i.test(m)) return 'invalid_email';
+    if(st>=500) return 'server';
+    if(!st||st===0||/fetch|network|failed to|load failed|AuthRetryableFetchError/i.test(m+(error&&error.name||''))) return 'offline';
+    return 'server'; };
+  const guard=(email)=>{ email=normEmail(email); if(!EMAIL_RE.test(email)) return {email, err:'invalid_email'}; if(authOffline()) return {email, err:'offline'}; return {email}; };
+  return {
+    mode:'supabase',
+    session(){ return SESSION&&SESSION.user?{email:SESSION.user.email}:null; },
+    pending(){ return SESSION&&SESSION.user?null:getPending(); },
+    hasReset(){ return false }, resetValid(){ return false },
+    async signUp(email, password){
+      const g=guard(email); if(g.err) return {ok:false, error:g.err}; if(String(password||'').length<8) return {ok:false, error:'weak_password'};
+      try{ const {data,error}=await SB.auth.signUp({email:g.email, password, options:{emailRedirectTo:SITE_URL+'/'}}); if(error) return {ok:false, error:kind(error)};
+        if(data&&data.user&&Array.isArray(data.user.identities)&&data.user.identities.length===0) return {ok:false, error:'exists'};   // Supabase hides "already registered" behind an empty identity list
+        if(data&&data.session) return {ok:true, email:g.email, signedIn:true};
+        setPending(g.email); return {ok:true, email:g.email}; }catch(e){ return {ok:false, error:kind(e)}; } },
+    async signIn(email, password){
+      const g=guard(email); if(g.err) return {ok:false, error:g.err}; if(!password) return {ok:false, error:'bad_credentials'};
+      if(Date.now()<AUTH_LOCK) return {ok:false, error:'rate'};
+      FRESH_LOGIN=true;      // the session event can arrive before this call returns: the sync effect must already know this is a sign-in made right now
+      try{ const {data,error}=await SB.auth.signInWithPassword({email:g.email, password}); if(error){ FRESH_LOGIN=false; const k=kind(error);
+          if(k==='bad_credentials'&&++AUTH_FAILS>=5){ AUTH_LOCK=Date.now()+5*60*1000; AUTH_FAILS=0; return {ok:false, error:'rate'}; } return {ok:false, error:k}; }
+        AUTH_FAILS=0; return {ok:true, email:g.email}; }catch(e){ FRESH_LOGIN=false; return {ok:false, error:kind(e)}; } },
+    async signOut(){ try{ await SB.auth.signOut(); }catch(e){} setPending(null); return {ok:true}; },
+    async resetPassword(email){     // same answer whether or not the address exists
+      const g=guard(email); if(g.err) return {ok:false, error:g.err};
+      try{ const {error}=await SB.auth.resetPasswordForEmail(g.email,{redirectTo:SITE_URL+'/'}); if(error){ const k=kind(error); if(k==='rate'||k==='offline') return {ok:false, error:k}; } return {ok:true}; }catch(e){ return {ok:false, error:kind(e)}; } },
+    async completeReset(email, newPassword){   // the "choose a new password" screen, reached from the e-mailed link (a recovery session)
+      if(String(newPassword||'').length<8) return {ok:false, error:'weak_password'}; if(authOffline()) return {ok:false, error:'offline'};
+      if(!(SESSION&&SESSION.user)) return {ok:false, error:'expired'};
+      try{ const {error}=await SB.auth.updateUser({password:newPassword}); if(error) return {ok:false, error:kind(error)}; return {ok:true, email:SESSION.user.email}; }catch(e){ return {ok:false, error:kind(e)}; } },
+    async confirm(){ return {ok:false, error:'expired'}; },      // confirming happens by the e-mailed link only
+    async resendConfirm(email){ const g=guard(email); if(g.err) return {ok:false, error:g.err};
+      try{ const {error}=await SB.auth.resend({type:'signup', email:g.email, options:{emailRedirectTo:SITE_URL+'/'}}); return error?{ok:false, error:kind(error)}:{ok:true}; }catch(e){ return {ok:false, error:kind(e)}; } },
+    async pull(){ const r=await cloudPull(); return r&&r.data?r.data:null; },
+    async pushNow(state){ return cloudPush(cloudPayload(state)); },
+    saveProgress(state){ if(!(SESSION&&SESSION.user)) return false; cloudPush(cloudPayload(state)).catch(()=>{}); return true; },
+    async deleteAccount(){
+      try{ let {error}=await SB.rpc('delete_my_account');
+        if(error){ const tok=SESSION&&SESSION.access_token; const r=await fetch((ON_SITE?'':SITE_URL)+'/api/delete-account',{method:'POST', headers:{authorization:'Bearer '+tok}}); if(!r.ok) return {ok:false, error:'server'}; }
+        try{ await SB.auth.signOut(); }catch(e){} setPending(null); COMMUNITY_AT=0; return {ok:true}; }catch(e){ return {ok:false, error:kind(e)}; } }
+  };
+})();
+/* nothing is ever faked in production: if the cloud library did not load, the account is simply unavailable and learning continues on the device */
+const DownAuth={ mode:'down', session:()=>null, pending:()=>null, hasReset:()=>false, resetValid:()=>false,
+  signUp:async()=>({ok:false,error:'server'}), signIn:async()=>({ok:false,error:'server'}), signOut:async()=>({ok:true}), resetPassword:async()=>({ok:false,error:'server'}), completeReset:async()=>({ok:false,error:'server'}),
+  confirm:async()=>({ok:false,error:'server'}), resendConfirm:async()=>({ok:false,error:'server'}), pull:async()=>null, pushNow:async()=>null, saveProgress:()=>false, deleteAccount:async()=>({ok:false,error:'server'}) };
+const Auth=LOCAL_ONLY?MockAuth:(SB?RealAuth:DownAuth);
+function useAuth(){ const [,setV]=useState(0); useEffect(()=>{ const f=()=>setV(x=>x+1); AUTH_SUBS.add(f); SESSION_SUBS.add(f); return ()=>{ AUTH_SUBS.delete(f); SESSION_SUBS.delete(f); }; },[]); return {session:Auth.session(), pending:Auth.pending()}; }
 /* signing in on a device that also has progress: nothing is asked, the two are merged (the higher of each metric, words from both) */
 function mergeProgress(local, remote){
   if(!remote) return local; if(!local) return remote;
@@ -3085,7 +3075,7 @@ const AU_ERR={
   invalid_email:'כתובת המייל לא נראית תקינה. בדוק אותה ונסה שוב.', weak_password:'הסיסמה צריכה להיות לפחות 8 תווים.',
   exists:'הכתובת הזו כבר רשומה. אפשר להיכנס, או לשחזר את הסיסמה.', bad_credentials:'המייל או הסיסמה לא נכונים. אפשר לנסות שוב או לשחזר סיסמה.',
   rate:'ניסית כמה פעמים. נסה שוב בעוד כמה דקות.', offline:'אין חיבור לאינטרנט כרגע. ההתקדמות שלך שמורה במכשיר, ונסנכרן אותה כשהחיבור יחזור.',
-  server:'משהו השתבש מצדנו. ההתקדמות שלך שמורה במכשיר. נסה שוב עוד מעט.', not_confirmed:'עוד לא אישרת את המייל. שלחנו קישור לאישור, ואפשר לשלוח שוב.' };
+  server:'משהו השתבש מצדנו. ההתקדמות שלך שמורה במכשיר. נסה שוב עוד מעט.', same_password:'הסיסמה החדשה זהה לישנה. בחר סיסמה אחרת.', expired:'הקישור כבר לא תקף. אפשר לבקש קישור חדש.', not_confirmed:'עוד לא אישרת את המייל. שלחנו קישור לאישור, ואפשר לשלוח שוב.' };
 function AuEmail({value, onChange, invalid, errId}){
   return (<div className="au-field"><label htmlFor="au-email">כתובת מייל</label>
     <input id="au-email" type="email" inputMode="email" dir="ltr" lang="en" autoComplete="email" autoCapitalize="off" spellCheck={false} className="field au-input" value={value} onChange={e=>onChange(e.target.value)} aria-invalid={invalid?'true':undefined} aria-describedby={invalid?errId:undefined}/></div>);
@@ -3116,12 +3106,12 @@ function AuthDialog({start, state, toast, openLegal, onClose, onSignedIn}){
   const errBox=<div id="au-err" className="au-err" role="alert" aria-live="assertive">{err&&<span>{AU_ERR[err]||AU_ERR.server}</span>}</div>;
   const finishSignIn=(r)=>{ onSignedIn(r.progress); };
   const submitSignUp=async e=>{ e.preventDefault(); if(busy) return; setBusy(true); const r=await Auth.signUp(email,pw,state); setBusy(false);
-    if(!r.ok){ fail(r.error, r.error==='invalid_email'||r.error==='exists'?'au-email':'au-pw'); return; } setView('sent'); };
+    if(!r.ok){ fail(r.error, r.error==='invalid_email'||r.error==='exists'||r.error==='offline'||r.error==='rate'||r.error==='server'?'au-email':'au-pw'); return; } setView(r.signedIn?'confirmed':'sent'); };
   const submitSignIn=async e=>{ e.preventDefault(); if(busy) return; setBusy(true); const r=await Auth.signIn(email,pw); setBusy(false);
     if(!r.ok){ fail(r.error, r.error==='invalid_email'?'au-email':r.error==='rate'||r.error==='offline'||r.error==='server'?'au-email':'au-pw'); return; } finishSignIn(r); toast('התחברת לחשבון'); onClose(); };
   const submitForgot=async e=>{ e.preventDefault(); if(busy) return; setBusy(true); const r=await Auth.resetPassword(email); setBusy(false); if(!r.ok){ fail(r.error,'au-email'); return; } setView('forgot_sent'); };
   const submitReset=async e=>{ e.preventDefault(); if(busy) return; setBusy(true); const r=await Auth.completeReset(email,pw); setBusy(false);
-    if(!r.ok){ if(r.error==='expired'){ setView('expired'); return; } fail(r.error,'au-pw'); return; } finishSignIn(r); setView('reset_done'); };
+    if(!r.ok){ if(r.error==='expired'){ setView('expired'); return; } fail(r.error,'au-pw'); return; } finishSignIn(r); setView('reset_done'); toast('הסיסמה עודכנה'); };
   const demoConfirm=async()=>{ const r=await Auth.confirm(email); if(r.ok){ Auth.saveProgress(state); setView('confirmed'); } };
   const T=(txt)=><h2 id="au-title" ref={titleRef} tabIndex={-1} data-autofocus className="text-xl font-extrabold me-auto">{txt}</h2>;
   const legal=<p className="au-fine">בלחיצה על הכפתור אתה מאשר את <a href="#terms" onClick={e=>{ e.preventDefault(); openLegal('terms'); }}>תנאי השימוש</a> ואת <a href="#privacy" onClick={e=>{ e.preventDefault(); openLegal('privacy'); }}>מדיניות הפרטיות</a>. את המייל נשתמש רק לחשבון שלך. לא נשלח הודעות פרסומיות.</p>;
@@ -3487,7 +3477,6 @@ function ProfileSheet({profile, count, onClose, onRename, onSwitch, onAdd, onDel
         <div className="flex flex-wrap gap-1.5">{AVATARS.map(e=><button type="button" key={e} aria-pressed={avatar===e} aria-label={'דמות '+e} onClick={()=>setAvatar(e)} className="w-11 h-11 rounded-xl text-2xl grid place-items-center" style={{background:avatar===e?'var(--primary-soft)':'var(--sunk)', boxShadow:avatar===e?'0 0 0 2px var(--primary) inset':'none'}}>{e}</button>)}</div>
         <button className="btn btn-primary py-2.5 px-5 self-start" disabled={!changed}>שמירה</button>
       </form>
-      <CloudCard state={state} actions={actions} toast={toast} onClose={close}/>
       <form className="border-t border-line pt-4 flex flex-col gap-3" onSubmit={e=>{ e.preventDefault(); savePin(false); }}>
         <div className="font-semibold flex items-center gap-2"><IconLock size={16}/>נעילת המשתמש במכשיר הזה<span className="tag" style={profile.pin?{background:'var(--good-soft)', color:'var(--good)'}:{}}>{profile.pin?'נעול בקוד':'לא נעול'}</span></div>
         <p className="text-xs text-muted leading-relaxed">קוד קצר שמונע מאחרים במכשיר הזה להיכנס למשתמש שלך. זה לא החשבון: הוא לא קשור למייל ולא נשמר בענן.</p>
@@ -3688,8 +3677,7 @@ function App({profile, count, startAt, onSwitch, onAddProfile, onRename, onDelet
   const openCard=useCallback((key, display)=>{ const k=String(key).toLowerCase(); if(k) setCard({key:k, display:display||k}); },[]);
   const session=useSession();
   const community=useCommunity();
-  const [legal,setLegal]=useState(null); const [reporting,setReporting]=useState(null); const [recovery,setRecovery]=useState(RECOVERY);
-  useEffect(()=>{ const f=()=>{ if(RECOVERY) setRecovery(true); }; SESSION_SUBS.add(f); return ()=>SESSION_SUBS.delete(f); },[]);
+  const [legal,setLegal]=useState(null); const [reporting,setReporting]=useState(null); 
   const stories=useMemo(()=>[...STORIES, ...state.userStories, ...community],[state.userStories, community]);
 
   const toast=useCallback((m)=>{ const id=Math.random(); setToastMsg({m,id});
@@ -3795,7 +3783,20 @@ function App({profile, count, startAt, onSwitch, onAddProfile, onRename, onDelet
   useEffect(()=>{ const was=prevLN.current; prevLN.current=lessonN;
     if(lessonN>was&&!offerBlocked&&accountOfferDue(stRef.current,'lesson')){ const t=setTimeout(showOffer,1400); return ()=>clearTimeout(t); } },[lessonN]);
   useEffect(()=>{ if(tab!=='home'||offerBlocked||!accountOfferDue(state,'idle')) return; const t=setTimeout(showOffer,1500); return ()=>clearTimeout(t); },[tab, state.history, state.words, state.acct, offerBlocked]);
-  const onSignedIn=(remote)=>{ if(remote){ actions.restore(mergeProgress(stRef.current, remote)); setMergeNote(true); } setTimeout(()=>Auth.saveProgress(stRef.current),800); };
+  // sign-in by password, by the e-mailed confirmation link, or a saved session: ONE place merges the device progress with the account progress (nothing is lost: higher of each metric, words from both)
+  const onSignedIn=(remote)=>{ if(Auth.mode==='mock'){ if(remote){ actions.restore(mergeProgress(stRef.current, remote)); setMergeNote(true); } setTimeout(()=>Auth.saveProgress(stRef.current),800); } };
+  const authDlgRef=useRef(null); authDlgRef.current=authDlg;
+  const uid=Auth.mode==='supabase'&&SESSION&&SESSION.user?SESSION.user.id:null; const syncedUid=useRef(null);
+  useEffect(()=>{ if(Auth.mode!=='supabase') return; if(!uid){ syncedUid.current=null; return; } if(syncedUid.current===uid) return; syncedUid.current=uid;
+    const fresh=FRESH_LOGIN; const wasPending=!!(()=>{ try{ return localStorage.getItem(PEND_KEY); }catch(e){ return null; } })(); let dead=false;
+    (async()=>{ try{ const remote=await Auth.pull(); if(dead) return; const merged=remote?mergeProgress(stRef.current, remote):stRef.current;
+        if(remote) actions.restore(merged); await Auth.pushNow(merged);
+        if(wasPending){ try{ localStorage.removeItem(PEND_KEY); }catch(e){} AUTH_SUBS.forEach(f=>f()); }
+        if(fresh&&!authDlgRef.current){ if(wasPending) setAuthDlg('confirmed'); else if(remote) setMergeNote(true); }
+        else if(fresh&&remote&&!RECOVERY) setMergeNote(true); }
+      catch(e){ syncedUid.current=null; } })(); return ()=>{ dead=true; }; },[uid]);
+  // a "choose a new password" link opens the site with a recovery session; and any other part of the site can ask for the sign-in dialog
+  useEffect(()=>{ const chk=()=>{ if(RECOVERY){ RECOVERY=false; setAuthDlg('reset'); } }; chk(); SESSION_SUBS.add(chk); const op=e=>setAuthDlg((e&&e.detail)||'signin'); window.addEventListener('lumi-open-auth',op); return ()=>{ SESSION_SUBS.delete(chk); window.removeEventListener('lumi-open-auth',op); }; },[]);
   useEffect(()=>{ bkDirty.current=true; },[state]);
   useEffect(()=>{ const t=setInterval(()=>{ if(!bkDirty.current) return; bkDirty.current=false; const s=stRef.current; const c=s.backup&&s.backup.code; if(c) saveBackup(c,s,profile); if(Auth.session()) Auth.saveProgress(s); },30000); return ()=>clearInterval(t); },[]);
   const due=dueWords(state).length;
@@ -3842,13 +3843,11 @@ function App({profile, count, startAt, onSwitch, onAddProfile, onRename, onDelet
       </div>
     </main>
     <Footer onOpen={setLegal}/>
-    <CloudSync state={state} actions={actions} toast={toast}/>
     {authDlg&&<AuthDialog start={authDlg} state={state} toast={toast} openLegal={setLegal} onClose={()=>setAuthDlg(null)} onSignedIn={onSignedIn}/>}
     {legal&&<LegalModal page={legal} onClose={()=>setLegal(null)}/>}
     {mergeNote&&!authDlg&&<MergeNotice onClose={()=>setMergeNote(false)}/>}
     {offer&&!authDlg&&<AccountOffer onSave={()=>{ setOffer(false); setAuthDlg('signup'); }} onLater={()=>setOffer(false)}/>}
     {reporting&&SB&&<ReportDialog story={reporting} toast={toast} onClose={()=>setReporting(null)}/>}
-    {recovery&&SB&&<RecoveryDialog onClose={()=>setRecovery(false)}/>}
     {adding&&<AddStory state={state} profile={profile} editing={adding.edit} toast={toast} onClose={()=>setAdding(false)} onPublished={(pub,wasEdit)=>{ setAdding(false); toast(wasEdit?'הסיפור עודכן':'הסיפור פורסם בספריית הקהילה'); if(!wasEdit){ setTab('read'); setStoryId(pub.id); window.scrollTo({top:0}); } }} onSave={(st, stats)=>{ actions.addStory(st); setAdding(false); try{ synth&&synth.cancel(); }catch(e){} openStory(st.id);
       toast(`הסיפור נשמר: ${stats.words} מילים, ${stats.known} מהן כבר מוכרות לך`); }}/>}
     {card&&<DictCard wordKey={card.key} display={card.display} state={state} stories={stories} voice={voice} actions={actions} onClose={()=>setCard(null)} onOpenWord={openCard}/>}

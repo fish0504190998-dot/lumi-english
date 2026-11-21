@@ -7474,8 +7474,8 @@ const CLOUD_CFG = {
 };
 const ANALYTICS_CODE = ''; // GoatCounter site code (the part before .goatcounter.com). Empty = no visit counting and no policy section.
 const SUPPORT_EMAIL = 'info@lumienglish.co.il';
-const LOCAL_ONLY = false; // production: Supabase cloud card, community, study groups and the AI talk are live
-const ACCOUNTS = false; // the new e-mail + password account flow (sign-up, sign-in, forgot password, backup code) is still a localStorage mock: hidden here until Supabase Auth + an e-mail sender are connected (docs/16 in lumi-future-lab)
+const LOCAL_ONLY = false; // production: Supabase cloud, community, study groups and the AI talk are live
+const ACCOUNTS = true; // ONE switch for the e-mail + password account UI (sign-up, sign-in, forgot password, account panel, offer after the first lesson). false = hidden, learning needs no account
 let SB = null;
 try {
   if (!LOCAL_ONLY && !/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname) && window.supabase && window.supabase.createClient) SB = window.supabase.createClient(CLOUD_CFG.url, CLOUD_CFG.key, {
@@ -7505,15 +7505,35 @@ const cloudMsg = e => {
 let SESSION = null;
 const SESSION_SUBS = new Set();
 let RECOVERY = false;
+let LAST_UID = null;
+let FRESH_LOGIN = (() => {
+  try {
+    const h = location.hash || '';
+    if (!/[#&]access_token=/.test(h)) return false;
+    const tag = h.slice(0, 80);
+    if (sessionStorage.getItem('lumi-link-seen') === tag) return false;
+    sessionStorage.setItem('lumi-link-seen', tag);
+    return true;
+  } catch (e) {
+    return false;
+  }
+})(); // (an e-mailed link opens the site with the token in the address: supabase-js reports that as the first session event, so the address is checked here, before it is cleaned) FRESH_LOGIN: this page load saw the person sign in (password, e-mail link), as opposed to an older saved session
 if (SB) {
   SB.auth.getSession().then(({
     data
   }) => {
     SESSION = data.session;
+    if (SESSION && SESSION.user && LAST_UID === null) LAST_UID = SESSION.user.id;
     SESSION_SUBS.forEach(f => f());
   }).catch(() => {});
   SB.auth.onAuthStateChange((ev, s) => {
     SESSION = s;
+    const id = s && s.user && s.user.id;
+    if (id && id !== LAST_UID) LAST_UID = id;
+    if (!id) {
+      LAST_UID = null;
+      FRESH_LOGIN = false;
+    }
     if (ev === 'PASSWORD_RECOVERY') RECOVERY = true;
     SESSION_SUBS.forEach(f => f());
   });
@@ -7555,244 +7575,40 @@ async function cloudPush(payload) {
 function cleanText(s, max) {
   return String(s || '').replace(/<[^>]*>/g, ' ').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F​-‏‪-‮⁦-⁩]/g, '').replace(/[ \t]+/g, ' ').trim().slice(0, max || 60000);
 }
+
+/* the old inline sign-in form is gone: every sign-in / sign-up goes through the one AuthDialog (opened with this event) */
+const openAuthDialog = view => {
+  try {
+    window.dispatchEvent(new CustomEvent('lumi-open-auth', {
+      detail: view || 'signin'
+    }));
+  } catch (e) {}
+};
 function AuthForm({
-  onDone,
   intro
 }) {
-  const [mode, setMode] = useState('in');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [pw, setPw] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null);
-  if (!SB) return /*#__PURE__*/React.createElement("p", {
+  if (!SB || !ACCOUNTS) return /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-muted"
-  }, LOCAL_ONLY ? 'בגרסת הדמו ההתחברות כבויה. באתר האמיתי היא עובדת כרגיל.' : /*#__PURE__*/React.createElement(React.Fragment, null, "שמירה בענן זמינה באתר ", /*#__PURE__*/React.createElement("bdi", {
+  }, /*#__PURE__*/React.createElement(React.Fragment, null, "שמירה בענן זמינה באתר ", /*#__PURE__*/React.createElement("bdi", {
     dir: "ltr",
     lang: "en"
   }, "lumienglish.co.il"), "."));
-  const submit = async e => {
-    e.preventDefault();
-    setBusy(true);
-    setMsg(null);
-    try {
-      if (mode === 'forgot') {
-        const {
-          error
-        } = await SB.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: SITE_URL + '/'
-        });
-        if (error) throw error;
-        setMsg({
-          ok: true,
-          t: 'שלחנו לך מייל עם קישור לבחירת סיסמה חדשה.'
-        });
-      } else if (mode === 'up') {
-        const nm = cleanText(name, 40);
-        if (nm.length < 2) {
-          setMsg({
-            ok: false,
-            t: 'כתבו את השם שלכם (לפחות 2 תווים).'
-          });
-          setBusy(false);
-          return;
-        }
-        const {
-          data,
-          error
-        } = await SB.auth.signUp({
-          email: email.trim(),
-          password: pw,
-          options: {
-            emailRedirectTo: SITE_URL + '/',
-            data: {
-              name: nm
-            }
-          }
-        });
-        if (error) throw error;
-        if (data.session) onDone(data.session);else setMsg({
-          ok: true,
-          t: 'נרשמת! שלחנו מייל אישור. לחצו על הקישור במייל, ואז התחברו כאן.'
-        });
-      } else {
-        const {
-          data,
-          error
-        } = await SB.auth.signInWithPassword({
-          email: email.trim(),
-          password: pw
-        });
-        if (error) throw error;
-        onDone(data.session);
-      }
-    } catch (x) {
-      setMsg({
-        ok: false,
-        t: cloudMsg(x)
-      });
-    }
-    setBusy(false);
-  };
-  return /*#__PURE__*/React.createElement("form", {
-    className: "flex flex-col gap-3",
-    onSubmit: submit
+  return /*#__PURE__*/React.createElement("div", {
+    className: "flex flex-col gap-3"
   }, intro && /*#__PURE__*/React.createElement("p", {
     className: "text-sm text-muted"
-  }, intro), mode !== 'forgot' && /*#__PURE__*/React.createElement("div", {
-    className: "seg self-start",
-    role: "group",
-    "aria-label": "כניסה או הרשמה"
-  }, /*#__PURE__*/React.createElement("button", {
-    type: "button",
-    "aria-pressed": mode === 'in',
-    onClick: () => setMode('in')
-  }, "התחברות"), /*#__PURE__*/React.createElement("button", {
-    type: "button",
-    "aria-pressed": mode === 'up',
-    onClick: () => setMode('up')
-  }, "הרשמה")), mode === 'up' && /*#__PURE__*/React.createElement("label", {
-    className: "flex flex-col gap-1"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "text-sm font-semibold"
-  }, "שם"), /*#__PURE__*/React.createElement("input", {
-    id: "auth-name",
-    type: "text",
-    className: "field",
-    autoComplete: "name",
-    required: true,
-    minLength: 2,
-    maxLength: 40,
-    value: name,
-    onChange: e => setName(e.target.value)
-  })), /*#__PURE__*/React.createElement("label", {
-    className: "flex flex-col gap-1"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "text-sm font-semibold"
-  }, "מייל"), /*#__PURE__*/React.createElement("input", {
-    id: "auth-email",
-    type: "email",
-    dir: "ltr",
-    className: "field text-left",
-    autoComplete: "email",
-    required: true,
-    value: email,
-    onChange: e => setEmail(e.target.value)
-  })), mode !== 'forgot' && /*#__PURE__*/React.createElement("label", {
-    className: "flex flex-col gap-1"
-  }, /*#__PURE__*/React.createElement("span", {
-    className: "text-sm font-semibold"
-  }, "סיסמה", mode === 'up' ? ' (לפחות 6 תווים)' : ''), /*#__PURE__*/React.createElement("input", {
-    id: "auth-pw",
-    type: "password",
-    dir: "ltr",
-    className: "field text-left",
-    autoComplete: mode === 'up' ? 'new-password' : 'current-password',
-    minLength: 6,
-    required: true,
-    value: pw,
-    onChange: e => setPw(e.target.value)
-  })), msg && /*#__PURE__*/React.createElement("div", {
-    className: "rounded-xl p-3 text-sm",
-    role: msg.ok ? 'status' : 'alert',
-    style: {
-      background: msg.ok ? 'var(--known-bg)' : 'var(--bad-soft)',
-      color: msg.ok ? 'var(--known)' : 'var(--bad)'
-    }
-  }, /*#__PURE__*/React.createElement(Bi, null, msg.t)), /*#__PURE__*/React.createElement("div", {
+  }, intro), /*#__PURE__*/React.createElement("div", {
     className: "flex gap-2 flex-wrap items-center"
   }, /*#__PURE__*/React.createElement("button", {
+    type: "button",
     className: "btn btn-primary px-5",
-    disabled: busy
-  }, busy ? 'רגע…' : mode === 'in' ? 'התחברות' : mode === 'up' ? 'יצירת חשבון' : 'שליחת קישור'), mode === 'in' && /*#__PURE__*/React.createElement("button", {
+    onClick: () => openAuthDialog('signin')
+  }, "כניסה"), /*#__PURE__*/React.createElement("button", {
     type: "button",
-    className: "hit text-sm text-primary font-semibold",
-    onClick: () => {
-      setMode('forgot');
-      setMsg(null);
-    }
-  }, "שכחתי סיסמה"), mode === 'forgot' && /*#__PURE__*/React.createElement("button", {
-    type: "button",
-    className: "hit text-sm text-muted underline",
-    onClick: () => setMode('in')
-  }, "חזרה להתחברות")));
+    className: "btn btn-line px-5",
+    onClick: () => openAuthDialog('signup')
+  }, "יצירת חשבון")));
 }
-function RecoveryDialog({
-  onClose
-}) {
-  const [pw, setPw] = useState('');
-  const [msg, setMsg] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const save = async e => {
-    e.preventDefault();
-    setBusy(true);
-    const {
-      error
-    } = await SB.auth.updateUser({
-      password: pw
-    });
-    setBusy(false);
-    if (error) setMsg({
-      ok: false,
-      t: cloudMsg(error)
-    });else {
-      setMsg({
-        ok: true,
-        t: 'הסיסמה עודכנה. אפשר להמשיך ללמוד.'
-      });
-      RECOVERY = false;
-      setTimeout(onClose, 1500);
-    }
-  };
-  return /*#__PURE__*/React.createElement("div", {
-    className: "overlay fixed inset-0 z-[60] grid place-items-center gutter",
-    style: {
-      background: 'color-mix(in srgb,var(--ink) 45%,transparent)'
-    }
-  }, /*#__PURE__*/React.createElement("form", {
-    role: "dialog",
-    "aria-modal": "true",
-    "aria-label": "בחירת סיסמה חדשה",
-    className: "sheet card w-full p-6 flex flex-col gap-3",
-    style: {
-      maxWidth: '26rem'
-    },
-    onSubmit: save
-  }, /*#__PURE__*/React.createElement("h2", {
-    className: "text-xl font-extrabold"
-  }, "בחירת סיסמה חדשה"), /*#__PURE__*/React.createElement("input", {
-    id: "recovery-pw",
-    type: "password",
-    dir: "ltr",
-    className: "field text-left",
-    autoComplete: "new-password",
-    minLength: 6,
-    required: true,
-    autoFocus: true,
-    placeholder: "לפחות 6 תווים",
-    value: pw,
-    onChange: e => setPw(e.target.value)
-  }), msg && /*#__PURE__*/React.createElement("div", {
-    className: "rounded-xl p-3 text-sm",
-    role: "status",
-    style: {
-      background: msg.ok ? 'var(--known-bg)' : 'var(--bad-soft)'
-    }
-  }, msg.t), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-2"
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-primary px-5",
-    disabled: busy
-  }, "שמירה"), /*#__PURE__*/React.createElement("button", {
-    type: "button",
-    className: "btn btn-ghost px-4",
-    onClick: () => {
-      RECOVERY = false;
-      onClose();
-    }
-  }, "ביטול"))));
-}
-
 /* community stories */
 let COMMUNITY = [];
 let COMMUNITY_AT = 0;
@@ -7988,8 +7804,8 @@ const LEGAL = {
   },
   privacy: {
     title: 'מדיניות פרטיות',
-    draft: 'טיוטה: הסעיף "חשבון ושמירת התקדמות" נכתב לגרסת הדמו ועדיין לא אושר על ידי איש מקצוע. בדמו לא נוצר חשבון אמיתי ושום מידע לא נשלח.',
-    body: [['חשבון ושמירת התקדמות', ['אפשר ללמוד ב־Lumi English בלי הרשמה. אם תבחר להירשם, נשמור את כתובת המייל שלך, סיסמה מוצפנת (אנחנו לא רואים את הסיסמה עצמה) ואת ההתקדמות שלך בלימוד: שיעורים שהשלמת, מילים שנשמרו והגדרות.', 'אנחנו משתמשים במידע הזה רק כדי להפעיל את החשבון: לשמור את ההתקדמות, לאפשר לך להיכנס ממכשירים שונים, ולשלוח מיילים שקשורים לחשבון בלבד (אישור כתובת ושחזור סיסמה).', 'איננו מוכרים את המידע, איננו מעבירים אותו למפרסמים, ואיננו שולחים הודעות פרסומיות בלי הסכמה נפרדת מפורשת.', 'המידע נשמר אצל ספק שירותי הענן שלנו (Supabase). [להשלים: באיזה אזור גאוגרפי נשמרים הנתונים.]', 'נשמור את המידע כל עוד החשבון קיים. אפשר למחוק את החשבון בכל עת בלשונית "אני", ואז נמחק את המייל ואת ההתקדמות השמורה.', 'אפשר לבקש לעיין במידע שנשמר עליך, לתקן אותו או למחוק אותו, בפנייה אל info@lumienglish.co.il.', 'מי שלא נרשם: ההתקדמות שלו נשמרת רק במכשיר שלו ואינה נשלחת אלינו.']], ['איזה מידע נאסף', 'כשנרשמים לשמירה בענן, נשמרים השם וכתובת המייל שמסרתם (לצורך התחברות וקשר), התקדמות הלמידה (מילים מוכרות ומילים בלמידה, היסטוריית תרגול, רצף והישגים), הסיפורים והתמונות שהעליתם, ושם התצוגה שבחרתם. בלי הרשמה, כל המידע נשמר רק בדפדפן שלכם ולא נשלח אלינו.'], ['איפה המידע נשמר', 'המידע נשמר בתשתית ענן מאובטחת של Supabase. כל משתמש מבודד ברמת השורה, באמצעות מנגנון ההרשאות של Supabase: רק אתם יכולים לקרוא ולשנות את ההתקדמות שלכם. סיפורים שבחרתם לפרסם כציבוריים גלויים לכל המשתמשים יחד עם שם התצוגה שבחרתם, ללא כתובת המייל.'], ['שיתוף עם צדדים שלישיים', 'איננו מוכרים את המידע שלכם, ואיננו משתפים אותו עם מפרסמים או עם צדדים שלישיים לצורכי שיווק. המידע משמש רק להפעלת השירות.'], ['שירותים חיצוניים', 'חיפוש מילה שאינה במילון המובנה נשלח לשירותי מילון ותרגום חיצוניים (dictionaryapi.dev ו־MyMemory). שיחה חופשית עם ה־AI שולחת את ההודעות שלכם לספק הבינה המלאכותית של האתר (Groq או Google Gemini) כדי לקבל תשובה, ואיננו שומרים אותן. זיהוי דיבור מתבצע על ידי הדפדפן שלכם. קבוצות לימוד שומרות שם, דמות ונקודות בלבד.'], ...(ANALYTICS_CODE ? [['ספירת כניסות', 'האתר משתמש ב־GoatCounter, שירות סטטיסטיקה ידידותי לפרטיות, כדי לספור כניסות: דפים שנצפו, מדינה וסוג דפדפן. השירות לא משתמש בעוגיות, לא עוקב אחרי אנשים בנפרד, ולא נמכר או משותף לצורכי פרסום. הוא פועל רק באתר עצמו, לא בהתקדמות הלימוד שלכם.']] : []), ['מחיקת חשבון ונתונים', 'אפשר למחוק את החשבון וכל הנתונים בכל רגע: לוחצים על השם שלכם בראש המסך ובוחרים "מחק את החשבון והנתונים שלי". המחיקה סופית. אפשר גם לבקש מחיקה במייל לכתובת שבעמוד "צור קשר".']]
+    draft: 'טיוטה: המדיניות מתארת את החשבון האמיתי (מייל וסיסמה). היא עדיין לא נבדקה על ידי איש מקצוע, ויש לבדוק אותה לפני שמסירים את ההערה הזו.',
+    body: [['חשבון ושמירת התקדמות', ['אפשר ללמוד ב־Lumi English בלי הרשמה. אם תבחר ליצור חשבון, נשמור את כתובת המייל שלך, סיסמה בצורה מוצפנת (אנחנו לא רואים את הסיסמה עצמה) ואת ההתקדמות שלך בלימוד: שיעורים שהשלמת, מילים שנשמרו והגדרות.', 'אנחנו משתמשים במידע הזה רק כדי להפעיל את החשבון: לשמור את ההתקדמות, לאפשר לך להיכנס מכל מכשיר, ולשלוח מיילים שקשורים לחשבון בלבד: אישור כתובת המייל ושחזור סיסמה. לא נשלח הודעות פרסומיות.', 'איננו מוכרים את המידע ואיננו מעבירים אותו למפרסמים.', 'המידע נשמר אצל ספק שירותי הענן שלנו, Supabase. את המיילים שולח עבורנו שירות שליחת מיילים (Resend), שמקבל את כתובת המייל ואת תוכן ההודעה רק כדי לשלוח אותה. [להשלים: באיזה אזור גאוגרפי נשמרים הנתונים.]', 'כדי לזכור שנכנסת, נשמר בדפדפן שלך אסימון כניסה. זה אחסון מקומי לצורך הכניסה בלבד, ואין באתר עוגיות פרסום או מעקב.', 'נשמור את המידע כל עוד החשבון קיים. אפשר למחוק את החשבון בכל עת בלשונית "אני", ואז נמחק את המייל ואת ההתקדמות השמורה בחשבון.', 'אפשר לבקש לעיין במידע שנשמר עליך, לתקן אותו או למחוק אותו, בפנייה אל info@lumienglish.co.il.', 'מי שלא נרשם: ההתקדמות שלו נשמרת רק במכשיר שלו ואינה נשלחת אלינו.']], ['איזה מידע נאסף', 'כשנרשמים לשמירה בענן, נשמרים כתובת המייל והסיסמה המוצפנת שמסרתם (לצורך כניסה וקשר), התקדמות הלמידה (מילים מוכרות ומילים בלמידה, היסטוריית תרגול, רצף והישגים), הסיפורים והתמונות שהעליתם, ושם התצוגה שבחרתם. בלי הרשמה, כל המידע נשמר רק בדפדפן שלכם ולא נשלח אלינו.'], ['איפה המידע נשמר', 'המידע נשמר בתשתית ענן מאובטחת של Supabase. כל משתמש מבודד ברמת השורה, באמצעות מנגנון ההרשאות של Supabase: רק אתם יכולים לקרוא ולשנות את ההתקדמות שלכם. סיפורים שבחרתם לפרסם כציבוריים גלויים לכל המשתמשים יחד עם שם התצוגה שבחרתם, ללא כתובת המייל.'], ['שיתוף עם צדדים שלישיים', 'איננו מוכרים את המידע שלכם, ואיננו משתפים אותו עם מפרסמים או עם צדדים שלישיים לצורכי שיווק. המידע משמש רק להפעלת השירות.'], ['שירותים חיצוניים', 'חיפוש מילה שאינה במילון המובנה נשלח לשירותי מילון ותרגום חיצוניים (dictionaryapi.dev ו־MyMemory). שיחה חופשית עם ה־AI שולחת את ההודעות שלכם לספק הבינה המלאכותית של האתר (Groq או Google Gemini) כדי לקבל תשובה, ואיננו שומרים אותן. זיהוי דיבור מתבצע על ידי הדפדפן שלכם. קבוצות לימוד שומרות שם, דמות ונקודות בלבד.'], ...(ANALYTICS_CODE ? [['ספירת כניסות', 'האתר משתמש ב־GoatCounter, שירות סטטיסטיקה ידידותי לפרטיות, כדי לספור כניסות: דפים שנצפו, מדינה וסוג דפדפן. השירות לא משתמש בעוגיות, לא עוקב אחרי אנשים בנפרד, ולא נמכר או משותף לצורכי פרסום. הוא פועל רק באתר עצמו, לא בהתקדמות הלימוד שלכם.']] : []), ['מחיקת חשבון ונתונים', 'אפשר למחוק את החשבון וכל הנתונים בכל רגע: נכנסים ללשונית "אני" ובוחרים "מחיקת החשבון שלי". המחיקה סופית. אפשר גם לבקש מחיקה במייל לכתובת שבעמוד "צור קשר".']]
   },
   access: {
     title: 'הצהרת נגישות',
@@ -8124,239 +7940,6 @@ const cloudPayload = s => {
     }
   };
 };
-function CloudSync({
-  state,
-  actions,
-  toast
-}) {
-  const session = useSession();
-  const uid = session && session.user && session.user.id;
-  const [ask, setAsk] = useState(null);
-  const timer = useRef(null);
-  const lastPushed = useRef('');
-  const stateRef = useRef(state);
-  stateRef.current = state;
-  useEffect(() => {
-    if (!SB || !uid) return;
-    let dead = false;
-    (async () => {
-      try {
-        const r = await cloudPull();
-        if (dead) return;
-        const s = stateRef.current;
-        const linked = s.cloud && s.cloud.uid === uid;
-        if (!r) {
-          const at = await cloudPush(cloudPayload(s));
-          actions.setCloud({
-            uid,
-            at
-          });
-          lastPushed.current = JSON.stringify(cloudPayload(s));
-          toast('ההתקדמות הועלתה לענן');
-        } else if (linked) {
-          if (Date.parse(r.updated_at) > Date.parse(s.cloud.at) + 1500) {
-            lastPushed.current = JSON.stringify(r.data);
-            actions.restore({
-              ...r.data,
-              cloud: {
-                uid,
-                at: r.updated_at
-              }
-            });
-            toast('ההתקדמות עודכנה מהענן');
-          } else lastPushed.current = '';
-        } else setAsk(r);
-      } catch (e) {
-        toast(cloudMsg(e));
-      }
-    })();
-    return () => {
-      dead = true;
-    };
-  }, [uid]);
-  useEffect(() => {
-    if (!SB || !uid || !(state.cloud && state.cloud.uid === uid)) return;
-    const body = JSON.stringify(cloudPayload(state));
-    if (body === lastPushed.current) return;
-    clearTimeout(timer.current);
-    timer.current = setTimeout(async () => {
-      try {
-        const at = await cloudPush(JSON.parse(body));
-        lastPushed.current = body;
-        actions.setCloud({
-          uid,
-          at
-        });
-      } catch (e) {}
-    }, 4000);
-    return () => clearTimeout(timer.current);
-  }, [state, uid]);
-  if (!ask) return null;
-  const nk = o => Object.keys(o && o.words || {}).filter(k => o.words[k] === 'known').length;
-  const useRemote = () => {
-    lastPushed.current = JSON.stringify(ask.data);
-    actions.restore({
-      ...ask.data,
-      cloud: {
-        uid,
-        at: ask.updated_at
-      }
-    });
-    setAsk(null);
-    toast('ההתקדמות נטענה מהענן');
-  };
-  const useLocal = async () => {
-    try {
-      const at = await cloudPush(cloudPayload(state));
-      actions.setCloud({
-        uid,
-        at
-      });
-      lastPushed.current = JSON.stringify(cloudPayload(state));
-      setAsk(null);
-      toast('ההתקדמות מהמכשיר הועלתה לענן');
-    } catch (e) {
-      toast(cloudMsg(e));
-    }
-  };
-  return /*#__PURE__*/React.createElement("div", {
-    className: "overlay fixed inset-0 z-[60] grid place-items-center gutter",
-    style: {
-      background: 'color-mix(in srgb,var(--ink) 45%,transparent)'
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    role: "alertdialog",
-    "aria-modal": "true",
-    "aria-labelledby": "sync-title",
-    className: "sheet card w-full p-6 flex flex-col gap-4",
-    style: {
-      maxWidth: '30rem'
-    }
-  }, /*#__PURE__*/React.createElement("h2", {
-    id: "sync-title",
-    className: "text-xl font-extrabold"
-  }, "נמצאה התקדמות בענן"), /*#__PURE__*/React.createElement("p", {
-    className: "text-sm text-muted leading-relaxed"
-  }, "בחשבון הזה כבר שמורה התקדמות (", nk(ask.data), " מילים מוכרות). במכשיר הזה יש התקדמות אחרת (", nk(state), " מילים מוכרות). איזו להשאיר?"), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-go py-3 px-5",
-    onClick: useRemote
-  }, "להשתמש בהתקדמות מהענן (", nk(ask.data), " מילים)"), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-line py-3 px-5",
-    onClick: useLocal
-  }, "להחליף את הענן במה שבמכשיר (", nk(state), " מילים)"), /*#__PURE__*/React.createElement("button", {
-    className: "hit text-sm text-muted underline self-start",
-    onClick: () => {
-      setAsk(null);
-      SB.auth.signOut();
-    }
-  }, "ביטול והתנתקות")));
-}
-function CloudCard({
-  state,
-  actions,
-  toast,
-  onClose
-}) {
-  const session = useSession();
-  const user = session && session.user;
-  const [busy, setBusy] = useState(false);
-  const [confirm, setConfirm] = useState(false);
-  const [typed, setTyped] = useState('');
-  const linked = user && state.cloud && state.cloud.uid === user.id;
-  const del = async () => {
-    setBusy(true);
-    try {
-      const {
-        error
-      } = await SB.rpc('delete_my_account');
-      if (error) throw error;
-      await SB.auth.signOut().catch(() => {});
-      actions.setCloud(null);
-      COMMUNITY_AT = 0;
-      toast('החשבון והנתונים בענן נמחקו');
-      onClose && onClose();
-    } catch (e) {
-      toast(cloudMsg(e));
-      setBusy(false);
-    }
-  };
-  return /*#__PURE__*/React.createElement("div", {
-    className: "border-t border-line pt-4 flex flex-col gap-3"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "font-semibold flex items-center gap-2"
-  }, "☁️ שמירה בענן", user && /*#__PURE__*/React.createElement("span", {
-    className: "tag",
-    style: {
-      background: 'var(--known-bg)',
-      color: 'var(--known)'
-    }
-  }, "מחובר")), !SB ? /*#__PURE__*/React.createElement("p", {
-    className: "text-sm text-muted"
-  }, LOCAL_ONLY ? 'בגרסת הדמו השמירה בענן כבויה. ההתקדמות נשמרת רק בדפדפן הזה.' : /*#__PURE__*/React.createElement(React.Fragment, null, "שמירה בענן זמינה באתר ", /*#__PURE__*/React.createElement("bdi", {
-    dir: "ltr",
-    lang: "en"
-  }, "lumienglish.co.il"), ".")) : !user ? /*#__PURE__*/React.createElement(AuthForm, {
-    intro: "עם חשבון ההתקדמות שלכם נשמרת בענן, וזמינה בכל מכשיר. בלי חשבון, הכול נשמר רק בדפדפן הזה.",
-    onDone: () => {}
-  }) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("p", {
-    className: "text-sm text-muted leading-relaxed"
-  }, "מחוברים כ־", /*#__PURE__*/React.createElement("bdi", {
-    dir: "ltr",
-    className: "font-bold text-ink"
-  }, user.email), ". ", linked ? /*#__PURE__*/React.createElement(React.Fragment, null, "ההתקדמות מסונכרנת אוטומטית", state.cloud.at ? /*#__PURE__*/React.createElement(React.Fragment, null, " · עודכן לאחרונה ב־", /*#__PURE__*/React.createElement("span", {
-    className: "num"
-  }, new Date(state.cloud.at).toLocaleTimeString('he-IL', {
-    hour: '2-digit',
-    minute: '2-digit'
-  }))) : null, ".") : 'ההתקדמות של המשתמש הזה עדיין לא מחוברת לחשבון.'), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-2 flex-wrap"
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-ghost px-4 text-sm",
-    onClick: async () => {
-      await SB.auth.signOut();
-      actions.setCloud(null);
-      toast('התנתקת');
-    }
-  }, "התנתקות")), !confirm ? /*#__PURE__*/React.createElement("button", {
-    className: "hit text-sm underline self-start",
-    style: {
-      color: 'var(--bad)'
-    },
-    onClick: () => setConfirm(true)
-  }, "מחק את החשבון והנתונים שלי") : /*#__PURE__*/React.createElement("div", {
-    className: "rounded-xl border p-3 flex flex-col gap-2",
-    style: {
-      borderColor: 'var(--bad)'
-    },
-    role: "alertdialog",
-    "aria-label": "אישור מחיקת חשבון"
-  }, /*#__PURE__*/React.createElement("div", {
-    className: "text-sm leading-relaxed"
-  }, /*#__PURE__*/React.createElement("b", null, "מחיקה סופית."), " החשבון, ההתקדמות בענן והסיפורים שפרסמתם יימחקו ולא ניתן לשחזר אותם. ההתקדמות השמורה בדפדפן הזה תישאר, אלא אם תמחקו אותה בנפרד. כדי לאשר, כתבו ", /*#__PURE__*/React.createElement("b", null, "מחק"), ":"), /*#__PURE__*/React.createElement("input", {
-    id: "del-confirm",
-    className: "field",
-    value: typed,
-    onChange: e => setTyped(e.target.value),
-    "aria-label": "כתבו מחק לאישור",
-    autoComplete: "off"
-  }), /*#__PURE__*/React.createElement("div", {
-    className: "flex gap-2"
-  }, /*#__PURE__*/React.createElement("button", {
-    className: "btn py-2 px-4",
-    style: {
-      background: 'var(--bad)',
-      color: 'var(--surface)'
-    },
-    disabled: typed.trim() !== 'מחק' || busy,
-    onClick: del
-  }, busy ? 'מוחק…' : 'מחק את הכול'), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-ghost py-2 px-4",
-    onClick: () => {
-      setConfirm(false);
-      setTyped('');
-    }
-  }, "ביטול")))));
-}
 
 /* ---------- free conversation with AI (Gemini through the site's /api/talk function) ---------- */
 const AI_OK = !LOCAL_ONLY && !/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname);
@@ -17358,7 +16941,7 @@ const RESET_TTL = 60 * 60 * 1000; // the reset link is valid for one hour
 let AUTH_FAILS = 0,
   AUTH_LOCK = 0;
 const authOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
-const Auth = {
+const MockAuth = {
   mode: 'mock',
   session() {
     const d = authLoad();
@@ -17561,12 +17144,379 @@ const Auth = {
     };
   }
 };
+/* ---------- the REAL account layer: Supabase Auth (e-mail + password). Same shape as MockAuth, so the screens do not change ----------
+   - sign-up sends a confirmation e-mail; the link brings the person back to the site already signed in (supabase-js reads the link, session is kept in localStorage 'lumi-auth')
+   - "forgot password" sends a link; it opens the site with a recovery session and the "choose a new password" screen
+   - progress lives in public.progress (one row per person, row level security: only your own row). Setup: supabase-accounts.sql
+   - nothing here ever blocks learning: if the server is unreachable the progress simply stays on the device */
+const PEND_KEY = 'lumi-acct-pending';
+const RealAuth = (() => {
+  const getPending = () => {
+    try {
+      return localStorage.getItem(PEND_KEY) || null;
+    } catch (e) {
+      return null;
+    }
+  };
+  const setPending = e => {
+    try {
+      if (e) localStorage.setItem(PEND_KEY, e);else localStorage.removeItem(PEND_KEY);
+    } catch (x) {}
+    AUTH_SUBS.forEach(f => f());
+  };
+  const kind = error => {
+    const m = String(error && error.message || error || '');
+    const st = error && error.status;
+    if (/invalid login credentials/i.test(m)) return 'bad_credentials';
+    if (/email not confirmed/i.test(m)) return 'not_confirmed';
+    if (/already registered|already been registered/i.test(m)) return 'exists';
+    if (st === 429 || /rate limit|too many|security purposes|over_email_send_rate/i.test(m)) return 'rate';
+    if (/different from the old/i.test(m)) return 'same_password';
+    if (/password should|weak password|at least \d+ char/i.test(m)) return 'weak_password';
+    if (/session missing|expired|invalid.*token|otp/i.test(m)) return 'expired';
+    if (/invalid.*email|unable to validate email/i.test(m)) return 'invalid_email';
+    if (st >= 500) return 'server';
+    if (!st || st === 0 || /fetch|network|failed to|load failed|AuthRetryableFetchError/i.test(m + (error && error.name || ''))) return 'offline';
+    return 'server';
+  };
+  const guard = email => {
+    email = normEmail(email);
+    if (!EMAIL_RE.test(email)) return {
+      email,
+      err: 'invalid_email'
+    };
+    if (authOffline()) return {
+      email,
+      err: 'offline'
+    };
+    return {
+      email
+    };
+  };
+  return {
+    mode: 'supabase',
+    session() {
+      return SESSION && SESSION.user ? {
+        email: SESSION.user.email
+      } : null;
+    },
+    pending() {
+      return SESSION && SESSION.user ? null : getPending();
+    },
+    hasReset() {
+      return false;
+    },
+    resetValid() {
+      return false;
+    },
+    async signUp(email, password) {
+      const g = guard(email);
+      if (g.err) return {
+        ok: false,
+        error: g.err
+      };
+      if (String(password || '').length < 8) return {
+        ok: false,
+        error: 'weak_password'
+      };
+      try {
+        const {
+          data,
+          error
+        } = await SB.auth.signUp({
+          email: g.email,
+          password,
+          options: {
+            emailRedirectTo: SITE_URL + '/'
+          }
+        });
+        if (error) return {
+          ok: false,
+          error: kind(error)
+        };
+        if (data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) return {
+          ok: false,
+          error: 'exists'
+        }; // Supabase hides "already registered" behind an empty identity list
+        if (data && data.session) return {
+          ok: true,
+          email: g.email,
+          signedIn: true
+        };
+        setPending(g.email);
+        return {
+          ok: true,
+          email: g.email
+        };
+      } catch (e) {
+        return {
+          ok: false,
+          error: kind(e)
+        };
+      }
+    },
+    async signIn(email, password) {
+      const g = guard(email);
+      if (g.err) return {
+        ok: false,
+        error: g.err
+      };
+      if (!password) return {
+        ok: false,
+        error: 'bad_credentials'
+      };
+      if (Date.now() < AUTH_LOCK) return {
+        ok: false,
+        error: 'rate'
+      };
+      FRESH_LOGIN = true; // the session event can arrive before this call returns: the sync effect must already know this is a sign-in made right now
+      try {
+        const {
+          data,
+          error
+        } = await SB.auth.signInWithPassword({
+          email: g.email,
+          password
+        });
+        if (error) {
+          FRESH_LOGIN = false;
+          const k = kind(error);
+          if (k === 'bad_credentials' && ++AUTH_FAILS >= 5) {
+            AUTH_LOCK = Date.now() + 5 * 60 * 1000;
+            AUTH_FAILS = 0;
+            return {
+              ok: false,
+              error: 'rate'
+            };
+          }
+          return {
+            ok: false,
+            error: k
+          };
+        }
+        AUTH_FAILS = 0;
+        return {
+          ok: true,
+          email: g.email
+        };
+      } catch (e) {
+        FRESH_LOGIN = false;
+        return {
+          ok: false,
+          error: kind(e)
+        };
+      }
+    },
+    async signOut() {
+      try {
+        await SB.auth.signOut();
+      } catch (e) {}
+      setPending(null);
+      return {
+        ok: true
+      };
+    },
+    async resetPassword(email) {
+      // same answer whether or not the address exists
+      const g = guard(email);
+      if (g.err) return {
+        ok: false,
+        error: g.err
+      };
+      try {
+        const {
+          error
+        } = await SB.auth.resetPasswordForEmail(g.email, {
+          redirectTo: SITE_URL + '/'
+        });
+        if (error) {
+          const k = kind(error);
+          if (k === 'rate' || k === 'offline') return {
+            ok: false,
+            error: k
+          };
+        }
+        return {
+          ok: true
+        };
+      } catch (e) {
+        return {
+          ok: false,
+          error: kind(e)
+        };
+      }
+    },
+    async completeReset(email, newPassword) {
+      // the "choose a new password" screen, reached from the e-mailed link (a recovery session)
+      if (String(newPassword || '').length < 8) return {
+        ok: false,
+        error: 'weak_password'
+      };
+      if (authOffline()) return {
+        ok: false,
+        error: 'offline'
+      };
+      if (!(SESSION && SESSION.user)) return {
+        ok: false,
+        error: 'expired'
+      };
+      try {
+        const {
+          error
+        } = await SB.auth.updateUser({
+          password: newPassword
+        });
+        if (error) return {
+          ok: false,
+          error: kind(error)
+        };
+        return {
+          ok: true,
+          email: SESSION.user.email
+        };
+      } catch (e) {
+        return {
+          ok: false,
+          error: kind(e)
+        };
+      }
+    },
+    async confirm() {
+      return {
+        ok: false,
+        error: 'expired'
+      };
+    },
+    // confirming happens by the e-mailed link only
+    async resendConfirm(email) {
+      const g = guard(email);
+      if (g.err) return {
+        ok: false,
+        error: g.err
+      };
+      try {
+        const {
+          error
+        } = await SB.auth.resend({
+          type: 'signup',
+          email: g.email,
+          options: {
+            emailRedirectTo: SITE_URL + '/'
+          }
+        });
+        return error ? {
+          ok: false,
+          error: kind(error)
+        } : {
+          ok: true
+        };
+      } catch (e) {
+        return {
+          ok: false,
+          error: kind(e)
+        };
+      }
+    },
+    async pull() {
+      const r = await cloudPull();
+      return r && r.data ? r.data : null;
+    },
+    async pushNow(state) {
+      return cloudPush(cloudPayload(state));
+    },
+    saveProgress(state) {
+      if (!(SESSION && SESSION.user)) return false;
+      cloudPush(cloudPayload(state)).catch(() => {});
+      return true;
+    },
+    async deleteAccount() {
+      try {
+        let {
+          error
+        } = await SB.rpc('delete_my_account');
+        if (error) {
+          const tok = SESSION && SESSION.access_token;
+          const r = await fetch((ON_SITE ? '' : SITE_URL) + '/api/delete-account', {
+            method: 'POST',
+            headers: {
+              authorization: 'Bearer ' + tok
+            }
+          });
+          if (!r.ok) return {
+            ok: false,
+            error: 'server'
+          };
+        }
+        try {
+          await SB.auth.signOut();
+        } catch (e) {}
+        setPending(null);
+        COMMUNITY_AT = 0;
+        return {
+          ok: true
+        };
+      } catch (e) {
+        return {
+          ok: false,
+          error: kind(e)
+        };
+      }
+    }
+  };
+})();
+/* nothing is ever faked in production: if the cloud library did not load, the account is simply unavailable and learning continues on the device */
+const DownAuth = {
+  mode: 'down',
+  session: () => null,
+  pending: () => null,
+  hasReset: () => false,
+  resetValid: () => false,
+  signUp: async () => ({
+    ok: false,
+    error: 'server'
+  }),
+  signIn: async () => ({
+    ok: false,
+    error: 'server'
+  }),
+  signOut: async () => ({
+    ok: true
+  }),
+  resetPassword: async () => ({
+    ok: false,
+    error: 'server'
+  }),
+  completeReset: async () => ({
+    ok: false,
+    error: 'server'
+  }),
+  confirm: async () => ({
+    ok: false,
+    error: 'server'
+  }),
+  resendConfirm: async () => ({
+    ok: false,
+    error: 'server'
+  }),
+  pull: async () => null,
+  pushNow: async () => null,
+  saveProgress: () => false,
+  deleteAccount: async () => ({
+    ok: false,
+    error: 'server'
+  })
+};
+const Auth = LOCAL_ONLY ? MockAuth : SB ? RealAuth : DownAuth;
 function useAuth() {
   const [, setV] = useState(0);
   useEffect(() => {
     const f = () => setV(x => x + 1);
     AUTH_SUBS.add(f);
-    return () => AUTH_SUBS.delete(f);
+    SESSION_SUBS.add(f);
+    return () => {
+      AUTH_SUBS.delete(f);
+      SESSION_SUBS.delete(f);
+    };
   }, []);
   return {
     session: Auth.session(),
@@ -17725,6 +17675,8 @@ const AU_ERR = {
   rate: 'ניסית כמה פעמים. נסה שוב בעוד כמה דקות.',
   offline: 'אין חיבור לאינטרנט כרגע. ההתקדמות שלך שמורה במכשיר, ונסנכרן אותה כשהחיבור יחזור.',
   server: 'משהו השתבש מצדנו. ההתקדמות שלך שמורה במכשיר. נסה שוב עוד מעט.',
+  same_password: 'הסיסמה החדשה זהה לישנה. בחר סיסמה אחרת.',
+  expired: 'הקישור כבר לא תקף. אפשר לבקש קישור חדש.',
   not_confirmed: 'עוד לא אישרת את המייל. שלחנו קישור לאישור, ואפשר לשלוח שוב.'
 };
 function AuEmail({
@@ -17894,10 +17846,10 @@ function AuthDialog({
     const r = await Auth.signUp(email, pw, state);
     setBusy(false);
     if (!r.ok) {
-      fail(r.error, r.error === 'invalid_email' || r.error === 'exists' ? 'au-email' : 'au-pw');
+      fail(r.error, r.error === 'invalid_email' || r.error === 'exists' || r.error === 'offline' || r.error === 'rate' || r.error === 'server' ? 'au-email' : 'au-pw');
       return;
     }
-    setView('sent');
+    setView(r.signedIn ? 'confirmed' : 'sent');
   };
   const submitSignIn = async e => {
     e.preventDefault();
@@ -17941,6 +17893,7 @@ function AuthDialog({
     }
     finishSignIn(r);
     setView('reset_done');
+    toast('הסיסמה עודכנה');
   };
   const demoConfirm = async () => {
     const r = await Auth.confirm(email);
@@ -19498,12 +19451,7 @@ function ProfileSheet({
   }, e))), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-primary py-2.5 px-5 self-start",
     disabled: !changed
-  }, "שמירה")), /*#__PURE__*/React.createElement(CloudCard, {
-    state: state,
-    actions: actions,
-    toast: toast,
-    onClose: close
-  }), /*#__PURE__*/React.createElement("form", {
+  }, "שמירה")), /*#__PURE__*/React.createElement("form", {
     className: "border-t border-line pt-4 flex flex-col gap-3",
     onSubmit: e => {
       e.preventDefault();
@@ -20252,14 +20200,6 @@ function App({
   const community = useCommunity();
   const [legal, setLegal] = useState(null);
   const [reporting, setReporting] = useState(null);
-  const [recovery, setRecovery] = useState(RECOVERY);
-  useEffect(() => {
-    const f = () => {
-      if (RECOVERY) setRecovery(true);
-    };
-    SESSION_SUBS.add(f);
-    return () => SESSION_SUBS.delete(f);
-  }, []);
   const stories = useMemo(() => [...STORIES, ...state.userStories, ...community], [state.userStories, community]);
   const toast = useCallback(m => {
     const id = Math.random();
@@ -20843,13 +20783,78 @@ function App({
     const t = setTimeout(showOffer, 1500);
     return () => clearTimeout(t);
   }, [tab, state.history, state.words, state.acct, offerBlocked]);
+  // sign-in by password, by the e-mailed confirmation link, or a saved session: ONE place merges the device progress with the account progress (nothing is lost: higher of each metric, words from both)
   const onSignedIn = remote => {
-    if (remote) {
-      actions.restore(mergeProgress(stRef.current, remote));
-      setMergeNote(true);
+    if (Auth.mode === 'mock') {
+      if (remote) {
+        actions.restore(mergeProgress(stRef.current, remote));
+        setMergeNote(true);
+      }
+      setTimeout(() => Auth.saveProgress(stRef.current), 800);
     }
-    setTimeout(() => Auth.saveProgress(stRef.current), 800);
   };
+  const authDlgRef = useRef(null);
+  authDlgRef.current = authDlg;
+  const uid = Auth.mode === 'supabase' && SESSION && SESSION.user ? SESSION.user.id : null;
+  const syncedUid = useRef(null);
+  useEffect(() => {
+    if (Auth.mode !== 'supabase') return;
+    if (!uid) {
+      syncedUid.current = null;
+      return;
+    }
+    if (syncedUid.current === uid) return;
+    syncedUid.current = uid;
+    const fresh = FRESH_LOGIN;
+    const wasPending = !!(() => {
+      try {
+        return localStorage.getItem(PEND_KEY);
+      } catch (e) {
+        return null;
+      }
+    })();
+    let dead = false;
+    (async () => {
+      try {
+        const remote = await Auth.pull();
+        if (dead) return;
+        const merged = remote ? mergeProgress(stRef.current, remote) : stRef.current;
+        if (remote) actions.restore(merged);
+        await Auth.pushNow(merged);
+        if (wasPending) {
+          try {
+            localStorage.removeItem(PEND_KEY);
+          } catch (e) {}
+          AUTH_SUBS.forEach(f => f());
+        }
+        if (fresh && !authDlgRef.current) {
+          if (wasPending) setAuthDlg('confirmed');else if (remote) setMergeNote(true);
+        } else if (fresh && remote && !RECOVERY) setMergeNote(true);
+      } catch (e) {
+        syncedUid.current = null;
+      }
+    })();
+    return () => {
+      dead = true;
+    };
+  }, [uid]);
+  // a "choose a new password" link opens the site with a recovery session; and any other part of the site can ask for the sign-in dialog
+  useEffect(() => {
+    const chk = () => {
+      if (RECOVERY) {
+        RECOVERY = false;
+        setAuthDlg('reset');
+      }
+    };
+    chk();
+    SESSION_SUBS.add(chk);
+    const op = e => setAuthDlg(e && e.detail || 'signin');
+    window.addEventListener('lumi-open-auth', op);
+    return () => {
+      SESSION_SUBS.delete(chk);
+      window.removeEventListener('lumi-open-auth', op);
+    };
+  }, []);
   useEffect(() => {
     bkDirty.current = true;
   }, [state]);
@@ -21196,10 +21201,6 @@ function App({
     openAuth: setAuthDlg
   }))), /*#__PURE__*/React.createElement(Footer, {
     onOpen: setLegal
-  }), /*#__PURE__*/React.createElement(CloudSync, {
-    state: state,
-    actions: actions,
-    toast: toast
   }), authDlg && /*#__PURE__*/React.createElement(AuthDialog, {
     start: authDlg,
     state: state,
@@ -21222,8 +21223,6 @@ function App({
     story: reporting,
     toast: toast,
     onClose: () => setReporting(null)
-  }), recovery && SB && /*#__PURE__*/React.createElement(RecoveryDialog, {
-    onClose: () => setRecovery(false)
   }), adding && /*#__PURE__*/React.createElement(AddStory, {
     state: state,
     profile: profile,
