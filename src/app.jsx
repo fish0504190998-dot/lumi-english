@@ -2586,7 +2586,7 @@ const SERIES=[
   {n:3, name:'שלב 3 · עבר ועתיד', lessons:['הייתי והיית','מה עשיתי בשבוע שעבר','פעלים שמשנים צורה','לא עשיתי? האם עשית?','תוכניות לעתיד']}];
 // lessons listed in LIVE_LESSONS (top of src/courses.js) play real files from R2 (<video base>/videos/lessonNN.mp4, minutes measured with ffprobe); every other lesson (6-15 for now) shows "בקרוב" until the owner adds its number to LIVE_LESSONS.
 // lesson 1 is also the video lesson of the structured course (so its completion counts there); 2-5 open the series player.
-const SERIES_META={1:{cid:'a1u', tid:'a1u-u1', lid:'a1u-u1-v', mins:7}, 2:{mins:10}, 3:{mins:9}, 4:{mins:10}, 5:{mins:10}};   // minutes per lesson; a lesson without an entry defaults to 10
+const SERIES_META={1:{cid:'a1u', tid:'a1u-u1', lid:'a1u-u1-v', mins:7}, 2:{mins:10}, 3:{mins:9}, 4:{mins:10}, 5:{mins:10}, 8:{mins:9}};   // minutes per lesson; a lesson without an entry defaults to 10
 const SERIES_LIVE=Object.fromEntries(LIVE_LESSONS.map(n=>[n, SERIES_META[n]||{mins:10}]));
 const pad2=n=>String(n).padStart(2,'0');
 const posterSrc=n=>'assets/posters/lesson'+pad2(n)+'.jpg';

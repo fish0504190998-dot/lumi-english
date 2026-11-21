@@ -1,5 +1,5 @@
 ﻿/* LIVE_LESSONS: numbers (1-15) of the video-series lessons that are switched on. They play from R2 (<video base>/videos/lessonNN.mp4, poster assets/posters/lessonNN.jpg). Every other lesson shows "בקרוב". To enable lesson 6: upload videos/lesson06.mp4 to R2, add 6 here, rebuild. */
-const LIVE_LESSONS = [1, 2, 3, 4, 5];
+const LIVE_LESSONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
 /* Structured courses: course -> topics -> lessons -> topic quiz -> certificate.
    lesson types: words (cards + quiz + speaking), story (opens a built-in story), talk (opens a conversation) */
 const COURSES = [
