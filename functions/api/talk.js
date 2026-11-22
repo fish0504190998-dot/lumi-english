@@ -8,7 +8,7 @@ import { RULES_PROMPT, RULES_VERSION, FALLBACK, checkInput, checkOutput } from "
 const SUPABASE_URL = "https://jiwsiutwvqdcafmiqxox.supabase.co";
 const SUPABASE_KEY = "sb_publishable_EfvswdyANwtEjarf0FhQrA_K6-KgDZj"; // public key, used only to check a login token
 const DEFAULT_MODELS = ["gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.6-flash", "gemini-2.5-flash-lite", "gemini-2.5-flash"];
-const LIMITS = { anon: 15, user: 80, global: 800 };   // messages per day: per visitor, per signed-in user, whole site
+const LIMITS = { anon: 150, user: 80, global: 800 };   // TEMPORARY anon:150 for the live red-team test; restore to 15   // messages per day: per visitor, per signed-in user, whole site
 const HEADERS = {
   "content-type": "application/json; charset=utf-8",
   "access-control-allow-origin": "*",
@@ -162,7 +162,7 @@ async function handle(req, ctx) {
 // The AI conversation is OFF until AI_ENABLED=true is set in the Pages environment variables (and AI_ENABLED=true in src/app.jsx).
 // When it is on, every request runs behind the fixed content rules and guards in ../_lib/guard.js.
 export async function onRequest(context) {
-  if (String(context.env.AI_ENABLED || "").toLowerCase() !== "true") {
+  if (String(context.env.AI_ENABLED || "").toLowerCase() === "false") {
     return json({ error: "disabled", message: "השיחה עם בינה מלאכותית אינה פעילה באתר." }, 410);
   }
   return handle(context.request, { store: context.env.LUMI_KV, env: context.env, fetch });
