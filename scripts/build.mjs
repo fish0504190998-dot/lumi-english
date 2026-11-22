@@ -1,4 +1,4 @@
-// Cloudflare Pages build: `npm run build` -> `dist/` holds ONLY the static site. No dependencies.
+﻿// Cloudflare Pages build: `npm run build` -> `dist/` holds ONLY the static site. No dependencies.
 // Source of truth for what gets published (and for dist/_redirects and dist/_headers) is this file.
 // Pages Functions (functions/), tests, sql files and videos are never copied. Videos are served from R2 (see VITE_VIDEO_BASE_URL).
 import fs from "node:fs";
@@ -9,7 +9,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = path.join(ROOT, "dist");
 const STATIC = [
   "manifest.webmanifest", "favicon.svg", "favicon-32.png", "apple-touch-icon.png",
-  "icon-192.png", "icon-512.png", "og.png", "og-v2.png", "og-v3.jpg",
+  "icon-192.png", "icon-512.png", "og.png", "og-v2.png", "og-v3.jpg", "robots.txt", "sitemap.xml",
 ];
 const DEFAULT_VIDEO_BASE = "https://lumienglish.co.il";
 
@@ -27,7 +27,8 @@ fs.mkdirSync(DIST, { recursive: true });
 let html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
 const at = html.indexOf("</head>");
 if (at < 0) fail("index.html has no </head>");
-const inject = `<script>window.__VIDEO_BASE_URL__=${JSON.stringify(videoBase).replace(/</g, "\\u003c")};</script>\n`;
+const seo = `<link rel="canonical" href="https://lumienglish.co.il/">\n<script type="application/ld+json">${JSON.stringify({"@context":"https://schema.org","@type":"WebSite",name:"Lumi English",url:"https://lumienglish.co.il/",inLanguage:"he",description:"לומדים אנגלית בעברית: שיעורי וידאו קצרים, סיפורים, צלילים ואותיות."})}</script>\n`;
+const inject = seo + `<script>window.__VIDEO_BASE_URL__=${JSON.stringify(videoBase).replace(/</g, "\\u003c")};</script>\n`;
 html = html.slice(0, at) + inject + html.slice(at);
 fs.writeFileSync(path.join(DIST, "index.html"), html);
 
@@ -79,3 +80,4 @@ if (bad.length) fail("video files found in dist: " + bad.join(", "));
 
 const files = fs.readdirSync(DIST);
 console.log(`dist ready (${files.length} files: ${files.join(", ")}); video base: ${videoBase}`);
+
