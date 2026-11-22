@@ -271,9 +271,9 @@ function searchDict(raw){
 }
 
 /* ---------- feature switches (content filters such as NetFree/Etrog/Netiv dislike AI chat and cloud speech recognition) ----------
-   AI_ENABLED=false: no AI conversation (UI removed; /api/talk answers 410).
+   AI_ENABLED=false: no AI conversation (UI removed; /api/talk answers 410). The AI is ON but always runs behind fixed content rules (functions/_lib/guard.js): clean language, English practice only.
    SPEECH_INPUT_ENABLED=false: no microphone features (Chrome sends the audio to Google for recognition). Listening to English (read-aloud) stays on. */
-const AI_ENABLED=false;
+const AI_ENABLED=true;
 const SPEECH_INPUT_ENABLED=true;
 
 /* ---------- voice input ---------- */
@@ -722,7 +722,7 @@ const LEGAL={
     ['איזה מידע נאסף','כשנרשמים לשמירה בענן, נשמרים כתובת המייל והסיסמה המוצפנת שמסרתם (לצורך כניסה וקשר), התקדמות הלמידה (מילים מוכרות ומילים בלמידה, היסטוריית תרגול, רצף והישגים), הסיפורים והתמונות שהעליתם, ושם התצוגה שבחרתם. בלי הרשמה, כל המידע נשמר רק בדפדפן שלכם ולא נשלח אלינו.'],
     ['איפה המידע נשמר','המידע נשמר בתשתית ענן מאובטחת של Supabase. כל משתמש מבודד ברמת השורה, באמצעות מנגנון ההרשאות של Supabase: רק אתם יכולים לקרוא ולשנות את ההתקדמות שלכם. סיפורים שבחרתם לפרסם כציבוריים גלויים לכל המשתמשים יחד עם שם התצוגה שבחרתם, ללא כתובת המייל.'],
     ['שיתוף עם צדדים שלישיים','איננו מוכרים את המידע שלכם, ואיננו משתפים אותו עם מפרסמים או עם צדדים שלישיים לצורכי שיווק. המידע משמש רק להפעלת השירות.'],
-    ['שירותים חיצוניים','חיפוש מילה שאינה במילון המובנה נשלח לשירותי מילון ותרגום חיצוניים (dictionaryapi.dev ו־MyMemory). באתר אין שיחה עם בינה מלאכותית. המיקרופון פועל רק כשלוחצים עליו, וזיהוי הדיבור מתבצע על ידי הדפדפן שלכם (בכרום ההקלטה נשלחת לשירות זיהוי הדיבור של גוגל), ואיננו שומרים אותה. קבוצות לימוד שומרות שם, דמות ונקודות בלבד.'],
+    ['שירותים חיצוניים','חיפוש מילה שאינה במילון המובנה נשלח לשירותי מילון ותרגום חיצוניים (dictionaryapi.dev ו־MyMemory). השיחה החופשית עם לומי (בינה מלאכותית) שולחת את ההודעות שלכם לספק הבינה המלאכותית של האתר כדי לקבל תשובה, ואיננו שומרים אותן. השיחה פועלת לפי כללים קבועים: תרגול אנגלית בלבד, בלשון נקייה, בלי נושאים פוליטיים או נושאים שאינם מתאימים, ובלי בקשת פרטים אישיים. המיקרופון פועל רק כשלוחצים עליו, וזיהוי הדיבור מתבצע על ידי הדפדפן שלכם (בכרום ההקלטה נשלחת לשירות זיהוי הדיבור של גוגל), ואיננו שומרים אותה. קבוצות לימוד שומרות שם, דמות ונקודות בלבד.'],
     ...(ANALYTICS_CODE?[['ספירת כניסות','האתר משתמש ב־GoatCounter, שירות סטטיסטיקה ידידותי לפרטיות, כדי לספור כניסות: דפים שנצפו, מדינה וסוג דפדפן. השירות לא משתמש בעוגיות, לא עוקב אחרי אנשים בנפרד, ולא נמכר או משותף לצורכי פרסום. הוא פועל רק באתר עצמו, לא בהתקדמות הלימוד שלכם.']]:[]),
     ['מחיקת חשבון ונתונים','אפשר למחוק את החשבון וכל הנתונים בכל רגע: נכנסים ללשונית "אני" ובוחרים "מחיקת החשבון שלי". המחיקה סופית. אפשר גם לבקש מחיקה במייל לכתובת שבעמוד "צור קשר".']]},
   access:{title:'הצהרת נגישות', draft:'טיוטה: הצהרה זו נכתבה כטיוטה לגרסת הדמו ועדיין לא אושרה על ידי בעל האתר. אין לראות בה הצהרה משפטית סופית.', body:[
@@ -815,6 +815,7 @@ function AiChat({scenario, level, name, voice, actions, settings, onBack}){
     </section>
     {err&&<div className="rounded-xl p-3 text-sm flex items-center gap-3 flex-wrap" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><span className="flex-1"><Bi>{err}</Bi>{detail&&<details className="mt-1 text-xs opacity-80"><summary className="cursor-pointer">פרטים טכניים</summary><bdi dir="ltr" className="block text-left break-words select-all">{detail}</bdi></details>}</span>
       {msgs.length===0&&<button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>ask([])}>ניסיון חוזר</button>}{msgs.length>0&&msgs[msgs.length-1].from==='me'&&<button className="btn btn-line px-3 py-1.5 text-sm" onClick={()=>ask(msgs)}>שליחה מחדש</button>}</div>}
+    <p className="text-xs text-muted text-center">השיחה מוגבלת לתרגול אנגלית, בלשון נקייה.</p>
     <div className="talk-composer card p-2 flex items-center gap-2" dir="ltr">
       <button className={`btn w-14 h-14 shrink-0 ${listening?'pop':''}`} style={{borderRadius:'50%', background:listening?'var(--bad)':'var(--primary)', color:'var(--primary-ink)'}} onClick={mic} disabled={busy&&!listening} aria-label={listening?'עצירת ההקשבה':'דברו באנגלית'} aria-pressed={listening}><IconMic size={24}/></button>
       <form className="flex-1 min-w-0 flex items-center gap-2" onSubmit={e=>{ e.preventDefault(); submit(text,false); }}>
@@ -828,12 +829,13 @@ function AiTalkCard({known, onStart}){
   return (<section className="card ai-card p-5 sm:p-6 flex flex-col gap-4">
     <div className="flex items-center gap-3"><span className="w-12 h-12 rounded-2xl grid place-items-center text-2xl shrink-0" style={{background:'var(--primary-soft)'}} aria-hidden="true">🤖</span>
       <div><div className="eyebrow">למתקדמים</div><h2 className="text-xl sm:text-2xl font-extrabold">שיחה חופשית עם לומי (בינה מלאכותית)</h2></div></div>
-    <p className="text-sm text-muted leading-relaxed">אפשר לדבר או להקליד כל דבר, ולומי עונה, שואלת ומתקנת בעדינות. היא מתאימה את האנגלית לרמה שלך.</p>
+    <p className="text-sm text-muted leading-relaxed">אפשר לדבר או להקליד על החיים היום־יומיים, ולומי עונה, שואלת ומתקנת בעדינות. היא מתאימה את האנגלית לרמה שלך.</p>
+    <p className="text-sm font-semibold">השיחה מוגבלת לתרגול אנגלית, בלשון נקייה.</p>
     {!AI_OK ? <p className="text-sm rounded-xl p-3" style={{background:'var(--sun-soft)'}}>{LOCAL_ONLY?'בגרסת הדמו השיחה החופשית כבויה, כדי שלא יהיו עלויות. באתר האמיתי היא עובדת כרגיל.':<>השיחה עם ה־AI זמינה באתר <bdi dir="ltr" lang="en">lumienglish.co.il</bdi>.</>}</p> : <>
       <div className="flex flex-wrap gap-2" role="group" aria-label="בחירת נושא לשיחה">{AI_SCEN.map(([k,e,l])=><button key={k} className="filter-pill flex items-center gap-1.5" onClick={()=>onStart(k,lv)}><span aria-hidden="true">{e}</span>{l}</button>)}</div>
       <div className="flex items-center gap-2 flex-wrap text-sm"><span className="text-muted">רמת האנגלית:</span>
         <div className="seg" role="group" aria-label="רמת האנגלית">{LEVELS.map(L=><button key={L.n} aria-pressed={lv===L.n} onClick={()=>setLv(L.n)}>שלב {L.n}</button>)}</div></div>
-      <p className="text-xs text-muted">{session?'מחוברים: עד 80 הודעות ביום.':'כאורחים אפשר עד 15 הודעות ביום. עם חשבון יש עד 80.'} ההודעות נשלחות לשירות חיצוני כדי לקבל תשובה, ואינן נשמרות אצלנו.</p></>}
+      <p className="text-xs text-muted">{session?'מחוברים: עד 80 הודעות ביום.':'כאורחים אפשר עד 15 הודעות ביום. עם חשבון יש עד 80.'} ההודעות נשלחות לספק הבינה המלאכותית של האתר כדי לקבל תשובה, ואינן נשמרות אצלנו. השיחה פועלת לפי כללים קבועים.</p></>}
   </section>);
 }
 

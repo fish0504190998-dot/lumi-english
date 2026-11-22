@@ -25,7 +25,7 @@ fs.mkdirSync(DIST, { recursive: true });
 
 // index.html + the video base injection (before </head>, so it runs before the app script)
 let html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
-html = html.split("סיפורים מדורגים, צלילים ואותיות, שיחה בקול ותחרות עם חברים").join("שיעורי וידאו קצרים, סיפורים מדורגים, צלילים ואותיות ותחרות עם חברים");
+html = html.split("סיפורים מדורגים, צלילים ואותיות, שיחה בקול ותחרות עם חברים").join("שיעורי וידאו קצרים, סיפורים מדורגים, צלילים ואותיות, תרגול שיחה ותחרות עם חברים");
 const at = html.indexOf("</head>");
 if (at < 0) fail("index.html has no </head>");
 const seo = `<link rel="canonical" href="https://lumienglish.co.il/">\n<script type="application/ld+json">${JSON.stringify({"@context":"https://schema.org","@type":"WebSite",name:"Lumi English",url:"https://lumienglish.co.il/",inLanguage:"he",description:"לומדים אנגלית בעברית: שיעורי וידאו קצרים, סיפורים, צלילים ואותיות."})}</script>\n`;
