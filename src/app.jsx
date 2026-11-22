@@ -725,7 +725,7 @@ const LEGAL={
     ['מה נבדק',['בדיקה אוטומטית עם הכלי axe-core, לפי כללי WCAG 2.1 ברמות A ו־AA, בכל מסכי האתר, במסך רחב ובמסך טלפון, במצב בהיר ובמצב כהה.','חישוב ניגודיות לכל צמד צבעים בטקסט וברכיבי ממשק.','מעבר מלא במקלדת: Tab, Shift+Tab, Enter, רווח ו־Escape, כולל חלונות קופצים.','הגדלת טקסט עד 200% ובדיקת הקטנת תנועה לפי הגדרת מערכת ההפעלה.','לא נבדקנו עד כה עם קוראי מסך אמיתיים (NVDA, JAWS, VoiceOver).']],
     ['התאמות שבוצעו באתר',['מבנה כותרות ואזורי דף (כותרת, ניווט, תוכן ראשי, תחתית) עם שמות בעברית, וקישור לדילוג לתוכן.','כל הפקדים נגישים במקלדת, עם סימון מיקוד ברור בשני מצבי הצבע.','חלונות קופצים שומרים את המיקוד בתוכם, נסגרים ב־Escape ומחזירים את המיקוד.','תוויות לכל שדה וכפתור סמלים, והודעות מערכת מוקראות לקורא מסך.','כפתורים בגודל נוח למגע (לפחות 44 פיקסלים), וגודל טקסט מינימלי של 14 פיקסלים.','התאמה לבקשת מערכת ההפעלה להפחתת תנועה.']],
     ['מגבלות ידועות',['לסרטוני השיעורים אין עדיין כתוביות ותמלול. בינתיים מופיעה הערה "תמלול זמין בקרוב".','תעתיקי ההגייה האוטומטיים למילים שאינן במילון הם משוערים.','זיהוי הדיבור והמיקרופון תלויים בדפדפן ופועלים ב־Chrome וב־Edge.','בתרגול המהיר יש מגבלת זמן של שתי דקות שאי אפשר להאריך.','סיפורים שמשתמשים מוסיפים בעצמם עשויים לכלול תמונות בלי תיאור.']],
-    ['רכז הנגישות',['שם הרכז: [להשלמה על ידי הבעלים]','טלפון: [להשלמה על ידי הבעלים]','דואר אלקטרוני: info@lumienglish.co.il','נתקלתם בבעיית נגישות? כתבו לנו וציינו את העמוד, את הבעיה ואת הדפדפן. נשתדל לענות תוך 14 ימים.']],
+    ['פניות בנושא נגישות',['צוות Lumi English','דואר אלקטרוני: info@lumienglish.co.il','נתקלתם בבעיית נגישות? כתבו לנו וציינו את העמוד, את הבעיה ואת הדפדפן. נשתדל לענות תוך 14 ימים.']],
     ['עדכון ההצהרה','טיוטה מתאריך 19 בנובמבר 2026.']]},
   contact:{title:'צור קשר', body:[['שאלות, בקשות ודיווחים','לכל שאלה, בקשה למחיקת נתונים, דיווח על בעיית נגישות או על תוכן, כתבו לנו:']]}
 };
@@ -739,7 +739,7 @@ function LegalModal({page, onClose}){
       <div className="p-5 sm:p-6 overflow-y-auto flex flex-col gap-5 legal" tabIndex={0} role="region" aria-label={P.title+': התוכן'} style={{paddingBottom:'max(24px, env(safe-area-inset-bottom,0px))'}}>
         {P.draft&&<p className="draft-banner" role="note">{P.draft}</p>}
         {P.body.map(([h,t])=><section key={h}><h3 className="text-lg font-extrabold mb-1">{h}</h3>{Array.isArray(t)?<ul className="legal-list leading-relaxed">{t.map(x=><li key={x}><Bi>{x}</Bi></li>)}</ul>:<p className="leading-relaxed"><Bi>{t}</Bi></p>}</section>)}
-        {page==='access'&&<div className="flex items-center gap-2 flex-wrap"><a className="btn btn-line px-4" href={'mailto:'+SUPPORT_EMAIL}>כתיבה לרכז הנגישות: <bdi dir="ltr" lang="en">{SUPPORT_EMAIL}</bdi></a></div>}
+        {page==='access'&&<div className="flex items-center gap-2 flex-wrap"><a className="btn btn-line px-4" href={'mailto:'+SUPPORT_EMAIL}>פניות בנושא נגישות:<bdi dir="ltr" lang="en">{SUPPORT_EMAIL}</bdi></a></div>}
         {page==='contact'&&<div className="flex items-center gap-2 flex-wrap"><bdi dir="ltr" className="text-xl font-bold select-all rounded-xl bg-sunk px-4 py-2">{SUPPORT_EMAIL}</bdi>
           <button className="btn btn-line px-4" onClick={async()=>{ if(await copyText(SUPPORT_EMAIL)) setCopied(true); }}>{copied?'הועתק ✓':'העתקת הכתובת'}</button></div>}
       </div>
