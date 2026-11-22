@@ -2805,8 +2805,7 @@ function GroupCard({state, actions, profile, known, streak, toast}){
     <div className="flex items-center gap-3 flex-wrap">
       <span className="w-11 h-11 rounded-xl grid place-items-center shrink-0" style={{background:'var(--sun-soft)'}}><IconTrophy size={22}/></span>
       <div className="me-auto min-w-0"><h2 className="text-lg font-bold truncate">{g.name}</h2><div className="text-sm text-muted">טבלת השבוע · קוד <bdi dir="ltr" className="num font-bold text-ink tracking-wider">{g.code}</bdi></div></div>
-      <a className="btn btn-primary px-4 text-sm" href={'https://wa.me/?text='+encodeURIComponent(invite)} target="_blank" rel="noopener noreferrer">הזמנה בוואטסאפ</a>
-      <button className="btn btn-ghost px-3 text-sm" onClick={copy}><IconCopy size={16}/>העתקת הזמנה</button>
+      <button className="btn btn-primary px-4 text-sm" onClick={copy}><IconCopy size={16}/>העתקת קישור</button>
     </div>
     {err&&<div className="rounded-xl p-3 text-sm" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{err}</Bi></div>}
     {!data&&!err&&<div className="text-sm text-muted">טוען את הטבלה…</div>}
@@ -2888,11 +2887,10 @@ async function loadBackup(code){
 const BK_ERR={ bad_code:'הקוד לא נראה תקין. הוא נראה כך: LUMI-7K4P-9XQ2 (בלי האותיות O ו־I ובלי הספרות 0 ו־1).',
   not_found:LOCAL_ONLY?'בגרסת הדמו הקוד מזהה רק גיבוי ששמור במכשיר הזה. כדי לעבור למכשיר אחר, השתמש ב"ייבוא מגיבוי" עם קובץ הגיבוי.':'לא מצאנו גיבוי עם הקוד הזה. בדוק שהקוד נכון.',
   storage:'הדפדפן חוסם את האחסון המקומי, ולכן אי אפשר לשמור או לשחזר.' };
-const backupWaLink=code=>'https://wa.me/?text='+encodeURIComponent('הקוד האישי שלי ב־Lumi English: '+code+'\nכדי לשחזר את ההתקדמות: אני ← שמירת ההתקדמות ← יש לי קוד.');
 function CodeActions({code, toast}){
   return (<div className="flex gap-2 flex-wrap">
     <button type="button" className="btn btn-primary px-5" onClick={async()=>{ toast((await copyText(code))?'הקוד הועתק':'לא הצלחתי להעתיק. סמן את הקוד והעתק אותו ידנית'); }}><IconCopy size={18}/>העתק</button>
-    <a className="btn btn-line px-5" href={backupWaLink(code)} target="_blank" rel="noopener noreferrer">שלח לעצמי בוואטסאפ<span className="sr-only"> (נפתח בחלון חדש)</span></a></div>);
+  </div>);
 }
 // shown once, calmly, after the first finished lesson
 function BackupPrompt({code, toast, onClose}){
@@ -2921,7 +2919,7 @@ function BackupCodePanel({state, actions, profile, toast, onFound}){
       <CodeActions code={code} toast={toast}/>
       <div><button type="button" className="hit text-primary font-semibold text-sm" onClick={saveNow}>שמירת גיבוי עכשיו</button></div>
     </> : <>
-      <p className="text-sm text-muted leading-relaxed">אפשר לקבל קוד קצר, כמו <bdi dir="ltr" lang="en" className="num">LUMI-7K4P-9XQ2</bdi>, ולשמור אותו בוואטסאפ או בפתק. בעזרתו תוכל להחזיר את ההתקדמות אחרי החלפת מכשיר.</p>
+      <p className="text-sm text-muted leading-relaxed">אפשר לקבל קוד קצר, כמו <bdi dir="ltr" lang="en" className="num">LUMI-7K4P-9XQ2</bdi>, ולשמור אותו בפתק. בעזרתו תוכל להחזיר את ההתקדמות אחרי החלפת מכשיר.</p>
       <div><button type="button" className="btn btn-primary px-5" onClick={create}>יצירת קוד אישי</button></div></>}
     <div>{!restore ? <button type="button" className="btn btn-line px-5" onClick={()=>setRestore(true)}>יש לי קוד</button>
       : <form className="flex flex-col gap-2" onSubmit={doRestore}><label htmlFor="bk-restore" className="font-semibold">הקוד האישי שלך</label>

@@ -50,8 +50,7 @@ function GroupCard({state, actions, profile, known, streak, toast}){
     <div className="flex items-center gap-3 flex-wrap">
       <span className="w-11 h-11 rounded-xl grid place-items-center shrink-0" style={{background:'var(--sun-soft)'}}><IconTrophy size={22}/></span>
       <div className="me-auto min-w-0"><h2 className="text-lg font-bold truncate">{g.name}</h2><div className="text-sm text-muted">טבלת השבוע · קוד <bdi dir="ltr" className="num font-bold text-ink tracking-wider">{g.code}</bdi></div></div>
-      <a className="btn btn-primary px-4 text-sm" href={'https://wa.me/?text='+encodeURIComponent(invite)} target="_blank" rel="noopener noreferrer">הזמנה בוואטסאפ</a>
-      <button className="btn btn-ghost px-3 text-sm" onClick={copy}><IconCopy size={16}/>העתקת הזמנה</button>
+      <button className="btn btn-primary px-4 text-sm" onClick={copy}><IconCopy size={16}/>העתקת קישור</button>
     </div>
     {err&&<div className="rounded-xl p-3 text-sm" role="alert" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{err}</Bi></div>}
     {!data&&!err&&<div className="text-sm text-muted">טוען את הטבלה…</div>}

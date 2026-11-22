@@ -16402,17 +16402,12 @@ function GroupCard({
   }, "טבלת השבוע · קוד ", /*#__PURE__*/React.createElement("bdi", {
     dir: "ltr",
     className: "num font-bold text-ink tracking-wider"
-  }, g.code))), /*#__PURE__*/React.createElement("a", {
+  }, g.code))), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-primary px-4 text-sm",
-    href: 'https://wa.me/?text=' + encodeURIComponent(invite),
-    target: "_blank",
-    rel: "noopener noreferrer"
-  }, "הזמנה בוואטסאפ"), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-ghost px-3 text-sm",
     onClick: copy
   }, /*#__PURE__*/React.createElement(IconCopy, {
     size: 16
-  }), "העתקת הזמנה")), err && /*#__PURE__*/React.createElement("div", {
+  }), "העתקת קישור")), err && /*#__PURE__*/React.createElement("div", {
     className: "rounded-xl p-3 text-sm",
     role: "alert",
     style: {
@@ -16715,7 +16710,6 @@ const BK_ERR = {
   not_found: LOCAL_ONLY ? 'בגרסת הדמו הקוד מזהה רק גיבוי ששמור במכשיר הזה. כדי לעבור למכשיר אחר, השתמש ב"ייבוא מגיבוי" עם קובץ הגיבוי.' : 'לא מצאנו גיבוי עם הקוד הזה. בדוק שהקוד נכון.',
   storage: 'הדפדפן חוסם את האחסון המקומי, ולכן אי אפשר לשמור או לשחזר.'
 };
-const backupWaLink = code => 'https://wa.me/?text=' + encodeURIComponent('הקוד האישי שלי ב־Lumi English: ' + code + '\nכדי לשחזר את ההתקדמות: אני ← שמירת ההתקדמות ← יש לי קוד.');
 function CodeActions({
   code,
   toast
@@ -16730,14 +16724,7 @@ function CodeActions({
     }
   }, /*#__PURE__*/React.createElement(IconCopy, {
     size: 18
-  }), "העתק"), /*#__PURE__*/React.createElement("a", {
-    className: "btn btn-line px-5",
-    href: backupWaLink(code),
-    target: "_blank",
-    rel: "noopener noreferrer"
-  }, "שלח לעצמי בוואטסאפ", /*#__PURE__*/React.createElement("span", {
-    className: "sr-only"
-  }, " (נפתח בחלון חדש)")));
+  }), "העתק"));
 }
 // shown once, calmly, after the first finished lesson
 function BackupPrompt({
@@ -16854,7 +16841,7 @@ function BackupCodePanel({
     dir: "ltr",
     lang: "en",
     className: "num"
-  }, "LUMI-7K4P-9XQ2"), ", ולשמור אותו בוואטסאפ או בפתק. בעזרתו תוכל להחזיר את ההתקדמות אחרי החלפת מכשיר."), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("button", {
+  }, "LUMI-7K4P-9XQ2"), ", ולשמור אותו בפתק. בעזרתו תוכל להחזיר את ההתקדמות אחרי החלפת מכשיר."), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("button", {
     type: "button",
     className: "btn btn-primary px-5",
     onClick: create
