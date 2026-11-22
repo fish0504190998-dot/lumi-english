@@ -1,4 +1,4 @@
-﻿// Cloudflare Pages build: `npm run build` -> `dist/` holds ONLY the static site. No dependencies.
+// Cloudflare Pages build: `npm run build` -> `dist/` holds ONLY the static site. No dependencies.
 // Source of truth for what gets published (and for dist/_redirects and dist/_headers) is this file.
 // Pages Functions (functions/), tests, sql files and videos are never copied. Videos are served from R2 (see VITE_VIDEO_BASE_URL).
 import fs from "node:fs";
@@ -25,6 +25,7 @@ fs.mkdirSync(DIST, { recursive: true });
 
 // index.html + the video base injection (before </head>, so it runs before the app script)
 let html = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+html = html.split("סיפורים מדורגים, צלילים ואותיות, שיחה בקול ותחרות עם חברים").join("שיעורי וידאו קצרים, סיפורים מדורגים, צלילים ואותיות ותחרות עם חברים");
 const at = html.indexOf("</head>");
 if (at < 0) fail("index.html has no </head>");
 const seo = `<link rel="canonical" href="https://lumienglish.co.il/">\n<script type="application/ld+json">${JSON.stringify({"@context":"https://schema.org","@type":"WebSite",name:"Lumi English",url:"https://lumienglish.co.il/",inLanguage:"he",description:"לומדים אנגלית בעברית: שיעורי וידאו קצרים, סיפורים, צלילים ואותיות."})}</script>\n`;

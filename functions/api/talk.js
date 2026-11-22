@@ -153,6 +153,11 @@ async function handle(req, ctx) {
   return json({ reply: clean(o.reply, 600), reply_he: clean(o.reply_he, 700), correction: clean(o.correction, 400), tip_he: clean(o.tip_he, 300), model: res.model, provider: prov.name });
 }
 
+// The AI conversation is switched off on the site (content filters such as NetFree do not allow AI chat).
+// To turn it back on: set AI_ENABLED=true in the Pages environment variables (and AI_ENABLED=true in src/app.jsx).
 export async function onRequest(context) {
+  if (String(context.env.AI_ENABLED || "").toLowerCase() !== "true") {
+    return json({ error: "disabled", message: "השיחה עם בינה מלאכותית אינה פעילה באתר." }, 410);
+  }
   return handle(context.request, { store: context.env.LUMI_KV, env: context.env, fetch });
 }
