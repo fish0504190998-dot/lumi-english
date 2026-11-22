@@ -1,4 +1,4 @@
-﻿// node tests/ai-guard/run.mjs : tests the REAL guard + the REAL /api/talk handler logic (provider and KV are stubbed, nothing leaves the machine).
+// node tests/ai-guard/run.mjs : tests the REAL guard + the REAL /api/talk handler logic (provider and KV are stubbed, nothing leaves the machine).
 import fs from "node:fs"; import path from "node:path"; import os from "node:os"; import { pathToFileURL, fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "aiguard-")); fs.cpSync(path.join(root, "functions"), path.join(tmp, "functions"), { recursive: true });
@@ -40,7 +40,7 @@ function mkFetch(answer) { return async (url) => { if (String(url).includes("/au
 async function call(messages, answer) {
   const req = new Request("https://x/api/talk", { method: "POST", headers: { "content-type": "application/json", "cf-connecting-ip": "1.1.1.1" }, body: JSON.stringify({ messages, level: 1, scenario: "free" }) });
   const realFetch = globalThis.fetch; globalThis.fetch = mkFetch(answer);   // talk.js uses the global fetch passed in context
-  try { const res = await talk.onRequest({ request: req, env: { GROQ_API_KEY: "test-key-123456789", LUMI_KV: store } }); return { status: res.status, body: await res.json() }; } finally { globalThis.fetch = realFetch; }
+  try { const res = await talk.onRequest({ request: req, env: { AI_ENABLED: "true", GROQ_API_KEY: "test-key-123456789", LUMI_KV: store } }); return { status: res.status, body: await res.json() }; } finally { globalThis.fetch = realFetch; }
 }
 const good = { reply: "Nice! What do you eat for breakfast?", reply_he: "יפה! מה אתה אוכל לארוחת בוקר?", correction: "", tip_he: "" };
 let r = await call([{ role: "user", text: "I eat bread" }], good); n++; if (!(r.status === 200 && r.body.reply === good.reply && !r.body.refused)) fails.push("good answer was not passed: " + JSON.stringify(r));
@@ -54,7 +54,7 @@ r = await call([{ role: "user", text: "x".repeat(450) }], good); n++; if (!r.bod
 const prompt = fs.readFileSync(path.join(tmp, "functions/_lib/guard.js"), "utf8"); n++; if (!/Haredi/.test(prompt) || !guard.RULES_PROMPT.includes(guard.RULES_VERSION)) fails.push("rules prompt missing");
 // the rules page really goes into the request to the provider
 let seen = ""; const rf = globalThis.fetch; globalThis.fetch = async (u, o) => { if (!String(u).includes("/auth/v1/user")) seen = String(o && o.body || ""); return mkFetch(good)(u, o); };
-await talk.onRequest({ request: new Request("https://x/api/talk", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", text: "hello" }] }) }), env: { GROQ_API_KEY: "test-key-123456789", LUMI_KV: store } }); globalThis.fetch = rf;
+await talk.onRequest({ request: new Request("https://x/api/talk", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: [{ role: "user", text: "hello" }] }) }), env: { AI_ENABLED: "true", GROQ_API_KEY: "test-key-123456789", LUMI_KV: store } }); globalThis.fetch = rf;
 n++; if (!seen.includes("CONTENT RULES") || !seen.includes("Haredi")) fails.push("rules not sent to provider");
-r = await (async () => { const res = await talk.onRequest({ request: new Request("https://x/api/talk", { method: "POST", body: "{}" }), env: { AI_ENABLED: "false", LUMI_KV: store } }); return res.status; })(); n++; if (r !== 410) fails.push("AI_ENABLED=false does not return 410");
+r = await (async () => { const res = await talk.onRequest({ request: new Request("https://x/api/talk", { method: "POST", body: "{}" }), env: { LUMI_KV: store } }); return res.status; })(); n++; if (r !== 410) fails.push("AI off by default does not return 410");
 const total = n, bad = fails.length; console.log(`TOTAL ${total}  PASS ${total - bad}  FAIL ${bad}  (${((total - bad) / total * 100).toFixed(1)}%)`); fails.forEach((f) => console.log("FAIL " + f)); fs.rmSync(tmp, { recursive: true, force: true }); process.exit(bad ? 1 : 0);

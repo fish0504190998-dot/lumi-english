@@ -159,10 +159,10 @@ async function handle(req, ctx) {
   return json({ ...out, model: res.model, provider: prov.name, rules: RULES_VERSION });
 }
 
-// The AI conversation is ON by default, always behind the fixed content rules in ../_lib/guard.js.
-// To switch it off completely: set AI_ENABLED=false in the Pages environment variables (and AI_ENABLED=false in src/app.jsx).
+// The AI conversation is OFF until AI_ENABLED=true is set in the Pages environment variables (and AI_ENABLED=true in src/app.jsx).
+// When it is on, every request runs behind the fixed content rules and guards in ../_lib/guard.js.
 export async function onRequest(context) {
-  if (String(context.env.AI_ENABLED || "").toLowerCase() === "false") {
+  if (String(context.env.AI_ENABLED || "").toLowerCase() !== "true") {
     return json({ error: "disabled", message: "השיחה עם בינה מלאכותית אינה פעילה באתר." }, 410);
   }
   return handle(context.request, { store: context.env.LUMI_KV, env: context.env, fetch });

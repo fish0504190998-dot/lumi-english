@@ -273,7 +273,7 @@ function searchDict(raw){
 /* ---------- feature switches (content filters such as NetFree/Etrog/Netiv dislike AI chat and cloud speech recognition) ----------
    AI_ENABLED=false: no AI conversation (UI removed; /api/talk answers 410). The AI is ON but always runs behind fixed content rules (functions/_lib/guard.js): clean language, English practice only.
    SPEECH_INPUT_ENABLED=false: no microphone features (Chrome sends the audio to Google for recognition). Listening to English (read-aloud) stays on. */
-const AI_ENABLED=true;
+const AI_ENABLED=false;   // stays false until the AI provider has credits and the live red-team test (tests/ai-guard + docs 20_AI_Rules_Test.md) passes
 const SPEECH_INPUT_ENABLED=true;
 
 /* ---------- voice input ---------- */
@@ -643,7 +643,9 @@ function TabHead({tab, place, name, known, showSub, setTab, onSettings}){
    row level security rules in supabase-setup.sql and supabase-community.sql, not by hiding this key. */
 const CLOUD_CFG={ url:'https://jiwsiutwvqdcafmiqxox.supabase.co', key:'sb_publishable_EfvswdyANwtEjarf0FhQrA_K6-KgDZj' };
 const ANALYTICS_CODE='';   // GoatCounter site code (the part before .goatcounter.com). Empty = no visit counting and no policy section.
-const SUPPORT_EMAIL='info@lumienglish.co.il';
+const SUPPORT_EMAIL='support@lumienglish.co.il';
+const ACCESS_EMAIL='accessibility@lumienglish.co.il';
+const PRIVACY_EMAIL='privacy@lumienglish.co.il';
 const LOCAL_ONLY=false;  // production: Supabase cloud, community, study groups and the AI talk are live
 const ACCOUNTS=true;     // ONE switch for the e-mail + password account UI (sign-up, sign-in, forgot password, account panel, offer after the first lesson). false = hidden, learning needs no account
 let SB=null;
@@ -722,16 +724,16 @@ const LEGAL={
     ['איזה מידע נאסף','כשנרשמים לשמירה בענן, נשמרים כתובת המייל והסיסמה המוצפנת שמסרתם (לצורך כניסה וקשר), התקדמות הלמידה (מילים מוכרות ומילים בלמידה, היסטוריית תרגול, רצף והישגים), הסיפורים והתמונות שהעליתם, ושם התצוגה שבחרתם. בלי הרשמה, כל המידע נשמר רק בדפדפן שלכם ולא נשלח אלינו.'],
     ['איפה המידע נשמר','המידע נשמר בתשתית ענן מאובטחת של Supabase. כל משתמש מבודד ברמת השורה, באמצעות מנגנון ההרשאות של Supabase: רק אתם יכולים לקרוא ולשנות את ההתקדמות שלכם. סיפורים שבחרתם לפרסם כציבוריים גלויים לכל המשתמשים יחד עם שם התצוגה שבחרתם, ללא כתובת המייל.'],
     ['שיתוף עם צדדים שלישיים','איננו מוכרים את המידע שלכם, ואיננו משתפים אותו עם מפרסמים או עם צדדים שלישיים לצורכי שיווק. המידע משמש רק להפעלת השירות.'],
-    ['שירותים חיצוניים','חיפוש מילה שאינה במילון המובנה נשלח לשירותי מילון ותרגום חיצוניים (dictionaryapi.dev ו־MyMemory). השיחה החופשית עם לומי (בינה מלאכותית) שולחת את ההודעות שלכם לספק הבינה המלאכותית של האתר כדי לקבל תשובה, ואיננו שומרים אותן. השיחה פועלת לפי כללים קבועים: תרגול אנגלית בלבד, בלשון נקייה, בלי נושאים פוליטיים או נושאים שאינם מתאימים, ובלי בקשת פרטים אישיים. המיקרופון פועל רק כשלוחצים עליו, וזיהוי הדיבור מתבצע על ידי הדפדפן שלכם (בכרום ההקלטה נשלחת לשירות זיהוי הדיבור של גוגל), ואיננו שומרים אותה. קבוצות לימוד שומרות שם, דמות ונקודות בלבד.'],
+    ['שירותים חיצוניים','חיפוש מילה שאינה במילון המובנה נשלח לשירותי מילון ותרגום חיצוניים (dictionaryapi.dev ו־MyMemory). '+(AI_ENABLED?'השיחה החופשית עם לומי (בינה מלאכותית) שולחת את ההודעות שלכם לספק הבינה המלאכותית של האתר כדי לקבל תשובה, ואיננו שומרים אותן. השיחה פועלת לפי כללים קבועים: תרגול אנגלית בלבד, בלשון נקייה, בלי נושאים פוליטיים או נושאים שאינם מתאימים, ובלי בקשת פרטים אישיים. ':'באתר אין שיחה עם בינה מלאכותית. ')+'המיקרופון פועל רק כשלוחצים עליו, וזיהוי הדיבור מתבצע על ידי הדפדפן שלכם (בכרום ההקלטה נשלחת לשירות זיהוי הדיבור של גוגל), ואיננו שומרים אותה. קבוצות לימוד שומרות שם, דמות ונקודות בלבד.'],
     ...(ANALYTICS_CODE?[['ספירת כניסות','האתר משתמש ב־GoatCounter, שירות סטטיסטיקה ידידותי לפרטיות, כדי לספור כניסות: דפים שנצפו, מדינה וסוג דפדפן. השירות לא משתמש בעוגיות, לא עוקב אחרי אנשים בנפרד, ולא נמכר או משותף לצורכי פרסום. הוא פועל רק באתר עצמו, לא בהתקדמות הלימוד שלכם.']]:[]),
-    ['מחיקת חשבון ונתונים','אפשר למחוק את החשבון וכל הנתונים בכל רגע: נכנסים ללשונית "אני" ובוחרים "מחיקת החשבון שלי". המחיקה סופית. אפשר גם לבקש מחיקה במייל לכתובת שבעמוד "צור קשר".']]},
+    ['מחיקת חשבון ונתונים','אפשר למחוק את החשבון וכל הנתונים בכל רגע: נכנסים ללשונית "אני" ובוחרים "מחיקת החשבון שלי". המחיקה סופית. אפשר גם לבקש מחיקה במייל לכתובת privacy@lumienglish.co.il.']]},
   access:{title:'הצהרת נגישות', draft:'טיוטה: הצהרה זו נכתבה כטיוטה לגרסת הדמו ועדיין לא אושרה על ידי בעל האתר. אין לראות בה הצהרה משפטית סופית.', body:[
     ['המחויבות שלנו','אנו פועלים להנגיש את האתר לאנשים עם מוגבלויות, בהתאם לתקנות שוויון זכויות לאנשים עם מוגבלות (התאמות נגישות לשירות), התשע"ג־2013, ולתקן הישראלי ת"י 5568 המבוסס על הנחיות WCAG 2.1. היעד שלנו הוא רמת AA. האתר עדיין בתהליך שיפור, ואיננו מצהירים על עמידה מלאה בתקן.'],
     ['תאריך הבדיקה האחרונה','19 בנובמבר 2026. זו בדיקה פנימית של צוות האתר ולא סקירה של מומחה נגישות מוסמך.'],
     ['מה נבדק',['בדיקה אוטומטית עם הכלי axe-core, לפי כללי WCAG 2.1 ברמות A ו־AA, בכל מסכי האתר, במסך רחב ובמסך טלפון, במצב בהיר ובמצב כהה.','חישוב ניגודיות לכל צמד צבעים בטקסט וברכיבי ממשק.','מעבר מלא במקלדת: Tab, Shift+Tab, Enter, רווח ו־Escape, כולל חלונות קופצים.','הגדלת טקסט עד 200% ובדיקת הקטנת תנועה לפי הגדרת מערכת ההפעלה.','לא נבדקנו עד כה עם קוראי מסך אמיתיים (NVDA, JAWS, VoiceOver).']],
     ['התאמות שבוצעו באתר',['מבנה כותרות ואזורי דף (כותרת, ניווט, תוכן ראשי, תחתית) עם שמות בעברית, וקישור לדילוג לתוכן.','כל הפקדים נגישים במקלדת, עם סימון מיקוד ברור בשני מצבי הצבע.','חלונות קופצים שומרים את המיקוד בתוכם, נסגרים ב־Escape ומחזירים את המיקוד.','תוויות לכל שדה וכפתור סמלים, והודעות מערכת מוקראות לקורא מסך.','כפתורים בגודל נוח למגע (לפחות 44 פיקסלים), וגודל טקסט מינימלי של 14 פיקסלים.','התאמה לבקשת מערכת ההפעלה להפחתת תנועה.']],
-    ['מגבלות ידועות',['לסרטוני השיעורים אין עדיין כתוביות ותמלול. בינתיים מופיעה הערה "תמלול זמין בקרוב".','תעתיקי ההגייה האוטומטיים למילים שאינן במילון הם משוערים.','בתרגול המהיר יש מגבלת זמן של שתי דקות שאי אפשר להאריך.','סיפורים שמשתמשים מוסיפים בעצמם עשויים לכלול תמונות בלי תיאור.']],
-    ['פניות בנושא נגישות',['צוות Lumi English','דואר אלקטרוני: info@lumienglish.co.il','נתקלתם בבעיית נגישות? כתבו לנו וציינו את העמוד, את הבעיה ואת הדפדפן. נשתדל לענות תוך 14 ימים.']],
+    ['מגבלות ידועות',['לסרטוני השיעורים יש כתוביות בעברית (כפתור "כתוביות" מתחת לסרטון). הן נוצרות אוטומטית מתסריט השיעור, ולכן ייתכנו בהן הבדלים קטנים מהנאמר, בעיקר במילים באנגלית שנאמרות בהגייה עברית. תמלול מלא עדיין לא זמין.','תעתיקי ההגייה האוטומטיים למילים שאינן במילון הם משוערים.','בתרגול המהיר יש מגבלת זמן של שתי דקות שאי אפשר להאריך.','סיפורים שמשתמשים מוסיפים בעצמם עשויים לכלול תמונות בלי תיאור.']],
+    ['פניות בנושא נגישות',['צוות Lumi English','דואר אלקטרוני: accessibility@lumienglish.co.il','נתקלתם בבעיית נגישות? כתבו לנו וציינו את העמוד, את הבעיה ואת הדפדפן. נשתדל לענות תוך 14 ימים.']],
     ['עדכון ההצהרה','טיוטה מתאריך 19 בנובמבר 2026.']]},
   contact:{title:'צור קשר', body:[['שאלות, בקשות ודיווחים','לכל שאלה, בקשה למחיקת נתונים, דיווח על בעיית נגישות או על תוכן, כתבו לנו:']]}
 };
@@ -745,7 +747,7 @@ function LegalModal({page, onClose}){
       <div className="p-5 sm:p-6 overflow-y-auto flex flex-col gap-5 legal" tabIndex={0} role="region" aria-label={P.title+': התוכן'} style={{paddingBottom:'max(24px, env(safe-area-inset-bottom,0px))'}}>
         {P.draft&&<p className="draft-banner" role="note">{P.draft}</p>}
         {P.body.map(([h,t])=><section key={h}><h3 className="text-lg font-extrabold mb-1">{h}</h3>{Array.isArray(t)?<ul className="legal-list leading-relaxed">{t.map(x=><li key={x}><Bi>{x}</Bi></li>)}</ul>:<p className="leading-relaxed"><Bi>{t}</Bi></p>}</section>)}
-        {page==='access'&&<div className="flex items-center gap-2 flex-wrap"><a className="btn btn-line px-4" href={'mailto:'+SUPPORT_EMAIL}>פניות בנושא נגישות:<bdi dir="ltr" lang="en">{SUPPORT_EMAIL}</bdi></a></div>}
+        {page==='access'&&<div className="flex items-center gap-2 flex-wrap"><a className="btn btn-line px-4" href={'mailto:'+ACCESS_EMAIL}>פניות בנושא נגישות:<bdi dir="ltr" lang="en">{ACCESS_EMAIL}</bdi></a></div>}
         {page==='contact'&&<div className="flex items-center gap-2 flex-wrap"><bdi dir="ltr" className="text-xl font-bold select-all rounded-xl bg-sunk px-4 py-2">{SUPPORT_EMAIL}</bdi>
           <button className="btn btn-line px-4" onClick={async()=>{ if(await copyText(SUPPORT_EMAIL)) setCopied(true); }}>{copied?'הועתק ✓':'העתקת הכתובת'}</button></div>}
       </div>
@@ -2411,6 +2413,12 @@ function LessonVideo({topic, lesson, state, actions, celebrate, onBack, eyebrow,
   const done=lessonDone(lesson,state); const [err,setErr]=useState(false); const [rate,setRate]=useState(1); const [play,setPlay]=useState(false); const ref=useRef(null);
   const idx=topic.lessons.findIndex(l=>l.id===lesson.id); const next=topic.lessons.slice(idx+1);
   useEffect(()=>{ if(ref.current) ref.current.playbackRate=rate; },[rate,play]);
+  // Hebrew captions (WebVTT, same origin: assets/captions/lessonNN.he.vtt). Off by default; the choice is remembered on this device.
+  const capNum=(/lesson(\d+)\.mp4/.exec(String(lesson.src||''))||[])[1]; const capSrc=capNum?'assets/captions/lesson'+capNum+'.he.vtt':'';
+  const [caps,setCaps]=useState(()=>{ try{ return localStorage.getItem('lumi_captions')==='1'; }catch(e){ return false; } });
+  const applyCaps=()=>{ try{ const tt=ref.current&&ref.current.textTracks; if(tt) for(let i=0;i<tt.length;i++) tt[i].mode=caps?'showing':'hidden'; }catch(e){} };
+  useEffect(()=>{ applyCaps(); const v=ref.current; if(!v) return; const h=()=>applyCaps(); v.addEventListener('loadedmetadata',h); v.addEventListener('play',h); return ()=>{ v.removeEventListener('loadedmetadata',h); v.removeEventListener('play',h); }; },[caps,play,err]);
+  const toggleCaps=()=>{ const n=!caps; setCaps(n); try{ localStorage.setItem('lumi_captions', n?'1':'0'); }catch(e){} };
   useEffect(()=>{ if(!done&&actions.noteOpen) actions.noteOpen(lesson.id); },[]);   // "continue where you stopped" on the home page
   const start=()=>{ setPlay(true); setTimeout(()=>{ try{ if(ref.current){ ref.current.playbackRate=rate; ref.current.play(); } }catch(e){} },50); };
   // ---- unit content (UNIT_CONTENT): the learning loop around the video ----
@@ -2432,18 +2440,19 @@ function LessonVideo({topic, lesson, state, actions, celebrate, onBack, eyebrow,
     <section className="card" style={{padding:0, overflow:'hidden'}}>
       <div style={{position:'relative', background:'#0F2742', aspectRatio:'16 / 9'}}>
         {err?<p className="p-8 text-center" style={{color:'#CFE0FF'}}>הסרטון לא נטען. בדקו את החיבור לאינטרנט ונסו שוב.</p>
-          :<video ref={ref} src={videoUrl(lesson.src)} poster={videoUrl(lesson.poster)||undefined} controls playsInline preload="metadata" onError={()=>setErr(true)} onEnded={()=>{}} style={{width:'100%', height:'100%', display:'block', background:'#0F2742'}} aria-label={lesson.title} title={lesson.title} aria-describedby="video-transcript-note"></video>}
+          :<video ref={ref} src={videoUrl(lesson.src)} poster={videoUrl(lesson.poster)||undefined} controls playsInline preload="metadata" onError={()=>setErr(true)} onEnded={()=>{}} style={{width:'100%', height:'100%', display:'block', background:'#0F2742'}} aria-label={lesson.title} title={lesson.title} aria-describedby="video-transcript-note">{capSrc&&<track kind="captions" srcLang="he" label="עברית" src={capSrc}/>}</video>}
         {!play&&!err&&<button type="button" onClick={start} aria-label={'הפעלת הסרטון: '+lesson.title} style={{position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', gap:14, padding:'0 20px 7%', background:'linear-gradient(to top, rgba(15,39,66,.92) 0%, rgba(15,39,66,.45) 45%, rgba(15,39,66,0) 75%)', border:0, cursor:'pointer', color:'#fff'}}>
           <span style={{width:68, height:68, borderRadius:'50%', background:'#fff', display:'grid', placeItems:'center', boxShadow:'0 10px 30px rgba(0,0,0,.35)'}}><svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" fill="#0F2742"/></svg></span>
           <span style={{fontWeight:800, fontSize:'clamp(18px,3.4vw,28px)'}}>{lesson.title}</span>
           <span style={{fontSize:'clamp(12px,2vw,15px)', opacity:.85}} className="num">{lesson.mins} דקות · שיעור וידאו</span></button>}
       </div>
       <div className="p-5 sm:p-6 flex flex-col gap-4">
-        <div><div className="eyebrow">{eyebrow||<>שיעור {idx+1} מתוך {topic.lessons.length} · {topic.title}</>}</div><h1 className="text-2xl font-extrabold mt-1">{lesson.title}</h1>{lesson.blurb&&<p className="text-muted leading-relaxed mt-1">{lesson.blurb}</p>}<p id="video-transcript-note" className="transcript-note mt-2">כתוביות ותמלול: תמלול זמין בקרוב.</p></div>
+        <div><div className="eyebrow">{eyebrow||<>שיעור {idx+1} מתוך {topic.lessons.length} · {topic.title}</>}</div><h1 className="text-2xl font-extrabold mt-1">{lesson.title}</h1>{lesson.blurb&&<p className="text-muted leading-relaxed mt-1">{lesson.blurb}</p>}<p id="video-transcript-note" className="transcript-note mt-2">{capSrc?'כתוביות בעברית זמינות בלחיצה על "כתוביות". תמלול מלא זמין בקרוב.':'כתוביות ותמלול: תמלול זמין בקרוב.'}</p></div>
         {lesson.learn&&<div><h2 className="font-extrabold mb-2">מה תלמדו בסרטון</h2><ul className="flex flex-col gap-2">{lesson.learn.map((x,k)=><li key={k} className="flex gap-3 items-start"><span className="w-6 h-6 rounded-full grid place-items-center shrink-0 mt-0.5" style={{background:'var(--primary)', color:'#fff'}} aria-hidden="true"><IconCheck size={14}/></span><span className="leading-relaxed">{x[0]}{x[1]&&<>{': '}<bdi dir="ltr" lang="en" className="book font-bold">{x[1]}</bdi></>}</span></li>)}</ul></div>}
         <div className="flex items-center gap-2 flex-wrap"><span className="text-sm text-muted">מהירות:</span>
           {[0.75,1,1.25].map(r=><button key={r} className="btn btn-ghost px-3 text-sm num" aria-pressed={rate===r} style={rate===r?{borderColor:'var(--primary)', color:'var(--primary)', fontWeight:800}:undefined} onClick={()=>setRate(r)}>{r}x</button>)}
-          <span className="text-xs text-muted me-auto"></span></div>
+          <span className="text-xs text-muted me-auto"></span>
+          {capSrc&&<button type="button" data-captions-toggle="1" className="btn btn-ghost px-4 text-sm" style={{minHeight:44, ...(caps?{borderColor:'var(--primary)', color:'var(--primary)', fontWeight:800}:{})}} aria-pressed={caps} onClick={toggleCaps}>{caps?'כתוביות: פועלות':'כתוביות: כבויות'}</button>}</div>
       </div>
     </section>
 

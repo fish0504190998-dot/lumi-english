@@ -72,6 +72,10 @@ fs.writeFileSync(path.join(DIST, "_headers"), [
   "/og-v*",
   "  Cache-Control: public, max-age=31536000, immutable",
   "",
+  "/assets/captions/*",
+  "  Content-Type: text/vtt; charset=utf-8",
+  "  Cache-Control: public, max-age=3600",
+  "",
 ].join("\n"));
 
 // safety: no video files may end up in dist
