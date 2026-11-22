@@ -141,7 +141,7 @@ const BADGES=[
   {id:'streak7', icon:'⚡', name:'רצף של 7 ימים', desc:'שבוע שלם ברצף', need:7, of:'streak'},
   {id:'streak30', icon:'👑', name:'רצף של 30 ימים', desc:'חודש שלם ברצף', need:30, of:'streak'},
   {id:'review50', icon:'🧠', name:'50 חזרות', desc:'50 כרטיסי חזרה מרווחת', need:50, of:'reviews'},
-  {id:'talk1', icon:'💬', name:'שיחה ראשונה', desc:'סיימת שיחה בקול', need:1, of:'talks'},
+  {id:'talk1', icon:'💬', name:'שיחה ראשונה', desc:'סיימת שיחה', need:1, of:'talks'},
   {id:'talkAll', icon:'🎤', name:'כל השיחות', desc:`סיימת את כל ${typeof TALKS!=='undefined'?TALKS.length:6} השיחות`, need:typeof TALKS!=='undefined'?TALKS.length:6, of:'talks'},
   {id:'sounds10', icon:'🔤', name:'10 צלילים', desc:'למדת 10 צירופי אותיות', need:10, of:'sounds'},
   {id:'mystory', icon:'✍️', name:'הסיפור שלי', desc:'הוספת סיפור משלך', need:1, of:'mine'},
@@ -270,10 +270,16 @@ function searchDict(raw){
   return res.slice(0,8);
 }
 
+/* ---------- feature switches (content filters such as NetFree/Etrog/Netiv dislike AI chat and cloud speech recognition) ----------
+   AI_ENABLED=false: no AI conversation (UI removed; /api/talk answers 410).
+   SPEECH_INPUT_ENABLED=false: no microphone features (Chrome sends the audio to Google for recognition). Listening to English (read-aloud) stays on. */
+const AI_ENABLED=false;
+const SPEECH_INPUT_ENABLED=false;
+
 /* ---------- voice input ---------- */
-const SR = typeof window!=='undefined' && (window.SpeechRecognition||window.webkitSpeechRecognition);
+const SR = SPEECH_INPUT_ENABLED && typeof window!=='undefined' && (window.SpeechRecognition||window.webkitSpeechRecognition);
 let DICTATION=null;
-try{ if(window.claude&&window.claude.use) window.claude.use('dictation').then(d=>{ DICTATION=d; }).catch(()=>{}); }catch(e){}
+try{ if(SPEECH_INPUT_ENABLED&&window.claude&&window.claude.use) window.claude.use('dictation').then(d=>{ DICTATION=d; }).catch(()=>{}); }catch(e){}
 const LISTEN_ERR={
   not_granted:'אין הרשאה למיקרופון. לחצו על סמל המנעול ליד כתובת האתר, אשרו מיקרופון ונסו שוב.',
   unavailable:'זיהוי דיבור לא זמין כאן. אפשר להקליד.',
@@ -618,7 +624,7 @@ function SubNav({tab, setTab}){
 /* ---------- one heading row for every main screen: same place, same height, same size; only the words change ---------- */
 const TAB_HEAD={
   courses:['קורסים','שלב אחרי שלב, בקצב שלך'], read:['סיפורים','קוראים אנגלית ולומדים מילים בדרך'], sounds:['צלילים','לשמוע ולהגות כל אות'],
-  practice:['תרגול','כמה דקות של חזרה בכל יום'], talk:['שיחה','להשתמש באנגלית, בקול'],
+  practice:['תרגול','כמה דקות של חזרה בכל יום'], talk:['שיחה','להשתמש באנגלית'],
   progress:['ההתקדמות שלי','מה למדת ואיפה אתה עומד'], group:['קבוצת לימוד','לומדים יחד עם חברים'], community:['סיפורי קהילה','סיפורים שכתבו לומדים']};
 const MOTIVATE=['כל מילה חדשה היא עוד צעד. אין צורך למהר.','מי שלומד קצת בכל יום, מגיע רחוק.','אין בושה לטעות. כך לומדים.','כמה דקות בשקט עם אנגלית, וזה מספיק להיום.','הסבלנות היא חצי מהלמידה.','חוזרים על מה שלמדת, והמילים נשארות.','אפשר להתחיל מחדש בכל רגע.','הלימוד הולך בקצב שלך.'];
 const dayIndex=()=>Math.floor((Date.now()-new Date(new Date().getFullYear(),0,0))/864e5);
@@ -716,7 +722,7 @@ const LEGAL={
     ['איזה מידע נאסף','כשנרשמים לשמירה בענן, נשמרים כתובת המייל והסיסמה המוצפנת שמסרתם (לצורך כניסה וקשר), התקדמות הלמידה (מילים מוכרות ומילים בלמידה, היסטוריית תרגול, רצף והישגים), הסיפורים והתמונות שהעליתם, ושם התצוגה שבחרתם. בלי הרשמה, כל המידע נשמר רק בדפדפן שלכם ולא נשלח אלינו.'],
     ['איפה המידע נשמר','המידע נשמר בתשתית ענן מאובטחת של Supabase. כל משתמש מבודד ברמת השורה, באמצעות מנגנון ההרשאות של Supabase: רק אתם יכולים לקרוא ולשנות את ההתקדמות שלכם. סיפורים שבחרתם לפרסם כציבוריים גלויים לכל המשתמשים יחד עם שם התצוגה שבחרתם, ללא כתובת המייל.'],
     ['שיתוף עם צדדים שלישיים','איננו מוכרים את המידע שלכם, ואיננו משתפים אותו עם מפרסמים או עם צדדים שלישיים לצורכי שיווק. המידע משמש רק להפעלת השירות.'],
-    ['שירותים חיצוניים','חיפוש מילה שאינה במילון המובנה נשלח לשירותי מילון ותרגום חיצוניים (dictionaryapi.dev ו־MyMemory). שיחה חופשית עם ה־AI שולחת את ההודעות שלכם לספק הבינה המלאכותית של האתר (Groq או Google Gemini) כדי לקבל תשובה, ואיננו שומרים אותן. זיהוי דיבור מתבצע על ידי הדפדפן שלכם. קבוצות לימוד שומרות שם, דמות ונקודות בלבד.'],
+    ['שירותים חיצוניים','חיפוש מילה שאינה במילון המובנה נשלח לשירותי מילון ותרגום חיצוניים (dictionaryapi.dev ו־MyMemory). באתר אין שיחה עם בינה מלאכותית ואין זיהוי דיבור, והמיקרופון אינו בשימוש. קבוצות לימוד שומרות שם, דמות ונקודות בלבד.'],
     ...(ANALYTICS_CODE?[['ספירת כניסות','האתר משתמש ב־GoatCounter, שירות סטטיסטיקה ידידותי לפרטיות, כדי לספור כניסות: דפים שנצפו, מדינה וסוג דפדפן. השירות לא משתמש בעוגיות, לא עוקב אחרי אנשים בנפרד, ולא נמכר או משותף לצורכי פרסום. הוא פועל רק באתר עצמו, לא בהתקדמות הלימוד שלכם.']]:[]),
     ['מחיקת חשבון ונתונים','אפשר למחוק את החשבון וכל הנתונים בכל רגע: נכנסים ללשונית "אני" ובוחרים "מחיקת החשבון שלי". המחיקה סופית. אפשר גם לבקש מחיקה במייל לכתובת שבעמוד "צור קשר".']]},
   access:{title:'הצהרת נגישות', draft:'טיוטה: הצהרה זו נכתבה כטיוטה לגרסת הדמו ועדיין לא אושרה על ידי בעל האתר. אין לראות בה הצהרה משפטית סופית.', body:[
@@ -724,7 +730,7 @@ const LEGAL={
     ['תאריך הבדיקה האחרונה','19 בנובמבר 2026. זו בדיקה פנימית של צוות האתר ולא סקירה של מומחה נגישות מוסמך.'],
     ['מה נבדק',['בדיקה אוטומטית עם הכלי axe-core, לפי כללי WCAG 2.1 ברמות A ו־AA, בכל מסכי האתר, במסך רחב ובמסך טלפון, במצב בהיר ובמצב כהה.','חישוב ניגודיות לכל צמד צבעים בטקסט וברכיבי ממשק.','מעבר מלא במקלדת: Tab, Shift+Tab, Enter, רווח ו־Escape, כולל חלונות קופצים.','הגדלת טקסט עד 200% ובדיקת הקטנת תנועה לפי הגדרת מערכת ההפעלה.','לא נבדקנו עד כה עם קוראי מסך אמיתיים (NVDA, JAWS, VoiceOver).']],
     ['התאמות שבוצעו באתר',['מבנה כותרות ואזורי דף (כותרת, ניווט, תוכן ראשי, תחתית) עם שמות בעברית, וקישור לדילוג לתוכן.','כל הפקדים נגישים במקלדת, עם סימון מיקוד ברור בשני מצבי הצבע.','חלונות קופצים שומרים את המיקוד בתוכם, נסגרים ב־Escape ומחזירים את המיקוד.','תוויות לכל שדה וכפתור סמלים, והודעות מערכת מוקראות לקורא מסך.','כפתורים בגודל נוח למגע (לפחות 44 פיקסלים), וגודל טקסט מינימלי של 14 פיקסלים.','התאמה לבקשת מערכת ההפעלה להפחתת תנועה.']],
-    ['מגבלות ידועות',['לסרטוני השיעורים אין עדיין כתוביות ותמלול. בינתיים מופיעה הערה "תמלול זמין בקרוב".','תעתיקי ההגייה האוטומטיים למילים שאינן במילון הם משוערים.','זיהוי הדיבור והמיקרופון תלויים בדפדפן ופועלים ב־Chrome וב־Edge.','בתרגול המהיר יש מגבלת זמן של שתי דקות שאי אפשר להאריך.','סיפורים שמשתמשים מוסיפים בעצמם עשויים לכלול תמונות בלי תיאור.']],
+    ['מגבלות ידועות',['לסרטוני השיעורים אין עדיין כתוביות ותמלול. בינתיים מופיעה הערה "תמלול זמין בקרוב".','תעתיקי ההגייה האוטומטיים למילים שאינן במילון הם משוערים.','בתרגול המהיר יש מגבלת זמן של שתי דקות שאי אפשר להאריך.','סיפורים שמשתמשים מוסיפים בעצמם עשויים לכלול תמונות בלי תיאור.']],
     ['פניות בנושא נגישות',['צוות Lumi English','דואר אלקטרוני: info@lumienglish.co.il','נתקלתם בבעיית נגישות? כתבו לנו וציינו את העמוד, את הבעיה ואת הדפדפן. נשתדל לענות תוך 14 ימים.']],
     ['עדכון ההצהרה','טיוטה מתאריך 19 בנובמבר 2026.']]},
   contact:{title:'צור קשר', body:[['שאלות, בקשות ודיווחים','לכל שאלה, בקשה למחיקת נתונים, דיווח על בעיית נגישות או על תוכן, כתבו לנו:']]}
@@ -756,8 +762,8 @@ function Footer({onOpen}){
 /* ---------- cloud account card + progress sync ---------- */
 const cloudPayload=s=>{ const {cloud, ...rest}=s; return {...rest, settings:{...rest.settings, voice:''}}; };
 
-/* ---------- free conversation with AI (Gemini through the site's /api/talk function) ---------- */
-const AI_OK=!LOCAL_ONLY && !/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname);
+/* ---------- free conversation (switched off: AI_ENABLED=false) ---------- */
+const AI_OK=AI_ENABLED && !LOCAL_ONLY && !/claudeusercontent\.com$|(^|\.)claude\.ai$/.test(location.hostname);
 const aiApi=()=>ON_SITE?'/api/talk':SITE_URL+'/api/talk';   // evaluated lazily: ON_SITE and SITE_URL are defined further down
 const AI_SCEN=[['free','💬','שיחה חופשית'],['smalltalk','👋','מה נשמע?'],['cafe','☕','בבית קפה'],['travel','🗺️','טיולים'],['shop','👕','בחנות'],['job','💼','ראיון עבודה'],['doctor','🩺','אצל הרופא']];
 const AI_ERR={ not_configured:'ה־AI עוד לא הופעל באתר. בעל האתר צריך להוסיף מפתח לשירות ה־AI.', anon_limit:'הגעתם למגבלה היומית של אורחים. התחברו לחשבון כדי להמשיך (למשתמשים רשומים יש יותר הודעות).', user_limit:'הגעתם למגבלה היומית. נמשיך מחר!',
@@ -827,7 +833,7 @@ function AiTalkCard({known, onStart}){
       <div className="flex flex-wrap gap-2" role="group" aria-label="בחירת נושא לשיחה">{AI_SCEN.map(([k,e,l])=><button key={k} className="filter-pill flex items-center gap-1.5" onClick={()=>onStart(k,lv)}><span aria-hidden="true">{e}</span>{l}</button>)}</div>
       <div className="flex items-center gap-2 flex-wrap text-sm"><span className="text-muted">רמת האנגלית:</span>
         <div className="seg" role="group" aria-label="רמת האנגלית">{LEVELS.map(L=><button key={L.n} aria-pressed={lv===L.n} onClick={()=>setLv(L.n)}>שלב {L.n}</button>)}</div></div>
-      <p className="text-xs text-muted">{session?'מחוברים: עד 80 הודעות ביום.':'כאורחים אפשר עד 15 הודעות ביום. עם חשבון יש עד 80.'} ההודעות נשלחות לספק הבינה המלאכותית של האתר (Groq או Google Gemini) כדי לקבל תשובה, ואינן נשמרות אצלנו.</p></>}
+      <p className="text-xs text-muted">{session?'מחוברים: עד 80 הודעות ביום.':'כאורחים אפשר עד 15 הודעות ביום. עם חשבון יש עד 80.'} ההודעות נשלחות לשירות חיצוני כדי לקבל תשובה, ואינן נשמרות אצלנו.</p></>}
   </section>);
 }
 
@@ -1171,8 +1177,8 @@ function DictBar({state, onOpen, onAdd, onHome, voiceRef, onListening, hideSm}){
             className="flex-1 min-w-0 h-full bg-transparent outline-none px-2 text-base" placeholder={listening?(micLang==='he'?'מקשיב… אמור מילה בעברית':'מקשיב… אמור מילה באנגלית'):'חיפוש מילה במילון'}
             value={q} onChange={e=>{ setQ(e.target.value); setOpen(true); setVmsg(''); }} onFocus={()=>setOpen(true)} onKeyDown={onKey}/>
           {q&&<button type="button" className="hit w-8 h-8 grid place-items-center text-muted rounded-lg" onClick={()=>{ setQ(''); inputRef.current&&inputRef.current.focus(); }} aria-label="ניקוי החיפוש"><IconX size={16}/></button>}
-          <button className="hit h-8 px-1.5 rounded-md text-xs font-bold shrink-0" style={{background:'var(--sunk)', color:'var(--ink)', minWidth:'2.8rem'}} onClick={()=>setMicLang(micLang==='he'?'en':'he')} aria-label={`שפת המיקרופון: ${micLang==='he'?'עברית':'אנגלית'}. לחיצה מחליפה`} title="באיזו שפה תדבר למיקרופון. לחיצה מחליפה">{micLang==='he'?'עברית':'אנגלית'}</button>
-          <button className={`hit w-10 h-10 grid place-items-center rounded-lg shrink-0 ${listening?'pop':''}`} style={listening?{background:'var(--bad)', color:'var(--surface)'}:{background:'var(--primary)', color:'var(--primary-ink)'}} onClick={voice} aria-label={listening?'עצירת ההקשבה':`חיפוש קולי: אמרו מילה ב${micLang==='he'?'עברית':'אנגלית'}`} aria-pressed={listening} title="חיפוש קולי"><IconMic size={18}/></button>
+          {SPEECH_INPUT_ENABLED&&<button className="hit h-8 px-1.5 rounded-md text-xs font-bold shrink-0" style={{background:'var(--sunk)', color:'var(--ink)', minWidth:'2.8rem'}} onClick={()=>setMicLang(micLang==='he'?'en':'he')} aria-label={`שפת המיקרופון: ${micLang==='he'?'עברית':'אנגלית'}. לחיצה מחליפה`} title="באיזו שפה תדבר למיקרופון. לחיצה מחליפה">{micLang==='he'?'עברית':'אנגלית'}</button>}
+          {SPEECH_INPUT_ENABLED&&<button className={`hit w-10 h-10 grid place-items-center rounded-lg shrink-0 ${listening?'pop':''}`} style={listening?{background:'var(--bad)', color:'var(--surface)'}:{background:'var(--primary)', color:'var(--primary-ink)'}} onClick={voice} aria-label={listening?'עצירת ההקשבה':`חיפוש קולי: אמרו מילה ב${micLang==='he'?'עברית':'אנגלית'}`} aria-pressed={listening} title="חיפוש קולי"><IconMic size={18}/></button>}
         </div>
         {(typed||vmsg)&&<div id="dict-results" role="listbox" className={`dropdown dict-drop absolute inset-x-0 top-full mt-1.5 card overflow-hidden ${(open&&(rows>0||typed))||vmsg?'show':''}`} style={{maxHeight:'70vh', overflowY:'auto'}}>
           {vmsg&&<div className="px-4 py-3 text-sm" style={{background:'var(--bad-soft)', color:'var(--bad)'}}><Bi>{vmsg}</Bi></div>}
@@ -1855,9 +1861,9 @@ function Practice({state, stories, known, actions, voice, celebrate, goRead, goT
       { k:'meaning', icon:<IconBook size={22}/>, title:'מה הפירוש?', desc:'רואים מילה באנגלית ובוחרים את התרגום מתוך ארבעה.', meta:'2 דק׳', off:noPool, run:()=>start('meaning') },
       { k:'listen', icon:<IconEar size={22}/>, title:'אתגר שמיעה', desc:'שומעים מילה בלי לראות אותה ובוחרים מה נאמר.', meta:'2 דק׳', off:noPool, run:()=>start('listen') },
       { k:'speak', icon:<IconMic size={22}/>, title:'תגיד את המילה', desc:'רואים מילה ואומרים אותה בקול. האתר בודק אם אמרת נכון.', meta:`${Math.min(pool.length,10)||0} מילים`, off:noPool, run:()=>setPhase('speak') },
-      { k:'talk', icon:<IconChat size={22}/>, title:'שיחות מוכנות', desc:'מקשיבים לשיחה קצרה ועונים בקול.', meta:`${TALKS.length} שיחות`, off:false, run:goTalk },
+      { k:'talk', icon:<IconChat size={22}/>, title:'שיחות מוכנות', desc:SPEECH_INPUT_ENABLED?'מקשיבים לשיחה קצרה ועונים בקול.':'מקשיבים לשיחה קצרה ועונים בהקלדה.', meta:`${TALKS.length} שיחות`, off:false, run:goTalk },
       { k:'lessons', icon:<IconPen size={22}/>, title:'תרגילי השיעורים', desc:'השלמת משפט, סידור משפט וכתיבה מהזיכרון, בתוך כל שיעור.', meta:'בקורסים', off:false, run:goCourses }
-    ];
+    ].filter(m=>m.k!=='speak'||SPEECH_INPUT_ENABLED);
     return (<div className="flex flex-col gap-4">
       
       <PracticeToday state={state}/>
@@ -2134,9 +2140,9 @@ function TalkChat({talk, voice, actions, onBack, onNext, settings, defaultName})
       <div ref={endRef}></div>
     </section>
     {!finished&&<div className="talk-composer card p-2 flex items-center gap-2" dir="ltr">
-      <button className={`btn w-14 h-14 shrink-0 ${listening?'pop':''}`} style={{borderRadius:'50%', background:listening?'var(--bad)':'var(--primary)', color:'var(--primary-ink)'}} onClick={mic} aria-label={listening?'עצירת ההקשבה':'דברו באנגלית'} aria-pressed={listening}><IconMic size={24}/></button>
+      {SPEECH_INPUT_ENABLED&&<button className={`btn w-14 h-14 shrink-0 ${listening?'pop':''}`} style={{borderRadius:'50%', background:listening?'var(--bad)':'var(--primary)', color:'var(--primary-ink)'}} onClick={mic} aria-label={listening?'עצירת ההקשבה':'דברו באנגלית'} aria-pressed={listening}><IconMic size={24}/></button>}
       <form className="flex-1 min-w-0 flex items-center gap-2" onSubmit={e=>{ e.preventDefault(); submit(text,false); }}>
-        <input id="talk-input" aria-label="התשובה שלך באנגלית" dir="ltr" className="field book text-lg flex-1 min-w-0" style={{minHeight:'48px'}} autoComplete="off" placeholder={listening?'מקשיב…':'דבר או הקלד את התשובה באנגלית'} value={text} onChange={e=>setText(e.target.value)}/>
+        <input id="talk-input" aria-label="התשובה שלך באנגלית" dir="ltr" className="field book text-lg flex-1 min-w-0" style={{minHeight:'48px'}} autoComplete="off" placeholder={listening?'מקשיב…':(SPEECH_INPUT_ENABLED?'דבר או הקלד את התשובה באנגלית':'הקלד את התשובה באנגלית')} value={text} onChange={e=>setText(e.target.value)}/>
         <button className="btn btn-primary h-12 px-4 shrink-0" disabled={!text.trim()}><span dir="rtl">שלח</span></button>
       </form>
     </div>}
@@ -2152,8 +2158,8 @@ function Talk({state, actions, voice, profileName, known}){
   return (<div className="flex flex-col gap-5">
     <section className="card p-5 sm:p-6 flex flex-col gap-3">
       <h2 className="text-2xl sm:text-3xl font-bold">מדברים אנגלית</h2>
-      <p className="text-muted leading-relaxed">שיחות קצרות מהחיים. לומי אומרת משפט, ואתה עונה בקול (כפתור המיקרופון) או בהקלדה. אם התשובה לא מתאימה, תקבל דוגמאות לתשובות טובות.</p>
-      <p className="text-sm text-muted">המיקרופון עובד בדפדפנים כרום ואדג'. בפעם הראשונה הדפדפן יבקש רשות.</p>
+      <p className="text-muted leading-relaxed">{SPEECH_INPUT_ENABLED?'שיחות קצרות מהחיים. לומי אומרת משפט, ואתה עונה בקול (כפתור המיקרופון) או בהקלדה. אם התשובה לא מתאימה, תקבל דוגמאות לתשובות טובות.':'שיחות קצרות מהחיים. לומי אומרת משפט, ואתה עונה בהקלדה. אם התשובה לא מתאימה, תקבל דוגמאות לתשובות טובות.'}</p>
+      {SPEECH_INPUT_ENABLED&&<p className="text-sm text-muted">המיקרופון עובד בדפדפנים כרום ואדג'. בפעם הראשונה הדפדפן יבקש רשות.</p>}
     </section>
     <h2 className="section-title">שיחות מוכנות</h2>
     <ul className="grid gap-3 sm:grid-cols-2">{TALKS.map(x=>(<li key={x.id} className="flex"><button type="button" onClick={()=>{ setId(x.id); window.scrollTo({top:0}); }} className="card card-btn card-lift p-4 flex items-center gap-4 text-start w-full">
@@ -2161,7 +2167,7 @@ function Talk({state, actions, voice, profileName, known}){
       <span className="flex-1 min-w-0"><span className="font-bold text-lg block">{x.he}</span><span className="text-sm text-muted block"><bdi dir="ltr" lang="en" className="book">{x.title}</bdi> · <span className="num">{x.steps.length}</span> שאלות · שלב <span className="num">{x.level}</span></span></span>
       {done[x.id]?<span className="tag" style={{background:'var(--good-soft)', color:'var(--good)'}}><IconCheck size={12}/>בוצע</span>:<IconChevL size={18}/>}
     </button></li>))}</ul>
-    <AiTalkCard known={known} onStart={(scen,lv)=>{ setAi({scen,lv,id:Math.random()}); window.scrollTo({top:0}); }}/>
+    {AI_ENABLED&&<AiTalkCard known={known} onStart={(scen,lv)=>{ setAi({scen,lv,id:Math.random()}); window.scrollTo({top:0}); }}/>}
   </div>);
 }
 
@@ -2226,7 +2232,7 @@ function LessonWords({course, topic, lesson, state, actions, voice, celebrate, o
     <div className="eyebrow">{topic.title}</div><h1 className="text-3xl font-extrabold">השיעור הושלם!</h1>
     <div className="num text-2xl font-extrabold">{pct}% <span className="text-base text-muted font-semibold">בחידון השיעור</span></div>
     <p className="text-muted">המילים נוספו לכרטיסי החזרה שלכם, ואפשר לחזור עליהן בלשונית "תרגול".</p>
-    <div className="flex gap-2 flex-wrap"><button className="btn btn-primary px-6" onClick={onBack}>חזרה לקורס</button><button className="btn btn-ghost px-4" onClick={()=>setPhase('speak')}><IconMic size={18}/>תרגול הגייה בקול</button></div></section>);
+    <div className="flex gap-2 flex-wrap"><button className="btn btn-primary px-6" onClick={onBack}>חזרה לקורס</button>{SPEECH_INPUT_ENABLED&&<button className="btn btn-ghost px-4" onClick={()=>setPhase('speak')}><IconMic size={18}/>תרגול הגייה בקול</button>}</div></section>);
   return (<div className="flex flex-col gap-4">
     <button className="btn btn-ghost px-3 text-sm self-start" onClick={onBack}><IconX size={16}/>חזרה לקורס</button>
     <section className="card p-5 flex flex-col gap-1"><div className="eyebrow">{topic.title}</div><h1 className="text-2xl font-extrabold">{lesson.title}</h1><p className="text-muted text-sm">הקשיבו לכל מילה ולחצו עליה כדי לשמוע שוב. אחר כך חידון קצר.</p></section>
@@ -2323,6 +2329,7 @@ function ExItem({e, voice, onDone, copySeen, onCopy}){
 }
 
 function ExerciseRunner({items, title, onFinish, onExit, voice, copySeen, onCopy}){
+  if(!SPEECH_INPUT_ENABLED) items=items.filter(e=>e.t!=='speak');   // no microphone exercises
   const scored=useMemo(()=>items.filter(e=>e.t!=='speak').length,[]);
   const [queue,setQueue]=useState(()=>items.map(e=>({e,first:true}))); const [i,setI]=useState(0); const [good,setGood]=useState(0);
   const cur=queue[i];
@@ -3308,6 +3315,8 @@ function Progress({state, stories, actions, streak, known, profile, toast, voice
       <div className="flex items-center gap-2 flex-wrap"><h2 id="me-about" className="section-title me-auto">מי אנחנו</h2></div>
       <p className="leading-relaxed"><bdi dir="ltr" lang="en">Lumi English</bdi> הוא מיזם ללימוד אנגלית בעברית, בצורה פשוטה, ברורה ונעימה.</p>
       <p className="text-sm text-muted">שאלות, הצעות ודיווח על תקלה: <a className="hit px-1 underline underline-offset-4 font-semibold text-primary" href={'mailto:'+SUPPORT_EMAIL}><bdi dir="ltr">{SUPPORT_EMAIL}</bdi></a></p>
+      <p className="text-sm text-muted">מכיר מישהו שרוצה ללמוד אנגלית? אפשר להעביר לו את הקישור.</p>
+      <div><button type="button" className="btn btn-line px-4" onClick={async()=>{ toast((await copyText('https://lumienglish.co.il'))?'הקישור לאתר הועתק':'לא הצלחתי להעתיק. הקישור: lumienglish.co.il'); }}><IconCopy size={16}/>העתקת קישור לאתר</button></div>
     </section>
 
     <nav className="card p-2 sm:p-3" aria-label="מידע, פרטיות ונגישות">
