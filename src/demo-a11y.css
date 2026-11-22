@@ -614,3 +614,6 @@ main > div > .lx-narrow, main .mx-auto > .lx-narrow{ max-width:860px; }
   .hc-stage[data-unit-zero] .hc-card{ grid-template-columns:minmax(0,340px) minmax(0,1fr); grid-template-rows:auto 1fr auto; grid-template-areas:"poster head" "poster learn" "poster btn"; gap:6px 20px; padding:14px; align-items:start; }
   .hc-stage[data-unit-zero] .hc-card-btn{ justify-self:start; align-self:end; min-width:220px; }
 }
+
+/* lesson video captions (Hebrew WebVTT): big, high contrast, readable over any frame */
+video::cue{ font-family:Heebo,Arial,sans-serif; font-size:clamp(16px,2.6vw,26px); line-height:1.35; color:#fff; background:rgba(0,0,0,.82); }
