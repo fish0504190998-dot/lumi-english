@@ -9,7 +9,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DIST = path.join(ROOT, "dist");
 const STATIC = [
   "manifest.webmanifest", "favicon.svg", "favicon-32.png", "apple-touch-icon.png",
-  "icon-192.png", "icon-512.png", "og.png", "og-v2.png", "og-v3.jpg", "robots.txt", "sitemap.xml",
+  "icon-192.png", "icon-512.png", "og.png", "og-v2.png", "og-v3.jpg", "robots.txt", "sitemap.xml", "privacy.html",
 ];
 const DEFAULT_VIDEO_BASE = "https://lumienglish.co.il";
 
