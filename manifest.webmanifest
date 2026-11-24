@@ -1,10 +1,12 @@
 {
+  "id": "/",
   "name": "Lumi English",
   "short_name": "Lumi",
   "description": "לומדים אנגלית בכיף, כל יום",
   "lang": "he",
   "dir": "rtl",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#FAF9F6",
   "theme_color": "#2F7D73",
