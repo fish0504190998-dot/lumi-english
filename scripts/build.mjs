@@ -45,6 +45,10 @@ if (fs.existsSync(ASSETS)) {
   fs.cpSync(ASSETS, path.join(DIST, "assets"), { recursive: true, filter: (src) => !/\.(mp4|webm|mov|m4v)$/i.test(src) });
 }
 
+// Android app link (Digital Asset Links): lets the Play Store app open this site without the browser address bar
+const WK = path.join(ROOT, ".well-known");
+if (fs.existsSync(WK)) fs.cpSync(WK, path.join(DIST, ".well-known"), { recursive: true });
+
 // single-page-app fallback (Pages Functions under /api keep priority over this rule)
 fs.writeFileSync(path.join(DIST, "_redirects"), "/* /index.html 200\n");
 fs.writeFileSync(path.join(DIST, "_headers"), [
@@ -71,6 +75,11 @@ fs.writeFileSync(path.join(DIST, "_headers"), [
   "",
   "/og-v*",
   "  Cache-Control: public, max-age=31536000, immutable",
+  "",
+  "/.well-known/assetlinks.json",
+  "  Content-Type: application/json",
+  "  Access-Control-Allow-Origin: *",
+  "  Cache-Control: public, max-age=3600",
   "",
   "/assets/captions/*",
   "  Content-Type: text/vtt; charset=utf-8",

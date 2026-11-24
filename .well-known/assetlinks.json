@@ -1,0 +1,9 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "il.co.lumienglish.app",
+        "sha256_cert_fingerprints": ["47:6F:BC:63:1A:B6:8E:13:D3:EC:A7:40:69:37:A5:7D:93:40:05:24:15:D0:B7:44:BC:1C:8F:E2:A0:17:81:7F"]
+      }
+    }]
+
