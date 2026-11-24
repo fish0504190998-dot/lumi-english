@@ -1,9 +1,1 @@
-[{
-      "relation": ["delegate_permission/common.handle_all_urls"],
-      "target": {
-        "namespace": "android_app",
-        "package_name": "il.co.lumienglish.app",
-        "sha256_cert_fingerprints": ["47:6F:BC:63:1A:B6:8E:13:D3:EC:A7:40:69:37:A5:7D:93:40:05:24:15:D0:B7:44:BC:1C:8F:E2:A0:17:81:7F"]
-      }
-    }]
-
+[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"android_app","package_name":"il.co.lumienglish.app","sha256_cert_fingerprints":["52:54:66:E7:A1:8A:87:BE:BC:12:66:C4:F9:79:63:21:9D:A5:2D:25:28:4C:84:A0:02:99:DA:1A:C5:A9:34:D0","47:6F:BC:63:1A:B6:8E:13:D3:EC:A7:40:69:37:A5:7D:93:40:05:24:15:D0:B7:44:BC:1C:8F:E2:A0:17:81:7F"]}}]
